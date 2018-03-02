@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+		
+		<title>service loader 测试</title>
+		<script type="text/javascript">
+//			window.console={
+//				log:function(info){
+//					alert(JSON.stringify(info));
+//				},
+//				error:function(){
+//					this.log.apply(this,arguments);
+//				}
+//			};
+		</script>
+		<script src="../../xsloader.js" type="text/javascript" data-xsloader-main='./loader-service.js' data-xsloader-conf="./config.js" charset="utf-8"></script>
+	</head>
+
+	<body>
+
+		<h1>Hello World!</h1>
+		<pre id="logDiv">
+			
+		</pre>
+	</body>
+	<script type="text/javascript">
+		
+		window.divLog = function(obj) {
+			var div = document.getElementById("logDiv");
+			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+			txt = txt.replace(/\\r\\n|\\n/g, "\n");
+			txt = txt.replace(/\\t/g, "    ");
+
+			div.innerText = div.innerText + "\n" + txt;
+		};
+		divLog("1...");
+		xsloader.onError = function(code, errinfo) {
+			divLog(errinfo);
+		}
+		divLog("2...");
+	</script>
+
+</html>
