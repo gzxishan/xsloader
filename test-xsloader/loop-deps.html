@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>循环依赖测试</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+		
+		<script src="../xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+
+		<h1>Hello World!</h1>
+		<pre id="logDiv">
+			
+		</pre>
+	</body>
+	<script type="text/javascript">
+		
+		window.divLog = function(obj) {
+			var div = document.getElementById("logDiv");
+			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+			txt = txt.replace(/\\r\\n|\\n/g, "\n");
+			txt = txt.replace(/\\t/g, "    ");
+
+			div.innerText = div.innerText + "\n" + txt;
+		};
+
+		xsloader.onError = function(code, errinfo) {
+			divLog(errinfo);
+		}
+
+		define("A", ["C"], function(C) {
+			return {
+				name: "A"
+			};
+		});
+		define("B", ["A"], function(A) {
+			divLog(A);
+			return {
+				name: "B"
+			};
+		});
+		define("C", ["B"], function(B) {
+			divLog(B);
+			return {
+				name: "C"
+			};
+		});
+		xsloader({
+			properties: {
+
+			},
+			autoUrlArgs: false,
+			urlArgs: {
+				"*": "v=1.0.0"
+			},
+			paths: {
+				"$": "http://lib.sinaapp.com/js/jquery/2.0.2/jquery-2.0.2.min.js"
+			},
+			depsPaths: {
+
+			},
+			deps: {
+				"*": "$"
+			}
+		});
+
+		require(["C"], function(C) {
+			divLog(C);
+		}).then({
+			onError: function(err) {
+				divLog(err);
+			}
+		});
+	</script>
+
+</html>
