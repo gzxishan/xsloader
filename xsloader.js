@@ -1,5 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
+ * latest:2018-3-9
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -674,7 +675,10 @@ var LOGE, LOGI;
 
 		var module = theDefinedMap[moduleName] ? theDefinedMap[moduleName] : _newModule(moduleName, null, callback, thenOption.thatInvoker);
 		deps = cache.deps = module.mayAddDeps(deps);
-		module.ignoreAspect = cache.ignoreAspect;
+
+		if(cache.name && xsloader._ignoreAspect_[cache.name] || cache.selfname && xsloader._ignoreAspect_[cache.selfname]) {
+			module.ignoreAspect = true;
+		}
 
 		if(cache.selfname && cache.selfname != cache.name) {
 			var moduleSelf = theDefinedMap[cache.selfname];
@@ -957,9 +961,6 @@ var LOGE, LOGI;
 										cache.name = cache.name || scriptData.name;
 									}
 
-									if(cache.name && xsloader._ignoreAspect_[cache.name] || cache.selfname && xsloader._ignoreAspect_[cache.selfname]) {
-										cache.ignoreAspect = true;
-									}
 									//TODO STRONG 对应的脚本应该是先执行
 									_onScriptComplete(cache.name, cache, aurl);
 								}
@@ -1063,16 +1064,21 @@ var LOGE, LOGI;
 
 				var obj = this._object;
 				var invoker = this._invoker
+				var that=this;
+
+				function addTheAttrs(theObj) {
+					theObj._invoker_ = invoker;
+					if(theObj._module_) {
+						theObj._modules_ = theObj._modules_ || [];
+						theObj._modules_.push(theObj._module_);
+					}
+					theObj._module_ = that._module_;
+					return theObj;
+				}
 
 				if(isObject(obj)) {
 					var newObj = _clone(obj);
-					newObj._invoker_ = invoker;
-					if(newObj._module_) {
-						newObj._modules_ = newObj._modules_ || [];
-						newObj._modules_.push(newObj._module_);
-					}
-					newObj._module_ = this._module_;
-					this._object = newObj;
+					this._object = addTheAttrs(newObj);
 				} else if(isFunction(obj) && !module.ignoreAspect) {
 					var fun = (function(originFun) {
 						var f = function() {
@@ -1080,10 +1086,10 @@ var LOGE, LOGI;
 						};
 						return f;
 					})(obj);
-					this._object = fun;
 					for(var x in obj) {
 						fun[x] = obj[x];
 					}
+					this._object = fun;
 				}
 			},
 			_object: null,
@@ -1700,7 +1706,7 @@ var LOGE, LOGI;
 				onError: function(isError) {
 					_thenOption.onError(isError);
 				},
-				orderDep:_thenOption.orderDep,
+				orderDep: _thenOption.orderDep,
 				thatInvoker: thatInvoker
 			});
 		});
@@ -1984,6 +1990,7 @@ var LOGE, LOGI;
 (function() {
 	//TODO STRONG 修复部分常用库
 	xsloader._ignoreAspect_['jquery'] = true;
+	xsloader._ignoreAspect_['xshttp'] = true;
 })();
 
 (function() { //TODO STRONG css插件
@@ -2146,16 +2153,18 @@ var LOGE, LOGI;
 	/**
 	 * 加载json对象
 	 */
-	define("json", {
-		pluginMain: function(name, onload, onerror, config) {
-			this.invoker().require(["text!" + name], function(txt) {
-				var json = xsParseJson(txt);
-				onload(json);
-			}).then({
-				onError: function(errinfo) {
-					onerror(errinfo);
-				}
-			});
+	define("json", ["xshttp"], {
+		pluginMain: function(name, onload, onerror, config, http) {
+			url = this.invoker().getUrl(name, true);
+			http().url(url)
+				.handleAs("json")
+				.ok(function(json) {
+					onload(json);
+				})
+				.fail(function(err) {
+					onerror(err);
+				})
+				.done();
 		}
 	});
 })();
