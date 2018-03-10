@@ -58,7 +58,7 @@
   		===pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...)
   	}
   	===（1）define([pluginName],[deps],pluginObject)
-  	===（2）onload(result),onerror(err)
+  	===（2）onload(result，ignoreAspect=true),onerror(err)
   	===调用格式：'moduleX!pluginArgs'
  7、[deps]格式[module1,module2,...,moduleX],moduleX格式类型
   	===（1）*******版本模块:moduleX="group:project:version",如"cn.xishan:demo:1.0"。

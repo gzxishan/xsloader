@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-9
+ * latest:2018-3-10
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1061,10 +1061,12 @@ var LOGE, LOGI;
 			_module_: null,
 			initInvoker: function() {
 				//确保正确的invoker
-
+				if(module.ignoreAspect) {
+					return;
+				}
 				var obj = this._object;
 				var invoker = this._invoker
-				var that=this;
+				var that = this;
 
 				function addTheAttrs(theObj) {
 					theObj._invoker_ = invoker;
@@ -1077,9 +1079,8 @@ var LOGE, LOGI;
 				}
 
 				if(isObject(obj)) {
-					var newObj = _clone(obj);
-					this._object = addTheAttrs(newObj);
-				} else if(isFunction(obj) && !module.ignoreAspect) {
+					this._object = addTheAttrs(_clone(obj));
+				} else if(isFunction(obj)) {
 					var fun = (function(originFun) {
 						var f = function() {
 							return originFun.apply(invoker, arguments);
@@ -1091,6 +1092,7 @@ var LOGE, LOGI;
 					}
 					this._object = fun;
 				}
+
 			},
 			_object: null,
 			_setDepModuleObjectGen: function(obj) {
@@ -1112,7 +1114,8 @@ var LOGE, LOGI;
 				this._setDepModuleObjectGen(module.moduleObject);
 				if(pluginArgs !== undefined) {
 					var that = this;
-					var onload = function(result) {
+					var onload = function(result, ignoreAspect) {
+						module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
 						that._setDepModuleObjectGen(result);
 						relyCallback(that);
 					};
