@@ -135,3 +135,6 @@
 		"configName":{}
 	}
 }
+四、properties
+1.通过${properName}引用字符串属性
+2.通过$[properName]引用属性（对应的属性值可以是任何类型,除了undefined）

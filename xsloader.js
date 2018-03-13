@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-10
+ * latest:2018-3-11
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1558,13 +1558,26 @@ var LOGE, LOGI;
 			return configObject;
 		}
 
-		var _replaceStringPropertiesExp = new RegExp("\\$\\{([^\\{]*)\\}");
+		var REPLACE_STRING_PROPERTIES_EXP = new RegExp("\\$\\{([^\\{]+)\\}");
+		var ALL_TYPE_PROPERTIES_EXP = new RegExp("^\\$\\[([^\\[\\]]+)\\]$");
 
 		function replaceStringProperties(string, properties, property) {
+			var rs;
 			var str = string;
+			rs = ALL_TYPE_PROPERTIES_EXP.exec(str);
+			if(rs) {
+				var propKey = rs[1];
+				var propValue = properties[propKey];
+				if(propValue === undefined) {
+					return str;
+				} else {
+					return propValue;
+				}
+			}
+
 			var result = "";
 			while(true) {
-				var rs = _replaceStringPropertiesExp.exec(str);
+				rs = REPLACE_STRING_PROPERTIES_EXP.exec(str);
 				if(!rs) {
 					result += str;
 					break;
@@ -1606,9 +1619,9 @@ var LOGE, LOGI;
 				}
 				for(var x in obj) {
 					if(property) {
-						if(typeof obj[x] !== "string") {
-							throw new Error("property " + x + " only can be string!");
-						}
+//						if(typeof obj[x] !== "string") {
+//							throw new Error("property " + x + " only can be string!");
+//						}
 						property.propertyKey = x;
 					}
 					obj[x] = replaceProperties(obj[x], property);
