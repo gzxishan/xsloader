@@ -52,6 +52,7 @@
         ===（4）getName(),当前模块或插件的名称
         ===（5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
     2）模块对象有属性_module_,_module_.setToAll(attrName,attrValue)或_module_.setToAll(obj)给所有模块实例设置属性
+    3）xsloader.clear_module_(modules)：删除_module_,_modules_
  6、plugin定义：
   	pluginObject格式:
   	{

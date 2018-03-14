@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-11
+ * latest:2018-3-14
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -148,7 +148,10 @@ var LOGE, LOGI;
 	};
 
 	function isObject(it) {
-		return it !== undefined && (typeof it == "object") || ostring.call(it) === '[object Object]' && it !== undefined;
+		if(it === null || it === undefined) {
+			return false;
+		}
+		return(typeof it == "object") || ostring.call(it) === '[object Object]';
 	}
 
 	function isString(it) {
@@ -1619,9 +1622,9 @@ var LOGE, LOGI;
 				}
 				for(var x in obj) {
 					if(property) {
-//						if(typeof obj[x] !== "string") {
-//							throw new Error("property " + x + " only can be string!");
-//						}
+						//						if(typeof obj[x] !== "string") {
+						//							throw new Error("property " + x + " only can be string!");
+						//						}
 						property.propertyKey = x;
 					}
 					obj[x] = replaceProperties(obj[x], property);
@@ -1898,6 +1901,16 @@ var LOGE, LOGI;
 		return _propertiesDeal(obj, properties);
 	};
 
+	xsloader.clear_module_ = function() {
+		var modules = arguments;
+		for(var i = 0; i < modules.length; i++) {
+			if(modules[i]) {
+				delete modules[i]._module_;
+				delete modules[i]._modules_;
+			}
+		}
+	}
+
 	xsloader.extend = function(target) {
 		for(var i = 1; i < arguments.length; i++) {
 			var obj = arguments[i];
@@ -1916,6 +1929,9 @@ var LOGE, LOGI;
 	};
 
 	xsloader.extendDeep = function(target) {
+		if(!target) {
+			return target;
+		}
 		for(var i = 1; i < arguments.length; i++) {
 			var obj = arguments[i];
 			if(!obj) {
@@ -2936,6 +2952,8 @@ var LOGE, LOGI;
 				} else {
 					originReceive = origin.originReceive;
 				}
+				listener.originReceive = originReceive;
+				origin.originSend = xsloader.isString(origin.originSend) ? origin.originSend : origin.originSend();
 				listeners[id] = listener;
 				if(!isActive) {
 					listener.uniqueId = randId();
@@ -2991,8 +3009,8 @@ var LOGE, LOGI;
 					LOGI("send from:" + location.href);
 					LOGI(msg);
 				}
-				var originStr = xsloader.isString(origin.originSend) ? origin.originSend : origin.originSend();
-				source.postMessage(xsJson2String(msg), originStr);
+				var originStr = origin.originSend;
+				source.postMessage(xsJson2String(msg), origin.originSend);
 			};
 
 			handle.sendConn = function(id, data, source, origin, conndata) {
