@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-14
+ * latest:2018-3-16
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -3383,7 +3383,7 @@ var LOGE, LOGI;
 		 * connected:function(sender,conndata)
 		 * conndata:
 		 */
-		define("xsmsg", api);
+		define("xsmsg", api);//TODO STRONG xsmsg
 		define("XsLinkedList", function() {
 			return LinkedList;
 		});
