@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-16
+ * latest:2018-3-16-2
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -125,13 +125,13 @@ var LOGE, LOGI;
 			};
 		}
 
-		if(!Array.prototype.pushAll) {
-			Array.prototype.pushAll = function(arr) {
+		if(!Array.pushAll) {
+			Array.pushAll = function(thiz,arr) {
 				if(!isArray(arr)) {
 					throw new Error("not array:" + arr);
 				}
 				for(var i = 0; i < arr.length; i++) {
-					this.push(arr[i]);
+					thiz.push(arr[i]);
 				}
 			};
 		}
@@ -205,6 +205,18 @@ var LOGE, LOGI;
 		return id;
 	};
 	randId = _randId;
+	try {
+		window._xsloader_randid_2_ = _randId;
+		var win = window;
+		while(true) {
+			if(win.parent && win != win.parent && win.parent._xsloader_randid_2_) {
+				randId = win.parent._xsloader_randid_2_;
+				win = win.parent;
+			} else {
+				break;
+			}
+		}
+	} catch(e) {}
 
 	function _startsWith(str, starts) {
 		if(!(typeof str == "string")) {
@@ -3383,7 +3395,7 @@ var LOGE, LOGI;
 		 * connected:function(sender,conndata)
 		 * conndata:
 		 */
-		define("xsmsg", api);//TODO STRONG xsmsg
+		define("xsmsg", api); //TODO STRONG xsmsg
 		define("XsLinkedList", function() {
 			return LinkedList;
 		});
@@ -3527,8 +3539,8 @@ var LOGE, LOGI;
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
 		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
 
-		conf.service.resUrls && resUrls.pushAll(conf.service.resUrls);
-		localConfig !== conf && localConfig.service.resUrls && resUrls.pushAll(localConfig.service.resUrls);
+		conf.service.resUrls && Array.pushAll(resUrls,conf.service.resUrls);
+		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls,localConfig.service.resUrls);
 
 		xsloader._resUrlBuilder = function(groupModule) {
 			var as = [];
