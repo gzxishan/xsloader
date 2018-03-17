@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-16-2
+ * latest:2018-3-17
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -126,7 +126,7 @@ var LOGE, LOGI;
 		}
 
 		if(!Array.pushAll) {
-			Array.pushAll = function(thiz,arr) {
+			Array.pushAll = function(thiz, arr) {
 				if(!isArray(arr)) {
 					throw new Error("not array:" + arr);
 				}
@@ -758,8 +758,15 @@ var LOGE, LOGI;
 				var len = prefix.length;
 				for(var i = 0; i < deps.length; i++) {
 					var m = deps[i];
+					var pluginIndex = m.indexOf("!");
+					var pluginName = null;
+					if(pluginIndex >= 0) {
+						pluginName = m.substring(0, pluginIndex+1);
+						m = m.substring(pluginIndex + 1);
+					}
 					if(_startsWith(m, prefix)) {
-						deps[i] = replaceStr + m.substring(len);
+						var dep = replaceStr + m.substring(len);
+						deps[i] = pluginName ? pluginName + dep : dep;
 					}
 				}
 			}
@@ -3539,8 +3546,8 @@ var LOGE, LOGI;
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
 		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
 
-		conf.service.resUrls && Array.pushAll(resUrls,conf.service.resUrls);
-		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls,localConfig.service.resUrls);
+		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
+		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
 		xsloader._resUrlBuilder = function(groupModule) {
 			var as = [];
