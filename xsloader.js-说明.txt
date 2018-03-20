@@ -117,10 +117,10 @@
 		localConfigVar:"lconfig",//应用配置的window变量名称
 		globalConfigVar:"gconfig",//服务端配置的window变量名称,
 		before:function(){
-			LOGI("before:" + name);
+			console.log("before:" + name);
 		},
 		after:function(){
-			LOGI("after:" + name);
+			console.log("after:" + name);
 		}
 	},
 	service:{
