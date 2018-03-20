@@ -101,7 +101,7 @@
     getPathWithRelative()
     appendArgs2Url()
     queryString2ParamsMap()
-    Array.indexOf(elem,[fromIndex])
+    Array.prototype.indexOf(elem,[fromIndex])
     Array.pushAll(arr)
 三、xsloader配置服务
 1.data-xsloader-conf相对于当前页面地址的配置路径，data-xsloader-conf2相对于加载器地址的配置路径。

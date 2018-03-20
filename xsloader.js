@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-16
+ * latest:2018-3-19
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -33,7 +33,6 @@ var appendArgs2Url;
  */
 var queryString2ParamsMap;
 //////
-var LOGE, LOGI;
 (function(global, setTimeout) {
 	//ie9
 	try {
@@ -82,13 +81,6 @@ var LOGE, LOGI;
 		}
 	}
 
-	LOGE = function(obj) {
-		console.error(obj);
-	};
-	LOGI = function(obj) {
-		console.log(obj);
-	};
-
 	try {
 		if(!String.prototype.indexOf) {
 			String.prototype.indexOf = function(str, offset) {
@@ -125,18 +117,18 @@ var LOGE, LOGI;
 			};
 		}
 
-		if(!Array.prototype.pushAll) {
-			Array.prototype.pushAll = function(arr) {
+		if(!Array.pushAll) {
+			Array.pushAll = function(thiz, arr) {
 				if(!isArray(arr)) {
 					throw new Error("not array:" + arr);
 				}
 				for(var i = 0; i < arr.length; i++) {
-					this.push(arr[i]);
+					thiz.push(arr[i]);
 				}
 			};
 		}
 	} catch(e) {
-		LOGE(e);
+		console.error(e);
 	}
 
 	function isArray(it) {
@@ -176,7 +168,7 @@ var LOGE, LOGI;
 			try {
 				return JSON.parse(str);
 			} catch(e) {
-				//LOGE(e);
+				//console.error(e);
 				throw e;
 			}
 		}
@@ -205,6 +197,18 @@ var LOGE, LOGI;
 		return id;
 	};
 	randId = _randId;
+	try {
+		window._xsloader_randid_2_ = _randId;
+		var win = window;
+		while(true) {
+			if(win.parent && win != win.parent && win.parent._xsloader_randid_2_) {
+				randId = win.parent._xsloader_randid_2_;
+				win = win.parent;
+			} else {
+				break;
+			}
+		}
+	} catch(e) {}
 
 	function _startsWith(str, starts) {
 		if(!(typeof str == "string")) {
@@ -746,8 +750,15 @@ var LOGE, LOGI;
 				var len = prefix.length;
 				for(var i = 0; i < deps.length; i++) {
 					var m = deps[i];
+					var pluginIndex = m.indexOf("!");
+					var pluginName = null;
+					if(pluginIndex >= 0) {
+						pluginName = m.substring(0, pluginIndex + 1);
+						m = m.substring(pluginIndex + 1);
+					}
 					if(_startsWith(m, prefix)) {
-						deps[i] = replaceStr + m.substring(len);
+						var dep = replaceStr + m.substring(len);
+						deps[i] = pluginName ? pluginName + dep : dep;
 					}
 				}
 			}
@@ -919,9 +930,9 @@ var LOGE, LOGI;
 
 								for(var i2 = 0; i2 < defQueue.length; i2++) {
 									var cache = defQueue[i2];
-									//									LOGI(cache);
-									//									LOGI(scriptData);
-									//									LOGI("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
+									//									console.log(cache);
+									//									console.log(scriptData);
+									//									console.log("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
 
 									var isCurrentScriptDefine = true;
 									scriptData.node.src;
@@ -1043,8 +1054,13 @@ var LOGE, LOGI;
 			var url;
 			if(relativeUrl === undefined) {
 				url = this.getAbsoluteUrl();
-			} else {
-				url = _getPathWithRelative(this.getAbsoluteUrl(), relativeUrl);
+			} else if(_startsWith(relativeUrl, ".") ||
+				_startsWith(relativeUrl, "/") ||
+				_startsWith(relativeUrl, "http:") || _startsWith(relativeUrl, "https:")){
+					url = _getPathWithRelative(this.getAbsoluteUrl(), relativeUrl);
+				}
+			else {
+				url =theConfig.baseUrl+relativeUrl;
 			}
 			if(appendArgs) {
 				return theConfig.dealUrl(this.getName(), url);
@@ -1129,7 +1145,7 @@ var LOGE, LOGI;
 					try {
 						that._object.pluginMain.apply(this.thiz, args);
 					} catch(e) {
-						LOGI(e);
+						console.log(e);
 						onerror(e);
 					}
 				} else {
@@ -1174,14 +1190,14 @@ var LOGE, LOGI;
 						currentDefineModuleQueue.pop();
 					} catch(e) {
 						currentDefineModuleQueue.pop();
-						LOGI(e);
+						console.log(e);
 						this.setState("error", e);
 						return;
 					}
 				} else {
 					obj = this.callback;
 					if(this.moduleObject !== undefined) {
-						LOGI("ignore moudule named '" + moduleMap.name + "':" + obj);
+						console.log("ignore moudule named '" + moduleMap.name + "':" + obj);
 					}
 				}
 				if(this.moduleObject === undefined) { //用于支持exports
@@ -1329,7 +1345,7 @@ var LOGE, LOGI;
 			each(leafs, function(leaf) {
 				var infos = [];
 				genErrs(leaf, infos);
-				LOGE("load module error stack:" + infos.reverse().join("-->"));
+				console.error("load module error stack:" + infos.reverse().join("-->"));
 			});
 
 		};
@@ -1500,7 +1516,7 @@ var LOGE, LOGI;
 			} else if(xsloader.onError) {
 				xsloader.onError(-17, isErr);
 			} else {
-				LOGE(isErr);
+				console.error(isErr);
 			}
 		}
 		var cache = {
@@ -1527,8 +1543,8 @@ var LOGE, LOGI;
 				if(cache.src) {
 					var node = document.currentScript;
 					if(node && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName && cache.src != theLoaderUrl && cache.src != thePageUrl) {
-						LOGE("unknown js script module:" + xsJson2String(cache));
-						LOGE(node);
+						console.error("unknown js script module:" + xsJson2String(cache));
+						console.error(node);
 						return;
 					}
 				}
@@ -1737,7 +1753,7 @@ var LOGE, LOGI;
 						theDefinedMap[dep] && theDefinedMap[dep].printOnNotDefined();
 					});
 				}
-				LOGE("require timeout:'" + deps + "'," + callback);
+				console.error("require timeout:'" + deps + "'," + callback);
 			}
 		}, theConfig.waitSeconds * 1000);
 
@@ -1883,7 +1899,7 @@ var LOGE, LOGI;
 		try {
 			rs = fun();
 		} catch(e) {
-			LOGI(e);
+			console.log(e);
 		}
 		if(rs === undefined || rs === null) {
 			rs = defaultReturn;
@@ -2305,7 +2321,7 @@ var LOGE, LOGI;
 				} else if(typeof failCallback == "function") {
 					failCallback(err);
 				} else {
-					LOGE(err);
+					console.error(err);
 				}
 			}, extraErr);
 		};
@@ -2492,7 +2508,7 @@ var LOGE, LOGI;
 					if(typeof failCallback == "function") {
 						failCallback(e);
 					} else {
-						LOGE(e);
+						console.error(e);
 					}
 				}
 			}
@@ -3006,8 +3022,8 @@ var LOGE, LOGI;
 					msg.type = type;
 				}
 				if(isDebug("postMessageBridge")) {
-					LOGI("send from:" + location.href);
-					LOGI(msg);
+					console.log("send from:" + location.href);
+					console.log(msg);
 				}
 				var originStr = origin.originSend;
 				source.postMessage(xsJson2String(msg), origin.originSend);
@@ -3036,8 +3052,8 @@ var LOGE, LOGI;
 
 			window.addEventListener('message', function(event) {
 				if(isDebug("postMessageBridge")) {
-					LOGI("receive from:" + event.origin + ",current:" + location.href);
-					LOGI(event.data);
+					console.log("receive from:" + event.origin + ",current:" + location.href);
+					console.log(event.data);
 				}
 				var data = xsParseJson(event.data);
 				if(!data) {
@@ -3074,7 +3090,7 @@ var LOGE, LOGI;
 							}
 						}
 					} catch(e) {
-						LOGE(e);
+						console.error(e);
 					}
 				} else { //来自于被动者（后发消息者），则my:id要从activeListenerMyIds中取
 					var ids = activeListenerMyIds[data.uniqueId];
@@ -3090,12 +3106,12 @@ var LOGE, LOGI;
 									}
 								}
 							} catch(e) {
-								LOGE(e);
+								console.error(e);
 							}
 						}
 					} else {
 						if(isDebug("postMessageBridge")) {
-							LOGI("active handle for cmd '" + cmd + "' is null!");
+							console.log("active handle for cmd '" + cmd + "' is null!");
 						}
 					}
 				}
@@ -3130,8 +3146,8 @@ var LOGE, LOGI;
 					return element.id = id;
 				});
 				if(isDebug("CommunicationUnit")) {
-					LOGI("received before:");
-					LOGI(ele);
+					console.log("received before:");
+					console.log(ele);
 				}
 				var cached = ele ? true : false;
 				if(!cached) {
@@ -3279,14 +3295,14 @@ var LOGE, LOGI;
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
-				LOGI((isActive ? "active" : "") + " connected:" + cmd);
+				console.log((isActive ? "active" : "") + " connected:" + cmd);
 			};
 			if(connectedCallback) {
 				unit.onConnectedListener = function(conndata) {
 					try {
 						connectedCallback(this.send, conndata);
 					} catch(e) {
-						LOGE(e);
+						console.error(e);
 					}
 				};
 			}
@@ -3295,7 +3311,7 @@ var LOGE, LOGI;
 					try {
 						receiveCallback(data, this.send);
 					} catch(e) {
-						LOGE(e);
+						console.error(e);
 					}
 				};
 			}
@@ -3383,12 +3399,12 @@ var LOGE, LOGI;
 		 * connected:function(sender,conndata)
 		 * conndata:
 		 */
-		define("xsmsg", api);//TODO STRONG xsmsg
+		define("xsmsg", api); //TODO STRONG xsmsg
 		define("XsLinkedList", function() {
 			return LinkedList;
 		});
 	} catch(e) {
-		LOGE(e);
+		console.error(e);
 	}
 })();
 
@@ -3429,10 +3445,10 @@ var LOGE, LOGI;
 				localConfigVar: "lconfig",
 				globalConfigVar: "gconfig",
 				before: function(name) {
-					LOGI("before:" + name);
+					console.log("before:" + name);
 				},
 				after: function(name) {
-					LOGI("after:" + name);
+					console.log("after:" + name);
 				}
 			},
 			service: {
@@ -3488,7 +3504,7 @@ var LOGE, LOGI;
 							}
 
 							if(!loader) {
-								LOGE("unknown loader:" + loaderName + "");
+								console.error("unknown loader:" + loaderName + "");
 								return;
 							}
 
@@ -3500,7 +3516,7 @@ var LOGE, LOGI;
 				}
 			},
 			fail: function(err) {
-				LOGE("load " + tag + " config err:url=" + url + ",errinfo=" + xsJson2String(err));
+				console.error("load " + tag + " config err:url=" + url + ",errinfo=" + err);
 			}
 		}).done();
 	}
@@ -3515,7 +3531,7 @@ var LOGE, LOGI;
 
 			var loader = localConfig.loader[loaderName];
 			if(!loader) {
-				LOGE("unknown local loader:" + loaderName);
+				console.error("unknown local loader:" + loaderName);
 				return;
 			}
 			initXsloader(mainName, mainPath, loader, localConfig, localConfig);
@@ -3527,8 +3543,8 @@ var LOGE, LOGI;
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
 		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
 
-		conf.service.resUrls && resUrls.pushAll(conf.service.resUrls);
-		localConfig !== conf && localConfig.service.resUrls && resUrls.pushAll(localConfig.service.resUrls);
+		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
+		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
 		xsloader._resUrlBuilder = function(groupModule) {
 			var as = [];
@@ -3557,7 +3573,7 @@ var LOGE, LOGI;
 		xsloader(loader);
 		require([mainName], function(main) {}).then({
 			onError: function(err) {
-				LOGE("invoke main err:" + err);
+				console.error("invoke main err:" + err);
 			}
 		});
 	}
