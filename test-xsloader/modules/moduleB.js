@@ -10,7 +10,7 @@ define(["text!./moduleB.js", "css!./css/css1.css", "css!./css/css2.css"], functi
 
 //define([],{});
 
-define('moduleC', ["exports", "json!./json/json1.json", "json!./json/json2.json", "util/ready.js!"], function(exports, json1, json2) {
+define('moduleC', ["exports", "json!./json/json1.json", "json!./json/json2.json", "../lib/util/ready.js!"], function(exports, json1, json2) {
 	divLog("C:");
 	divLog(json1);
 	divLog(json2);

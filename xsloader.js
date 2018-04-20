@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-3-19
+ * latest:2018-04-20
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -403,6 +403,8 @@ var queryString2ParamsMap;
 	///////
 	var theContext;
 	var theConfig;
+	var INNER_DEPS_PLUGIN = "__inner_deps__";
+	var innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 	var globalDefineQueue = []; //在config之前，可以调用define来定义模块
 	var theDefinedMap = {}; //存放原始模块
 	var theLoaderScript = document.currentScript || scripts("xsloader");
@@ -714,14 +716,30 @@ var queryString2ParamsMap;
 			}
 			module.finish([]); //递归结束
 		} else {
+
+			for(var i = 0; i < deps.length; i++) {
+				var dep = deps[i];
+				if(isArray(dep)) {
+					//内部的模块顺序加载
+					var modName = "inner_order_" + randId();
+					innerDepsMap[modName] = {
+						deps: dep,
+						orderDep: !(dep.length > 0 && dep[0] === false)
+					};
+					deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
+				}
+			}
 			_everyRequired(data, thenOption, module, deps, function(depModules) {
 				var args = [];
+				var depPoduleArgs = [];
 				each(depModules, function(depModule) {
+					depPoduleArgs.push(depModule);
 					args.push(depModule && depModule.moduleObject());
 				});
 				if(aurl) { //绑定绝对路径
 					theDefinedMap[aurl] = module;
 				}
+				args.push(depPoduleArgs);
 				module.finish(args);
 			}, function(isError) {
 				thenOption.onError(isError);
@@ -765,6 +783,7 @@ var queryString2ParamsMap;
 		}
 	}
 
+	//callback(depModules)
 	function _everyRequired(data, thenOption, module, deps, callback, errCallback) {
 
 		if(data.isError) {
@@ -1056,11 +1075,10 @@ var queryString2ParamsMap;
 				url = this.getAbsoluteUrl();
 			} else if(_startsWith(relativeUrl, ".") ||
 				_startsWith(relativeUrl, "/") ||
-				_startsWith(relativeUrl, "http:") || _startsWith(relativeUrl, "https:")){
-					url = _getPathWithRelative(this.getAbsoluteUrl(), relativeUrl);
-				}
-			else {
-				url =theConfig.baseUrl+relativeUrl;
+				_startsWith(relativeUrl, "http:") || _startsWith(relativeUrl, "https:")) {
+				url = _getPathWithRelative(this.getAbsoluteUrl(), relativeUrl);
+			} else {
+				url = theConfig.baseUrl + relativeUrl;
 			}
 			if(appendArgs) {
 				return theConfig.dealUrl(this.getName(), url);
@@ -1180,7 +1198,7 @@ var queryString2ParamsMap;
 			moduleObject: undefined, //依赖模块对应的对象
 			invoker: thatInvoker,
 			instances: [], //所有模块实例
-			finish: function(args) {
+			finish: function(args, depPoduleArgs) {
 				this.depModules = args;
 				var obj;
 				if(isFunction(this.callback)) {
@@ -1552,7 +1570,7 @@ var queryString2ParamsMap;
 
 			}
 
-			if(data.isRequire) {
+			if(data.isRequire || data.isNow) {
 				asyncCall(function() {
 					_onScriptComplete(name, cache, cache.src);
 				});
@@ -1984,6 +2002,49 @@ var queryString2ParamsMap;
 	xsloader.isFunction = isFunction;
 	xsloader.asyncCall = asyncCall;
 
+	(function() { //TODO STRONG 内部依赖加载插件
+		define(INNER_DEPS_PLUGIN, {
+			pluginMain: function(depId, onload, onerror, config, http) {
+				var depsObj = innerDepsMap[depId];
+				var deps = depsObj.deps;
+				delete innerDepsMap[depId];
+				this.invoker().require(deps, function() {
+					var args = [];
+					for(var k = 0; k < arguments.length; k++) {
+						args.push(arguments[k]);
+					}
+					onload(args);
+				}).then({
+					orderDep: depsObj.orderDep
+				});
+			}
+		});
+	})();
+
+	(function() { //TODO STRONG name插件
+		define("name", {
+			pluginMain: function(arg, onload, onerror, config, http) {
+				var index = arg.indexOf("==");
+				if(index == -1) {
+					onerror("expected:==");
+					return;
+				}
+				var moduleName = arg.substring(0, index);
+				var dep = arg.substring(index + 2);
+				this.invoker().require([dep], function(mod, depPoduleArgs) {
+
+					if(theDefinedMap[moduleName]) {
+						onerror("already define:" + moduleName);
+						return;
+					}
+					theDefinedMap[moduleName] = depPoduleArgs[0].module;
+					onload(mod);
+				});
+			}
+		});
+
+	})();
+
 	/**
 	 * 得到属性
 	 * @param {Object} obj
@@ -2192,6 +2253,25 @@ var queryString2ParamsMap;
 					onerror(err);
 				})
 				.done();
+		}
+	});
+
+})();
+
+(function() { //TODO STRONG window插件,用于添加模块到window对象中
+	define("window", {
+		pluginMain: function(arg, onload, onerror, config, http) {
+			var index = arg.indexOf("==");
+			if(index == -1) {
+				onerror("expected:==");
+				return;
+			}
+			var moduleName = arg.substring(0, index);
+			var dep = arg.substring(index + 2);
+			this.invoker().require([dep], function(mod, depPoduleArgs) {
+				window[moduleName]=mod;
+				onload(mod);
+			});
 		}
 	});
 
