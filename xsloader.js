@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-20
+ * latest:2018-04-26
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -722,9 +722,13 @@ var queryString2ParamsMap;
 				if(isArray(dep)) {
 					//内部的模块顺序加载
 					var modName = "inner_order_" + randId();
+					var isOrderDep=!(dep.length > 0 && dep[0] === false);
+					if(dep.length > 0 && (dep[0] === false||dep[0] === true)){
+						dep=dep.slice(1);
+					}
 					innerDepsMap[modName] = {
 						deps: dep,
-						orderDep: !(dep.length > 0 && dep[0] === false)
+						orderDep: isOrderDep
 					};
 					deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
 				}
