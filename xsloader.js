@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-26
+ * latest:2018-04-26 11:02
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -705,6 +705,7 @@ var queryString2ParamsMap;
 		module.aurl = aurl;
 		module.setState("loaded");
 		module.callback = callback;
+		module.setInstanceType(thenOption.instance||theConfig.instance);
 
 		if(!module.aurl && data.isRequire) {
 			module.aurl = theLoaderUrl;
@@ -722,9 +723,9 @@ var queryString2ParamsMap;
 				if(isArray(dep)) {
 					//内部的模块顺序加载
 					var modName = "inner_order_" + randId();
-					var isOrderDep=!(dep.length > 0 && dep[0] === false);
-					if(dep.length > 0 && (dep[0] === false||dep[0] === true)){
-						dep=dep.slice(1);
+					var isOrderDep = !(dep.length > 0 && dep[0] === false);
+					if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
+						dep = dep.slice(1);
 					}
 					innerDepsMap[modName] = {
 						deps: dep,
@@ -1119,8 +1120,10 @@ var queryString2ParamsMap;
 					return theObj;
 				}
 
+				var isSingle = module.instanceType != "clone";
+
 				if(isObject(obj)) {
-					this._object = addTheAttrs(_clone(obj));
+					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
 				} else if(isFunction(obj)) {
 					var fun = (function(originFun) {
 						var f = function() {
@@ -1202,6 +1205,10 @@ var queryString2ParamsMap;
 			moduleObject: undefined, //依赖模块对应的对象
 			invoker: thatInvoker,
 			instances: [], //所有模块实例
+			instanceType:"single",
+			setInstanceType:function(instanceType){
+				this.instanceType=instanceType;
+			},
 			finish: function(args, depPoduleArgs) {
 				this.depModules = args;
 				var obj;
@@ -1298,7 +1305,14 @@ var queryString2ParamsMap;
 		moduleMap.dealInstance = function(moduleInstance) {
 			this.instances.push(moduleInstance);
 			var _module_ = {
-				setToAll: function(name, value) {
+				opId: null,
+				setToAll: function(name, value, opId) {
+					if(opId!==undefined&&opId==this.opId){
+						return;//防止循环
+					}
+					opId = opId || randId();
+					this.opId=opId;
+					
 					var obj = {};
 					if(isString(name)) {
 						obj[name] = value;
@@ -1317,7 +1331,7 @@ var queryString2ParamsMap;
 						}
 						if(mobj._modules_) {
 							each(mobj._modules_, function(_m_) {
-								_m_.setToAll(name, value);
+								_m_.setToAll(name, value,opId);
 							});
 						}
 					});
@@ -1818,6 +1832,7 @@ var queryString2ParamsMap;
 			autoUrlArgs: function() {
 				return false;
 			},
+			instance: "single",
 			dealtDeps: {},
 			dealProperties: function(obj) {
 				return _propertiesDeal(obj, option.properties);
@@ -2273,7 +2288,7 @@ var queryString2ParamsMap;
 			var moduleName = arg.substring(0, index);
 			var dep = arg.substring(index + 2);
 			this.invoker().require([dep], function(mod, depPoduleArgs) {
-				window[moduleName]=mod;
+				window[moduleName] = mod;
 				onload(mod);
 			});
 		}

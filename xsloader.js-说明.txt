@@ -12,6 +12,7 @@
 	defaultVersion:{},//==={'group:project':'versionName'}默认包名配置
 	waitSeconds:10,//===加载模块默认等待时间，默认10秒,
 	autoUrlArgs:false,//===是否自动添加地址参数，防止缓存。1）为true或false；2）function,返回true或false
+	instance:"single",//===对模块对象的默认处理方式，取值为single(默认)或clone
 	properties:{//===所有的字符串中都可以使用，格式为${propertyName}
 		name1:anyType,
 		name2:{
@@ -42,7 +43,7 @@
   	===（2）define(callback)
   	===（3）define(moduleName,[deps],content)
   	===（4）define(moduleName,content)
-  	===（5）define.then({onError:function(err),orderDep:false}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
+  	===（5）define.then({onError:function(err),orderDep:false,instance:"single",}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
  5、1）回调函数的this对象、pluginMain函数与模块函数(define(...function(){return function}))的this对象、模块对象(为define(...Object))的_invoker_
         ===（1）require(...),同require,但具有当前js文件的路径信息、从而可以使用相对路径
         ===（2）getUrl(relativeUrl,appendArgs)：appendArgs表示是否加上urlArgs参数。
