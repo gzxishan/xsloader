@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-26 11:02
+ * latest:2018-04-27 15:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -345,8 +345,8 @@ var queryString2ParamsMap;
 				_result += (p + "=" + myUrl.params[p] + "&");
 			}
 
-			if(_result.substr(_result.length - 1) == "&") {
-				_result = _result.substr(0, _result.length - 1);
+			if(_result.substring(_result.length - 1) == "&") {
+				_result = _result.substring(0, _result.length - 1);
 			}
 
 			if(myUrl.hash != "") {
@@ -1643,9 +1643,9 @@ var queryString2ParamsMap;
 					} else if(property) {
 						property.has = true;
 					}
-					result += str.substr(0, rs.index);
+					result += str.substring(0, rs.index);
 					result += properties[propKey];
-					str = str.substr(rs.index + rs[0].length);
+					str = str.substring(rs.index + rs[0].length);
 				}
 			}
 			return result;
