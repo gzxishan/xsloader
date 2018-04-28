@@ -80,8 +80,6 @@
  10、内置函数:
   1）xsloader.extend(target,obj1,obj2,...);
     xsloader.extendDeep(target,obj1,obj2,...);
-       option说明：
-         inners:['service','main','data.names']
     xsloader.config()得到当前配置对象
     xsloader.script()得到xsloader的script对象
     xsloader.clone(obj,isDeep)

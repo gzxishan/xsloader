@@ -1,6 +1,6 @@
 /**
  * @license xsloader-1.0.0 Copyright 贵州溪山科技有限公司.
- * Released under Apache License Version 2.0, https://github.com/gzxishan/xsloader/blob/master/LICENSE
+ * Apache License Version 2.0, https://github.com/gzxishan/xsloader/blob/master/LICENSE
  */
 
 /**
