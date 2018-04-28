@@ -1,4 +1,9 @@
 /**
+ * @license xsloader-1.0.0 Copyright 贵州溪山科技有限公司.
+ * Released under Apache License Version 2.0, https://github.com/gzxishan/xsloader/blob/master/LICENSE
+ */
+
+/**
  * 溪山科技浏览器端js模块加载器。
  * latest:2018-04-28 14:08
  * version:1.0.0
