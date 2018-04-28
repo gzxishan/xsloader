@@ -1,6 +1,6 @@
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-27 15:30
+ * latest:2018-04-28 14:08
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -705,7 +705,7 @@ var queryString2ParamsMap;
 		module.aurl = aurl;
 		module.setState("loaded");
 		module.callback = callback;
-		module.setInstanceType(thenOption.instance||theConfig.instance);
+		module.setInstanceType(thenOption.instance || theConfig.instance);
 
 		if(!module.aurl && data.isRequire) {
 			module.aurl = theLoaderUrl;
@@ -736,15 +736,15 @@ var queryString2ParamsMap;
 			}
 			_everyRequired(data, thenOption, module, deps, function(depModules) {
 				var args = [];
-				var depPoduleArgs = [];
+				var depModuleArgs = [];
 				each(depModules, function(depModule) {
-					depPoduleArgs.push(depModule);
+					depModuleArgs.push(depModule);
 					args.push(depModule && depModule.moduleObject());
 				});
 				if(aurl) { //绑定绝对路径
 					theDefinedMap[aurl] = module;
 				}
-				args.push(depPoduleArgs);
+				args.push(depModuleArgs);
 				module.finish(args);
 			}, function(isError) {
 				thenOption.onError(isError);
@@ -1205,11 +1205,11 @@ var queryString2ParamsMap;
 			moduleObject: undefined, //依赖模块对应的对象
 			invoker: thatInvoker,
 			instances: [], //所有模块实例
-			instanceType:"single",
-			setInstanceType:function(instanceType){
-				this.instanceType=instanceType;
+			instanceType: "single",
+			setInstanceType: function(instanceType) {
+				this.instanceType = instanceType;
 			},
-			finish: function(args, depPoduleArgs) {
+			finish: function(args, depModuleArgs) {
 				this.depModules = args;
 				var obj;
 				if(isFunction(this.callback)) {
@@ -1307,12 +1307,12 @@ var queryString2ParamsMap;
 			var _module_ = {
 				opId: null,
 				setToAll: function(name, value, opId) {
-					if(opId!==undefined&&opId==this.opId){
-						return;//防止循环
+					if(opId !== undefined && opId == this.opId) {
+						return; //防止循环
 					}
 					opId = opId || randId();
-					this.opId=opId;
-					
+					this.opId = opId;
+
 					var obj = {};
 					if(isString(name)) {
 						obj[name] = value;
@@ -1331,7 +1331,7 @@ var queryString2ParamsMap;
 						}
 						if(mobj._modules_) {
 							each(mobj._modules_, function(_m_) {
-								_m_.setToAll(name, value,opId);
+								_m_.setToAll(name, value, opId);
 							});
 						}
 					});
@@ -2040,23 +2040,26 @@ var queryString2ParamsMap;
 		});
 	})();
 
+	/**
+	 * 格式:name!moduleName=>>modulePath
+	 */
 	(function() { //TODO STRONG name插件
 		define("name", {
 			pluginMain: function(arg, onload, onerror, config, http) {
-				var index = arg.indexOf("==");
+				var index = arg.indexOf("=>>");
 				if(index == -1) {
-					onerror("expected:==");
+					onerror("expected:=>>");
 					return;
 				}
 				var moduleName = arg.substring(0, index);
-				var dep = arg.substring(index + 2);
-				this.invoker().require([dep], function(mod, depPoduleArgs) {
+				var dep = arg.substring(index + 3);
+				this.invoker().require([dep], function(mod, depModuleArgs) {
 
 					if(theDefinedMap[moduleName]) {
 						onerror("already define:" + moduleName);
 						return;
 					}
-					theDefinedMap[moduleName] = depPoduleArgs[0].module;
+					theDefinedMap[moduleName] = depModuleArgs[0].module;
 					onload(mod);
 				});
 			}
@@ -2277,19 +2280,58 @@ var queryString2ParamsMap;
 
 })();
 
+/**
+ * 格式：window!varNameInWindow=>>modulePath
+ */
 (function() { //TODO STRONG window插件,用于添加模块到window对象中
 	define("window", {
 		pluginMain: function(arg, onload, onerror, config, http) {
-			var index = arg.indexOf("==");
+			var index = arg.indexOf("=>>");
 			if(index == -1) {
-				onerror("expected:==");
+				onerror("expected:=>>");
 				return;
 			}
 			var moduleName = arg.substring(0, index);
-			var dep = arg.substring(index + 2);
-			this.invoker().require([dep], function(mod, depPoduleArgs) {
+			var dep = arg.substring(index + 3);
+			this.invoker().require([dep], function(mod, depModuleArgs) {
 				window[moduleName] = mod;
 				onload(mod);
+			});
+		}
+	});
+
+})();
+
+/**
+ * 格式:withdeps!modulePath=>>[deps]
+ */
+(function() { //TODO STRONG withdeps插件,用于设置依赖
+	define("withdeps", {
+		pluginMain: function(arg, onload, onerror, config, http) {
+			var index = arg.indexOf("=>>");
+			if(index == -1) {
+				onerror("expected:=>>");
+				return;
+			}
+			var moduleName = arg.substring(0, index);
+			var depsStr = arg.substring(index + 3);
+			var deps;
+			try {
+				deps = xsParseJson(depsStr);
+				if(!xsloader.isArray(deps)) {
+					onerror("deps is not Array:" + depStr);
+					return;
+				}
+			} catch(e) {
+				onerror("deps error:" + depStr);
+				return;
+			}
+			this.invoker().require([
+				[false].concat(deps), moduleName
+			], function(_deps, mod, depModuleArgs) {
+				onload(mod);
+			}).then({
+				orderDep: true
 			});
 		}
 	});
