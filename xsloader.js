@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-28 14:08
+ * latest:2018-04-29 12:38
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -2130,14 +2130,12 @@ var queryString2ParamsMap;
 })();
 
 (function() { //TODO STRONG css插件
-
 	/*
 	 * Require-CSS RequireJS css! loader plugin
 	 * 0.1.8
 	 * Guy Bedford 2014
 	 * MIT
 	 */
-
 	/*
 	 *
 	 * Usage:
@@ -2270,7 +2268,7 @@ var queryString2ParamsMap;
 (function() { //TODO STRONG text插件
 	define("text", ["xshttp"], {
 		pluginMain: function(name, onload, onerror, config, http) {
-			url = this.invoker().getUrl(name, true);
+			var url = this.invoker().getUrl(name, true);
 			http().url(url)
 				.handleAs("text")
 				.ok(function(text) {
@@ -2349,7 +2347,7 @@ var queryString2ParamsMap;
 	 */
 	define("json", ["xshttp"], {
 		pluginMain: function(name, onload, onerror, config, http) {
-			url = this.invoker().getUrl(name, true);
+			var url = this.invoker().getUrl(name, true);
 			http().url(url)
 				.handleAs("json")
 				.ok(function(json) {
