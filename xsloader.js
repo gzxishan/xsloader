@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-29 12:38
+ * latest:2018-04-29 16:46
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1935,7 +1935,9 @@ var queryString2ParamsMap;
 			_define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
 		});
 	};
-
+	xsloader.define=define;
+	xsloader.require=require;
+	xsloader.randId=randId;
 	xsloader.tryCall = function(fun, defaultReturn) {
 		var rs;
 		try {

@@ -82,6 +82,9 @@
     xsloader.extendDeep(target,obj1,obj2,...);
     xsloader.config()得到当前配置对象
     xsloader.script()得到xsloader的script对象
+    xsloader.define
+    xsloader.require
+    xsloader.randId
     xsloader.clone(obj,isDeep)
     xsloader.isArray(arg)
     xsloader.isString(arg)
