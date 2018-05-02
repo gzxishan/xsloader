@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-04-29 16:46
+ * latest:2018-05-02 12:27
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -3095,7 +3095,7 @@ var queryString2ParamsMap;
 			var listeners = {};
 			var activeListenerMyIds = {}; //inactiveUniqueId:[id]
 
-			//callback:function(data,source,type,optionData)
+			//callback:function(data,source,type,optionData,originStr)
 			//origin.originSend,origin.originReceive
 			//isActive为false表示被动者,被动者是根据cmd发送、且发给所有的，主动者根据id发送.
 			handle.listen = function(cmd, origin, callback, isActive) {
@@ -3232,7 +3232,7 @@ var queryString2ParamsMap;
 						var callback = listener ? listener.callback : null;
 						if(callback) {
 							if(listener.originReceive(originStr, optionData)) {
-								callback(cmdData, source, type, optionData);
+								callback(cmdData, source, type, optionData,originStr);
 							}
 						}
 					} catch(e) {
@@ -3248,7 +3248,7 @@ var queryString2ParamsMap;
 								var callback = listener ? listener.callback : null;
 								if(callback) {
 									if(listener.originReceive(originStr, optionData)) {
-										callback(cmdData, source, type, optionData);
+										callback(cmdData, source, type, optionData,originStr);
 									}
 								}
 							} catch(e) {
@@ -3330,7 +3330,7 @@ var queryString2ParamsMap;
 				postMessageBridge.remove(handleId);
 			};
 
-			var handleId = postMessageBridge.listen(cmd, origin, function(msg, _source, type, optionData) {
+			var handleId = postMessageBridge.listen(cmd, origin, function(msg, _source, type, optionData,originStr) {
 				if(type == "conn") { //发起连接
 					source = _source;
 					isConnected = true;
@@ -3338,13 +3338,17 @@ var queryString2ParamsMap;
 						conned: true
 					}, source, origin, optionData, conndata);
 					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata);
+						thiz.onConnectedListener.call(thiz, optionData.conndata,{
+							originStr:originStr
+						});
 					}
 					sendTop();
 				} else if(type == "conned") { //已经连接
 					isConnected = true;
 					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata);
+						thiz.onConnectedListener.call(thiz, optionData.conndata,{
+							originStr:originStr
+						});
 					}
 					sendTop();
 				} else if(type == "response") { //消息回复,移除消息
@@ -3358,7 +3362,9 @@ var queryString2ParamsMap;
 
 					//if(!receivedBefore) { //防止重复接收
 					if(thiz.onReceiveListener) {
-						thiz.onReceiveListener.call(thiz, msg.data);
+						thiz.onReceiveListener.call(thiz, msg.data,{
+							originStr:originStr
+						});
 					}
 					//}
 
@@ -3444,18 +3450,18 @@ var queryString2ParamsMap;
 				console.log((isActive ? "active" : "") + " connected:" + cmd);
 			};
 			if(connectedCallback) {
-				unit.onConnectedListener = function(conndata) {
+				unit.onConnectedListener = function(conndata,extra) {
 					try {
-						connectedCallback(this.send, conndata);
+						connectedCallback(this.send, conndata,extra);
 					} catch(e) {
 						console.error(e);
 					}
 				};
 			}
 			if(receiveCallback) {
-				unit.onReceiveListener = function(data) {
+				unit.onReceiveListener = function(data,extra) {
 					try {
-						receiveCallback(data, this.send);
+						receiveCallback(data, this.send,extra);
 					} catch(e) {
 						console.error(e);
 					}
@@ -3537,13 +3543,19 @@ var queryString2ParamsMap;
 		};
 
 		/**
+		 * *******************
 		 * option参数
+		 *********************
 		 * cmd:
 		 * originSend:String||function(origin){}//默认只能是同域
 		 * originReceive:String||function(origin,data){}//默认只能是同域
-		 * listener: function(data,sender)
-		 * connected:function(sender,conndata)
+		 * listener: function(data,sender,extra)
+		 * connected:function(sender,conndata,extra)
 		 * conndata:
+		 **************
+		 * 回调的extra参数
+		 **************
+		 * originStr:对方页面的地址
 		 */
 		define("xsmsg", api); //TODO STRONG xsmsg
 		define("XsLinkedList", function() {
