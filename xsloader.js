@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-02 22:55
+ * latest:2018-05-03 15:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -3426,8 +3426,8 @@ var queryString2ParamsMap;
 				connected: null,
 				conndata: null,
 				origin: {
-					originSend: currentOriginStr,
-					originReceive: currentOriginStr
+					originSend: option.originSend || currentOriginStr,
+					originReceive: option.originReceive || currentOriginStr
 				}
 			}, option);
 
