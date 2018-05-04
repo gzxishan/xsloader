@@ -142,5 +142,6 @@
 	}
 }
 四、properties
-1.通过${properName}引用字符串属性
-2.通过$[properName]引用属性（对应的属性值可以是任何类型,除了undefined）
+1.properties中属性是function的，会执行(this为当前的properties)得到结果；且函数会在属性引用前处理。
+2.通过${properName}引用字符串属性
+3.通过$[properName]引用属性（对应的属性值可以是任何类型,除了undefined与function）

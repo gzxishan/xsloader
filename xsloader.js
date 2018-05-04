@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-03 15:30
+ * latest:2018-05-04 09:07
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1648,7 +1648,7 @@ var queryString2ParamsMap;
 					} else if(property) {
 						property.has = true;
 					}
-					result += str.substring(0, rs.index-1);
+					result += str.substring(0, rs.index - 1);
 					result += properties[propKey];
 					str = str.substring(rs.index + rs[0].length);
 				}
@@ -1662,11 +1662,7 @@ var queryString2ParamsMap;
 				return obj;
 			}
 			if(isFunction(obj)) {
-				if(property) {
-					return replaceProperties(obj.call(properties), property);
-				} else {
-					return obj;
-				}
+				return obj;
 			} else if(isArray(obj)) {
 				for(var i = 0; i < obj.length; i++) {
 					obj[i] = replaceProperties(obj[i], property);
@@ -1696,6 +1692,13 @@ var queryString2ParamsMap;
 			var property = {
 				has: false
 			};
+			
+			for(var x in properties) {
+				var fun = properties[x];
+				if(isFunction(fun)) {
+					properties[x]=fun.call(properties);
+				}
+			}
 			do {
 				replaceProperties(properties, property);
 			} while (property.has);
@@ -1935,9 +1938,9 @@ var queryString2ParamsMap;
 			_define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
 		});
 	};
-	xsloader.define=define;
-	xsloader.require=require;
-	xsloader.randId=randId;
+	xsloader.define = define;
+	xsloader.require = require;
+	xsloader.randId = randId;
 	xsloader.tryCall = function(fun, defaultReturn) {
 		var rs;
 		try {
@@ -3232,7 +3235,7 @@ var queryString2ParamsMap;
 						var callback = listener ? listener.callback : null;
 						if(callback) {
 							if(listener.originReceive(originStr, optionData)) {
-								callback(cmdData, source, type, optionData,originStr);
+								callback(cmdData, source, type, optionData, originStr);
 							}
 						}
 					} catch(e) {
@@ -3248,7 +3251,7 @@ var queryString2ParamsMap;
 								var callback = listener ? listener.callback : null;
 								if(callback) {
 									if(listener.originReceive(originStr, optionData)) {
-										callback(cmdData, source, type, optionData,originStr);
+										callback(cmdData, source, type, optionData, originStr);
 									}
 								}
 							} catch(e) {
@@ -3330,7 +3333,7 @@ var queryString2ParamsMap;
 				postMessageBridge.remove(handleId);
 			};
 
-			var handleId = postMessageBridge.listen(cmd, origin, function(msg, _source, type, optionData,originStr) {
+			var handleId = postMessageBridge.listen(cmd, origin, function(msg, _source, type, optionData, originStr) {
 				if(type == "conn") { //发起连接
 					source = _source;
 					isConnected = true;
@@ -3338,16 +3341,16 @@ var queryString2ParamsMap;
 						conned: true
 					}, source, origin, optionData, conndata);
 					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata,{
-							originStr:originStr
+						thiz.onConnectedListener.call(thiz, optionData.conndata, {
+							originStr: originStr
 						});
 					}
 					sendTop();
 				} else if(type == "conned") { //已经连接
 					isConnected = true;
 					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata,{
-							originStr:originStr
+						thiz.onConnectedListener.call(thiz, optionData.conndata, {
+							originStr: originStr
 						});
 					}
 					sendTop();
@@ -3362,8 +3365,8 @@ var queryString2ParamsMap;
 
 					//if(!receivedBefore) { //防止重复接收
 					if(thiz.onReceiveListener) {
-						thiz.onReceiveListener.call(thiz, msg.data,{
-							originStr:originStr
+						thiz.onReceiveListener.call(thiz, msg.data, {
+							originStr: originStr
 						});
 					}
 					//}
@@ -3450,18 +3453,18 @@ var queryString2ParamsMap;
 				console.log((isActive ? "active" : "") + " connected:" + cmd);
 			};
 			if(connectedCallback) {
-				unit.onConnectedListener = function(conndata,extra) {
+				unit.onConnectedListener = function(conndata, extra) {
 					try {
-						connectedCallback(this.send, conndata,extra);
+						connectedCallback(this.send, conndata, extra);
 					} catch(e) {
 						console.error(e);
 					}
 				};
 			}
 			if(receiveCallback) {
-				unit.onReceiveListener = function(data,extra) {
+				unit.onReceiveListener = function(data, extra) {
 					try {
-						receiveCallback(data, this.send,extra);
+						receiveCallback(data, this.send, extra);
 					} catch(e) {
 						console.error(e);
 					}
