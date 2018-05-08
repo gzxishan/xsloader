@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-04 09:07
+ * latest:2018-05-08 18:10
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -415,6 +415,7 @@ var queryString2ParamsMap;
 	var theLoaderScript = document.currentScript || scripts("xsloader");
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var currentDefineModuleQueue = []; //当前回调的模块
+	var loadScriptMap = {};//已经加载成功的脚本
 	currentDefineModuleQueue.peek = function() {
 		if(this.length > 0) {
 			return this[this.length - 1];
@@ -677,7 +678,12 @@ var queryString2ParamsMap;
 		if(theDefinedMap[moduleName] &&
 			theDefinedMap[moduleName].state != 'loading' &&
 			theDefinedMap[moduleName].state != 'init') {
-			throwError(-2, "already define '" + moduleName + "'");
+			var lastModule = theDefinedMap[moduleName];
+			if(aurl && lastModule.aurl == aurl && moduleName == aurl) { //已经加载过js模块
+				return;
+			} else {
+				throwError(-2, "already define '" + moduleName + "'");
+			}
 		}
 
 		var context = theContext;
@@ -716,10 +722,18 @@ var queryString2ParamsMap;
 			module.aurl = theLoaderUrl;
 		}
 
-		if(deps.length == 0) {
+		function bindAurlModule() {
 			if(aurl) { //绑定绝对路径
+				var lastModule = theDefinedMap[aurl];
 				theDefinedMap[aurl] = module;
+				if(lastModule && lastModule != module && loadScriptMap[aurl]) {
+					lastModule.toOtherModule(module);
+				}
 			}
+		}
+
+		if(deps.length == 0) {
+			bindAurlModule();
 			module.finish([]); //递归结束
 		} else {
 
@@ -746,9 +760,7 @@ var queryString2ParamsMap;
 					depModuleArgs.push(depModule);
 					args.push(depModule && depModule.moduleObject());
 				});
-				if(aurl) { //绑定绝对路径
-					theDefinedMap[aurl] = module;
-				}
+				bindAurlModule();
 				args.push(depModuleArgs);
 				module.finish(args);
 			}, function(isError) {
@@ -951,6 +963,7 @@ var queryString2ParamsMap;
 
 								//TODO STRONG 直接认定队列里的模块全来自于该脚本
 								var scriptData = __getScriptData(evt, callbackObj);
+								loadScriptMap[scriptData.node.src] = true;
 								callbackObj.removed = true;
 								var hasAnonymous = false;
 								var defQueue = context.defQueue;
@@ -1201,6 +1214,7 @@ var queryString2ParamsMap;
 	function _newModule(name, deps, callback, thatInvoker) {
 		var relys = [];
 		var moduleMap = {
+			id: idCount++,
 			name: name,
 			deps: deps || [],
 			ignoreAspect: false,
@@ -1692,11 +1706,11 @@ var queryString2ParamsMap;
 			var property = {
 				has: false
 			};
-			
+
 			for(var x in properties) {
 				var fun = properties[x];
 				if(isFunction(fun)) {
-					properties[x]=fun.call(properties);
+					properties[x] = fun.call(properties);
 				}
 			}
 			do {
