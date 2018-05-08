@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-08 18:10
+ * latest:2018-05-08 21:10
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -415,7 +415,7 @@ var queryString2ParamsMap;
 	var theLoaderScript = document.currentScript || scripts("xsloader");
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var currentDefineModuleQueue = []; //当前回调的模块
-	var loadScriptMap = {};//已经加载成功的脚本
+	var loadScriptMap = {}; //已经加载成功的脚本
 	currentDefineModuleQueue.peek = function() {
 		if(this.length > 0) {
 			return this[this.length - 1];
@@ -680,6 +680,11 @@ var queryString2ParamsMap;
 			theDefinedMap[moduleName].state != 'init') {
 			var lastModule = theDefinedMap[moduleName];
 			if(aurl && lastModule.aurl == aurl && moduleName == aurl) { //已经加载过js模块
+				try{
+					console.warn("already loaded js:"+aurl);
+				}catch(e){
+					//TODO handle the exception
+				}
 				return;
 			} else {
 				throwError(-2, "already define '" + moduleName + "'");
@@ -723,17 +728,17 @@ var queryString2ParamsMap;
 		}
 
 		function bindAurlModule() {
-			if(aurl) { //绑定绝对路径
+			if(aurl && moduleName && moduleName != aurl) { //绑定绝对路径,该绝对路径可能已经存在模块
 				var lastModule = theDefinedMap[aurl];
 				theDefinedMap[aurl] = module;
-				if(lastModule && lastModule != module && loadScriptMap[aurl]) {
-					lastModule.toOtherModule(module);
-				}
+//				if(lastModule && lastModule != module && loadScriptMap[aurl] && lastModule.name == aurl) {
+//					lastModule.toOtherModule(module);
+//				}
 			}
 		}
 
+		bindAurlModule();
 		if(deps.length == 0) {
-			bindAurlModule();
 			module.finish([]); //递归结束
 		} else {
 
@@ -760,7 +765,6 @@ var queryString2ParamsMap;
 					depModuleArgs.push(depModule);
 					args.push(depModule && depModule.moduleObject());
 				});
-				bindAurlModule();
 				args.push(depModuleArgs);
 				module.finish(args);
 			}, function(isError) {
