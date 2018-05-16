@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-16 15:35
+ * latest:2018-05-16 22:21
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -866,13 +866,13 @@ var queryString2ParamsMap;
 			hasCallErr = false,
 			theExports;
 		var depCount = deps.length;
-		module.jsScriptCount = 0;
+		//module.jsScriptCount = 0;
 		var depModules = new Array(depCount);
 
 		function checkFinish(index, dep, depModule, syncHandle) {
 			depModules[index] = depModule;
 
-			if((depCount == 0 || depCount - module.jsScriptCount == 0) && !isError) {
+			if(/*(depCount == 0 || depCount - module.jsScriptCount == 0)*/depCount == 0  && !isError) {
 				everyOkCallback(depModules, module);
 			} else if(isError) {
 				module.setState('error', isError);
@@ -1049,8 +1049,9 @@ var queryString2ParamsMap;
 								}
 
 								if(defineCount == 0) { //用于支持没有define的js库
-									module.jsScriptCount++;
-									callbackObj.module.setState("defined");
+									//module.jsScriptCount++;
+									callbackObj.module.finish([]);
+									//callbackObj.module.setState("defined");
 									//checkFinish(index, scriptData.name, undefined, syncHandle);
 								}
 
