@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-16 22:21
+ * latest:2018-05-16 23:50
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -974,7 +974,11 @@ var queryString2ParamsMap;
 					}
 
 					function mayAsyncCallLoadScript() {
-						loadScript();
+						if(IE_VERSION > 0 && IE_VERSION <= 10){
+							asyncCall(function(){
+								loadScript();
+							});
+						}
 					};
 
 					function loadScript() {
@@ -1004,7 +1008,7 @@ var queryString2ParamsMap;
 									//									console.log("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
 
 									var isCurrentScriptDefine = true;
-									scriptData.node.src;
+									//scriptData.node.src;
 									if(hasAnonymous || !isCurrentScriptDefine) {
 										if(!cache.name) {
 											var errinfo = "multi anonymous define in a script:" + (scriptData.node && scriptData.node.src) + "," + (cache.callback && cache.callback.originCallback || cache.callback);
