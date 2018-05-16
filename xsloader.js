@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-16 15:00
+ * latest:2018-05-16 15:35
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -785,7 +785,7 @@ var queryString2ParamsMap;
 			var pluginIndex = m.indexOf("!");
 			var pluginParam = pluginIndex > 0 ? m.substring(pluginIndex) : "";
 			m = pluginIndex > 0 ? m.substring(0, pluginIndex) : m;
-			var isJsFile = _endsWith(m, ".js");
+			var isJsFile = _isJsFile(m);
 			if(!isJsFile && (_startsWith(m, ".") || _startsWith(m, "/") || _startsWith(m, "https:") || _startsWith(m, "http:"))) {
 				deps[i] = m + ".js" + pluginParam;
 			}
@@ -813,6 +813,24 @@ var queryString2ParamsMap;
 		}
 	}
 
+	function _isJsFile(path) {
+		var pluginIndex = path.indexOf("!");
+		if(pluginIndex > 0) {
+			path = path.substring(0, pluginIndex);
+		}
+		var isJs = _endsWith(path, ".js");
+		return isJs ? path : false;
+	}
+
+	function _getPluginParam(path) {
+		var pluginIndex = path.indexOf("!");
+		if(pluginIndex > 0) {
+			return path.substring(pluginIndex);
+		} else {
+			return "";
+		}
+	}
+
 	//everyOkCallback(depModules,module)
 	function _everyRequired(data, thenOption, module, deps, everyOkCallback, errCallback) {
 
@@ -829,9 +847,9 @@ var queryString2ParamsMap;
 		for(var i = 0; i < deps.length; i++) {
 			var m = deps[i];
 			if(module.aurl) { //替换相对路径为绝对路径
-				var isJsFile = _endsWith(m, ".js");
-				if(isJsFile && _startsWith(m, ".")) {
-					m = _getPathWithRelative(module.aurl, m);
+				var jsFilePath = _isJsFile(m);
+				if(jsFilePath && _startsWith(m, ".")) {
+					m = _getPathWithRelative(module.aurl, jsFilePath)+_getPluginParam(m);
 					deps[i] = m;
 				}
 			}
@@ -855,7 +873,7 @@ var queryString2ParamsMap;
 			depModules[index] = depModule;
 
 			if((depCount == 0 || depCount - module.jsScriptCount == 0) && !isError) {
-				everyOkCallback(depModules,module);
+				everyOkCallback(depModules, module);
 			} else if(isError) {
 				module.setState('error', isError);
 				if(!hasCallErr) {
@@ -890,7 +908,7 @@ var queryString2ParamsMap;
 				}, pluginArgs);
 			};
 
-			var isJsFile = _endsWith(dep, ".js");
+			var isJsFile = _isJsFile(dep);
 			if(!theDefinedMap[dep]) {
 				do {
 
@@ -940,11 +958,11 @@ var queryString2ParamsMap;
 					module2.aurl = urls[0];
 
 					if(_deps.length > 0) {
-						_everyRequired(data, thenOption, module2, _deps, function(depModules,module2) {
+						_everyRequired(data, thenOption, module2, _deps, function(depModules, module2) {
 							var args = [];
 							var hasExports = false;
 							each(depModules, function(depModule) {
-								args.push(depModule&&depModule.moduleObject());
+								args.push(depModule && depModule.moduleObject());
 							});
 							mayAsyncCallLoadScript();
 						}, function(err) {
@@ -1427,9 +1445,9 @@ var queryString2ParamsMap;
 			parentNode.nodes.push(node);
 
 			each(this.deps, function(dep) {
-				var indexPlguin=dep.indexOf("!");
-				if(indexPlguin>0){
-					dep=dep.substring(0,indexPlguin);
+				var indexPlguin = dep.indexOf("!");
+				if(indexPlguin > 0) {
+					dep = dep.substring(0, indexPlguin);
 				}
 				var mod = theDefinedMap[dep];
 				if(mod && mod.state == "defined") {
@@ -1934,23 +1952,15 @@ var queryString2ParamsMap;
 			var depsArray = option.deps[keyName];
 			each(paths, function(path) {
 				if(path == '*') {
-					for(var m in dealtDeps) {
-						var dealtDepArray = (dealtDeps[m] = dealtDeps[m] || []);
+					for(var m in option.depsPaths) {
+						var dealtDepArray = dealtDeps[m] = dealtDeps[m] || [];
 						each(depsArray, function(dep) {
-							//							if(option.depsPaths[dep]) {
-							//								dealtDepArray.push(dep);
-							//								throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
-							//							}
 							dealtDepArray.push(dep);
 						});
 					}
 				} else {
 					var dealtDepArray = (dealtDeps[path] = dealtDeps[path] || []);
 					each(depsArray, function(dep) {
-						//						if(option.depsPaths[dep]) {
-						//							dealtDepArray.push(dep);
-						//							throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
-						//						}
 						dealtDepArray.push(dep);
 					});
 				}
