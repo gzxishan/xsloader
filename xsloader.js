@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-05-08 21:10
+ * latest:2018-05-16 15:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -674,15 +674,35 @@ var queryString2ParamsMap;
 		};
 	}
 
+	//处理嵌套依赖
+	function _dealEmbedDeps(deps) {
+		for(var i = 0; i < deps.length; i++) {
+			var dep = deps[i];
+			if(isArray(dep)) {
+				//内部的模块顺序加载
+				var modName = "inner_order_" + randId();
+				var isOrderDep = !(dep.length > 0 && dep[0] === false);
+				if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
+					dep = dep.slice(1);
+				}
+				innerDepsMap[modName] = {
+					deps: dep,
+					orderDep: isOrderDep
+				};
+				deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
+			}
+		}
+	}
+
 	function _onScriptComplete(moduleName, cache, aurl) {
 		if(theDefinedMap[moduleName] &&
 			theDefinedMap[moduleName].state != 'loading' &&
 			theDefinedMap[moduleName].state != 'init') {
 			var lastModule = theDefinedMap[moduleName];
 			if(aurl && lastModule.aurl == aurl && moduleName == aurl) { //已经加载过js模块
-				try{
-					console.warn("already loaded js:"+aurl);
-				}catch(e){
+				try {
+					console.warn("already loaded js:" + aurl);
+				} catch(e) {
 					//TODO handle the exception
 				}
 				return;
@@ -731,9 +751,9 @@ var queryString2ParamsMap;
 			if(aurl && moduleName && moduleName != aurl) { //绑定绝对路径,该绝对路径可能已经存在模块
 				var lastModule = theDefinedMap[aurl];
 				theDefinedMap[aurl] = module;
-//				if(lastModule && lastModule != module && loadScriptMap[aurl] && lastModule.name == aurl) {
-//					lastModule.toOtherModule(module);
-//				}
+				//				if(lastModule && lastModule != module && loadScriptMap[aurl] && lastModule.name == aurl) {
+				//					lastModule.toOtherModule(module);
+				//				}
 			}
 		}
 
@@ -742,22 +762,6 @@ var queryString2ParamsMap;
 			module.finish([]); //递归结束
 		} else {
 
-			for(var i = 0; i < deps.length; i++) {
-				var dep = deps[i];
-				if(isArray(dep)) {
-					//内部的模块顺序加载
-					var modName = "inner_order_" + randId();
-					var isOrderDep = !(dep.length > 0 && dep[0] === false);
-					if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
-						dep = dep.slice(1);
-					}
-					innerDepsMap[modName] = {
-						deps: dep,
-						orderDep: isOrderDep
-					};
-					deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
-				}
-			}
 			_everyRequired(data, thenOption, module, deps, function(depModules) {
 				var args = [];
 				var depModuleArgs = [];
@@ -809,8 +813,8 @@ var queryString2ParamsMap;
 		}
 	}
 
-	//callback(depModules)
-	function _everyRequired(data, thenOption, module, deps, callback, errCallback) {
+	//everyOkCallback(depModules,module)
+	function _everyRequired(data, thenOption, module, deps, everyOkCallback, errCallback) {
 
 		if(data.isError) {
 			return;
@@ -820,6 +824,7 @@ var queryString2ParamsMap;
 		var context = theContext;
 
 		_replaceModulePrefix(config, deps); //前缀替换
+		_dealEmbedDeps(deps); //处理嵌套依赖
 
 		for(var i = 0; i < deps.length; i++) {
 			var m = deps[i];
@@ -850,7 +855,7 @@ var queryString2ParamsMap;
 			depModules[index] = depModule;
 
 			if((depCount == 0 || depCount - module.jsScriptCount == 0) && !isError) {
-				callback(depModules);
+				everyOkCallback(depModules,module);
 			} else if(isError) {
 				module.setState('error', isError);
 				if(!hasCallErr) {
@@ -935,11 +940,11 @@ var queryString2ParamsMap;
 					module2.aurl = urls[0];
 
 					if(_deps.length > 0) {
-						_everyRequired(data, thenOption, module2, _deps, function(depModules) {
+						_everyRequired(data, thenOption, module2, _deps, function(depModules,module2) {
 							var args = [];
 							var hasExports = false;
 							each(depModules, function(depModule) {
-								args.push(depModule.moduleObject());
+								args.push(depModule&&depModule.moduleObject());
 							});
 							mayAsyncCallLoadScript();
 						}, function(err) {
@@ -1027,7 +1032,8 @@ var queryString2ParamsMap;
 
 								if(defineCount == 0) { //用于支持没有define的js库
 									module.jsScriptCount++;
-									checkFinish(index, scriptData.name, undefined, syncHandle);
+									callbackObj.module.setState("defined");
+									//checkFinish(index, scriptData.name, undefined, syncHandle);
 								}
 
 							}
@@ -1042,16 +1048,16 @@ var queryString2ParamsMap;
 							isError = errinfo;
 							errCallback(errinfo);
 						};
-						theDefinedMap[dep].setState("loading");
+						module2.setState("loading");
 						each(urls, function(url, index) {
 							if(_startsWith(url, "https:") || _startsWith(url, "http:") || _startsWith(url, "//")) {
 								url = url;
 							} else if(_startsWith(url, ".") || _startsWith(url, "/") || _startsWith(url, "https:") || _startsWith(url, "http:")) {
-								if(!module.aurl) {
-									isError = "script url is null:'" + module.name + "'," + module.callback;
+								if(!module2.aurl) {
+									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
-								url = _getPathWithRelative(module.aurl, url);
+								url = _getPathWithRelative(module2.aurl, url);
 							} else {
 								url = config.baseUrl + url;
 							}
@@ -1147,16 +1153,17 @@ var queryString2ParamsMap;
 				if(isObject(obj)) {
 					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
 				} else if(isFunction(obj)) {
-					var fun = (function(originFun) {
-						var f = function() {
-							return originFun.apply(invoker, arguments);
-						};
-						return f;
-					})(obj);
-					for(var x in obj) {
-						fun[x] = obj[x];
-					}
-					this._object = fun;
+					//					var fun = (function(originFun) {
+					//						var f = function() {
+					//							return originFun.apply(invoker, arguments);
+					//						};
+					//						return f;
+					//					})(obj);
+					//					for(var x in obj) {
+					//						fun[x] = obj[x];
+					//					}
+					//					this._object = fun;
+					this._object = obj;
 				}
 
 			},
@@ -1420,6 +1427,10 @@ var queryString2ParamsMap;
 			parentNode.nodes.push(node);
 
 			each(this.deps, function(dep) {
+				var indexPlguin=dep.indexOf("!");
+				if(indexPlguin>0){
+					dep=dep.substring(0,indexPlguin);
+				}
 				var mod = theDefinedMap[dep];
 				if(mod && mod.state == "defined") {
 					return;
@@ -1923,23 +1934,23 @@ var queryString2ParamsMap;
 			var depsArray = option.deps[keyName];
 			each(paths, function(path) {
 				if(path == '*') {
-					for(var m in option.depsPaths) {
-						var dealtDepArray = dealtDeps[m] = dealtDeps[m] || [];
+					for(var m in dealtDeps) {
+						var dealtDepArray = (dealtDeps[m] = dealtDeps[m] || []);
 						each(depsArray, function(dep) {
-							if(option.depsPaths[dep]) {
-								dealtDepArray.push(dep);
-								throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
-							}
+							//							if(option.depsPaths[dep]) {
+							//								dealtDepArray.push(dep);
+							//								throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
+							//							}
 							dealtDepArray.push(dep);
 						});
 					}
 				} else {
-					var dealtDepArray = dealtDeps[path] = dealtDeps[path] || [];
+					var dealtDepArray = (dealtDeps[path] = dealtDeps[path] || []);
 					each(depsArray, function(dep) {
-						if(option.depsPaths[dep]) {
-							dealtDepArray.push(dep);
-							throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
-						}
+						//						if(option.depsPaths[dep]) {
+						//							dealtDepArray.push(dep);
+						//							throwError(-8, "loop dependency error:" + dep + "=" + dealtDepArray.join("-->"));
+						//						}
 						dealtDepArray.push(dep);
 					});
 				}
@@ -2148,7 +2159,6 @@ var queryString2ParamsMap;
 
 (function() {
 	//TODO STRONG 修复部分常用库
-	xsloader._ignoreAspect_['jquery'] = true;
 	xsloader._ignoreAspect_['xshttp'] = true;
 })();
 
