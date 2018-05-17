@@ -978,6 +978,8 @@ var queryString2ParamsMap;
 							asyncCall(function(){
 								loadScript();
 							});
+						}else{
+							loadScript();
 						}
 					};
 
