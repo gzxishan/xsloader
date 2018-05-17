@@ -81,6 +81,7 @@
   1）xsloader.extend(target,obj1,obj2,...);
     xsloader.extendDeep(target,obj1,obj2,...);
     xsloader.config()得到当前配置对象
+    xsloader.config().dealUrlArgs(url)返回加上参数的地址
     xsloader.script()得到xsloader的script对象
     xsloader.define
     xsloader.require
