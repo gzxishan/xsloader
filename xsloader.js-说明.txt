@@ -1,7 +1,7 @@
 一、xsloader基础格式
 {
 	baseUrl:"",//===基础参考路径（除绝对路径和相对路径，如./(当前目录),../(上一级目录),//(域名),/(根目录),xx/(baseUrl+)）
-	urlArgs:{},//===map或返回map的函数，其中*表示对所有模块,其他模块的崇明地址参数会覆盖*的。autoUrlArgs默认为false，自动添加当前时间_t=currentTime
+	urlArgs:{},//===map或返回map的函数，其中*表示对所有模块,其他模块的重名地址参数会覆盖*的。autoUrlArgs默认为false，自动添加当前时间_t=currentTime
 	paths:{},//===用于指定模块的路径(*.js)，不能使用插件
 	depsPaths:{},//===用于指定模块的路径(*.js)，并可以为其中的模块配置依赖，不能使用插件。
 	deps:{},//===用于配置依赖，map。
