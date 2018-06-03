@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-03 09:45
+ * latest:2018-06-03 12:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -190,7 +190,10 @@ var queryString2ParamsMap;
 					break;
 				}
 				var fnId = "_[_" + randId() + "_]_";
-				var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd);
+				var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
+				if(!_startsWith(fnStr, "function")) {
+					throw "not a function:" + fnStr;
+				}
 				try {
 					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
 					var fn = eval("(" + fnStr + ")");
@@ -224,7 +227,7 @@ var queryString2ParamsMap;
 					var posStr = e.message.substring(e.message.lastIndexOf("position") + 8);
 					var pos = parseInt(posStr.trim());
 					var _str = str.substring(pos);
-					console.error(_str.substring(0, _str.length > 100 ? 100: _str.length));
+					console.error(_str.substring(0, _str.length > 100 ? 100 : _str.length));
 				}
 			} catch(e) {}
 			throw e;
