@@ -100,7 +100,10 @@
     xsloader.IE_VERSION:ie版本（-1表示不是ie，其余检测结果为ie6~ie11及edge）
   2）startsWith()
     endsWith()
-    xsParseJson()
+    xsParseJson(str,option):注意key需要用引号包裹
+    		（1）通过“/*{f}*/”与“/*{f}*/”可包裹function来支持函数，如json字符串{'callback':/*{f*/function(){}/*f}*/}
+    		（2）通过option.fnStart与option.fnEnd来指定（2）中函数的开始与结束的标志,如果没有该标志则不会进行函数的转换。
+    		（3）在function外的json部分，支持“//#//”行注释,可通过option.rcomment修改(正则相关字符需要转义)
     xsJson2String()
     randId()
     indexInArray()
