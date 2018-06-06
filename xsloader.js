@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-03 12:30
+ * latest:2018-06-06 21:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -840,7 +840,7 @@ var queryString2ParamsMap;
 		}
 
 		if(config.modulePrefixCount) {
-			//前缀替换
+			//模块地址的前缀替换
 			for(var prefix in config.modulePrefix) {
 				var replaceStr = config.modulePrefix[prefix].replace;
 				var len = prefix.length;
@@ -1297,6 +1297,7 @@ var queryString2ParamsMap;
 
 	function _newModule(name, deps, callback, thatInvoker) {
 		var relys = [];
+		var instances=[];//所有模块实例
 		var moduleMap = {
 			id: idCount++,
 			name: name,
@@ -1307,7 +1308,6 @@ var queryString2ParamsMap;
 			callback: callback,
 			moduleObject: undefined, //依赖模块对应的对象
 			invoker: thatInvoker,
-			instances: [], //所有模块实例
 			instanceType: "single",
 			setInstanceType: function(instanceType) {
 				this.instanceType = instanceType;
@@ -1406,7 +1406,7 @@ var queryString2ParamsMap;
 
 		//返回_module_
 		moduleMap.dealInstance = function(moduleInstance) {
-			this.instances.push(moduleInstance);
+			instances.push(moduleInstance);
 			var _module_ = {
 				opId: null,
 				setToAll: function(name, value, opId) {
@@ -1427,7 +1427,7 @@ var queryString2ParamsMap;
 						throw new Error("unknown param:" + name);
 					}
 
-					each(moduleMap.instances, function(ins) {
+					each(instances, function(ins) {
 						var mobj = ins.moduleObject();
 						for(var k in obj) {
 							mobj[k] = obj[k];
@@ -1994,6 +1994,35 @@ var queryString2ParamsMap;
 			modulePrefixCount++;
 		}
 		option.modulePrefixCount = modulePrefixCount;
+		if(modulePrefixCount > 0) {
+			//替换urlArgs中地址前缀
+			var star = option.urlArgs["*"];
+			delete option.urlArgs["*"];
+
+			var urlArgsArr = [];
+			for(var x in option.urlArgs) {
+				urlArgsArr.push({
+					url: x,
+					args: option.urlArgs[x]
+				});
+			}
+
+			for(var prefix in option.modulePrefix) {
+				var replaceStr = option.modulePrefix[prefix].replace;
+				for(var i = 0; i < urlArgsArr.length; i++) {
+					var urlArgObj = urlArgsArr[i];
+					if(_startsWith(urlArgObj.url, prefix)) {
+						urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
+					}
+				}
+			}
+			option.urlArgs = {};
+			option.urlArgs["*"] = star;
+			for(var i = 0; i < urlArgsArr.length; i++) {
+				var urlArgObj = urlArgsArr[i];
+				option.urlArgs[urlArgObj.url] = urlArgObj.args;
+			}
+		}
 
 		for(var name in option.paths) {
 			_replaceModulePrefix(option, option.paths[name]); //前缀替换
