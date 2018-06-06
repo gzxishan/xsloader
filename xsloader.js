@@ -63,20 +63,9 @@ var queryString2ParamsMap;
 		var isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
 		var isIE11 = userAgent.indexOf('Trident') > -1 && userAgent.indexOf("rv:11.0") > -1;
 		if(isIE) {
-			var reIE = new RegExp("MSIE (\\d+\\.\\d+);");
-			reIE.test(userAgent);
-			var fIEVersion = parseFloat(RegExp["$1"]);
-			if(fIEVersion == 7) {
-				return 7;
-			} else if(fIEVersion == 8) {
-				return 8;
-			} else if(fIEVersion == 9) {
-				return 9;
-			} else if(fIEVersion == 10) {
-				return 10;
-			} else {
-				return 6; //IE版本<=7
-			}
+			var reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
+			var fIEVersion = parseInt(reIE && reIE[1] || -1);
+			return fIEVersion;
 		} else if(isEdge) {
 			return 'edge'; //edge
 		} else if(isIE11) {
@@ -87,27 +76,10 @@ var queryString2ParamsMap;
 	}
 
 	try {
-		if(!String.prototype.indexOf) {
-			String.prototype.indexOf = function(str, offset) {
-				var i = offset === undefined ? 0 : offset;
-				if(i >= this.length) {
-					return -1;
-				}
-				if(!isString(str)) {
-					return str !== false && str !== true && str !== undefined && str !== null && this.charAt(i) == str ? i : -1;
-				}
-				for(; i < this.length; i++) {
-					if(this.length - i < str.length) return -1;
-					var isFound = true;
-					for(var k = 0; k < str.length; k++) {
-						if(this.charAt(i + k) != str.charAt(k)) {
-							isFound = false;
-							break;
-						}
-					}
-					if(isFound) return i;
-				}
-				return -1;
+
+		if(!String.prototype.trim) {
+			String.prototype.trim = function(str) {
+				return this.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
 			}
 		}
 
@@ -196,7 +168,7 @@ var queryString2ParamsMap;
 				}
 				try {
 					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-					var fn = eval("(" + fnStr + ")");
+					var fn = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9?eval("[" + fnStr + "][0]"): eval("(" + fnStr + ")");
 					fnMap[fnId] = fn;
 				} catch(e) {
 					console.error(fnStr);
@@ -1297,7 +1269,7 @@ var queryString2ParamsMap;
 
 	function _newModule(name, deps, callback, thatInvoker) {
 		var relys = [];
-		var instances=[];//所有模块实例
+		var instances = []; //所有模块实例
 		var moduleMap = {
 			id: idCount++,
 			name: name,
@@ -4010,10 +3982,14 @@ var queryString2ParamsMap;
 				localConfigVar: "lconfig",
 				globalConfigVar: "gconfig",
 				before: function(name) {
-					console.log("before:" + name);
+					try {
+						console.log("before:" + name);
+					} catch(e) {}
 				},
 				after: function(name) {
-					console.log("after:" + name);
+					try {
+						console.log("after:" + name);
+					} catch(e) {}
 				}
 			},
 			service: {
