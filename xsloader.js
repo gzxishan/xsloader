@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-06 21:30
+ * latest:2018-06-10 11:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -168,7 +168,7 @@ var queryString2ParamsMap;
 				}
 				try {
 					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-					var fn = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9?eval("[" + fnStr + "][0]"): eval("(" + fnStr + ")");
+					var fn = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + fnStr + "][0]") : eval("(" + fnStr + ")");
 					fnMap[fnId] = fn;
 				} catch(e) {
 					console.error(fnStr);
@@ -595,14 +595,14 @@ var queryString2ParamsMap;
 	/**
 	 * context.contextName
 	 * context.config
-	 * callback.onScriptLoad
-	 * callback.onScriptError
+	 * callbackObj.onScriptLoad
+	 * callbackObj.onScriptError
 	 *
 	 * @param {Object} context 
 	 * @param {String} module
 	 * @param {Array} urls
 	 */
-	function __browserLoader(context, module, urls, callback) {
+	function __browserLoader(context, module, urls, callbackObj) {
 
 		var moduleName = module.name;
 
@@ -611,6 +611,25 @@ var queryString2ParamsMap;
 				return;
 			}
 			var url = urls[index];
+
+			var urlModule = theDefinedMap[url];
+			if(urlModule) {
+				//console.log("has-loading....." + url);
+				if(urlModule !== module) {
+					//console.log("return");
+					urlModule.relyIt(module.invoker, function(depModule, err) {
+						if(err) {
+							load(index + 1);
+						} else {
+							callbackObj.okCallbackForLastScript(depModule);
+						}
+					});
+					return;
+				}
+			}
+			//console.log(url);
+			theDefinedMap[url] = module; //绑定绝对路径
+
 			module.aurl = url;
 			var config = (context && context.config) || {},
 				node;
@@ -621,18 +640,18 @@ var queryString2ParamsMap;
 			if(node.attachEvent &&
 				!(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) &&
 				!isOpera) {
-				node.attachEvent('onreadystatechange', callback.onScriptLoad);
+				node.attachEvent('onreadystatechange', callbackObj.onScriptLoad);
 			} else {
-				node.addEventListener('load', callback.onScriptLoad, false);
+				node.addEventListener('load', callbackObj.onScriptLoad, false);
 				var errListen = function() {
 					__removeListener(node, errListen, 'error');
 					if(index < urls.length - 1) {
 						load(index + 1);
 					} else {
-						callback.onScriptError.apply(this, arguments);
+						callbackObj.onScriptError.apply(this, arguments);
 					}
 				}
-				callback.errListen = errListen;
+				callbackObj.errListen = errListen;
 				node.addEventListener('error', errListen, false);
 			}
 			node.src = url;
@@ -767,17 +786,6 @@ var queryString2ParamsMap;
 			module.aurl = theLoaderUrl;
 		}
 
-		function bindAurlModule() {
-			if(aurl && moduleName && moduleName != aurl) { //绑定绝对路径,该绝对路径可能已经存在模块
-				var lastModule = theDefinedMap[aurl];
-				theDefinedMap[aurl] = module;
-				//				if(lastModule && lastModule != module && loadScriptMap[aurl] && lastModule.name == aurl) {
-				//					lastModule.toOtherModule(module);
-				//				}
-			}
-		}
-
-		bindAurlModule();
 		if(deps.length == 0) {
 			module.finish([]); //递归结束
 		} else {
@@ -971,6 +979,7 @@ var queryString2ParamsMap;
 					}
 
 					var module2 = _newModule(dep, _deps, null);
+					//console.log(module2);
 					module2.invoker = thenOption.thatInvoker || module.thiz;
 					if(willDelay && _deps.length == 0) {
 						break;
@@ -1007,82 +1016,85 @@ var queryString2ParamsMap;
 						var callbackObj = {
 							module: module2
 						};
-						callbackObj.onScriptLoad = function(evt) {
-							if(callbackObj.removed) {
-								return;
-							}
-							if(evt.type === 'load' ||
-								(readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
+						callbackObj.okCallbackForLastScript = function(depModule) {
+								checkFinish(index, depModule.name, depModule, syncHandle);
+							},
+							callbackObj.onScriptLoad = function(evt) {
+								if(callbackObj.removed) {
+									return;
+								}
+								if(evt.type === 'load' ||
+									(readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
 
-								//TODO STRONG 直接认定队列里的模块全来自于该脚本
-								var scriptData = __getScriptData(evt, callbackObj);
-								loadScriptMap[scriptData.node.src] = true;
-								callbackObj.removed = true;
-								var hasAnonymous = false;
-								var defQueue = context.defQueue;
-								context.defQueue = [];
-								var defineCount = defQueue.length;
+									//TODO STRONG 直接认定队列里的模块全来自于该脚本
+									var scriptData = __getScriptData(evt, callbackObj);
+									loadScriptMap[scriptData.node.src] = true;
+									callbackObj.removed = true;
+									var hasAnonymous = false;
+									var defQueue = context.defQueue;
+									context.defQueue = [];
+									var defineCount = defQueue.length;
 
-								for(var i2 = 0; i2 < defQueue.length; i2++) {
-									var cache = defQueue[i2];
-									//									console.log(cache);
-									//									console.log(scriptData);
-									//									console.log("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
+									for(var i2 = 0; i2 < defQueue.length; i2++) {
+										var cache = defQueue[i2];
+										//									console.log(cache);
+										//									console.log(scriptData);
+										//									console.log("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
 
-									var isCurrentScriptDefine = true;
-									//scriptData.node.src;
-									if(hasAnonymous || !isCurrentScriptDefine) {
-										if(!cache.name) {
-											var errinfo = "multi anonymous define in a script:" + (scriptData.node && scriptData.node.src) + "," + (cache.callback && cache.callback.originCallback || cache.callback);
-											isError = errinfo;
-											checkFinish(index, undefined, undefined, syncHandle);
-											throwError(-10, errinfo);
-										}
-									} else {
-										hasAnonymous = !cache.name;
-									}
-
-									var parentDefine = cache.data.parentDefine;
-									if(parentDefine) {
-										defineCount--;
-									}
-									var aurl = cache.src;
-									if(isCurrentScriptDefine) {
-										if(cache.src == theLoaderUrl) {
-											aurl = _getAbsolutePath(scriptData.node); //获取脚本地址
+										var isCurrentScriptDefine = true;
+										//scriptData.node.src;
+										if(hasAnonymous || !isCurrentScriptDefine) {
+											if(!cache.name) {
+												var errinfo = "multi anonymous define in a script:" + (scriptData.node && scriptData.node.src) + "," + (cache.callback && cache.callback.originCallback || cache.callback);
+												isError = errinfo;
+												checkFinish(index, undefined, undefined, syncHandle);
+												throwError(-10, errinfo);
+											}
 										} else {
-											aurl = cache.src || _getAbsolutePath(scriptData.node); //获取脚本地址
+											hasAnonymous = !cache.name;
 										}
-									}
 
-									if(aurl) {
-										var i = aurl.indexOf("?");
-										if(i >= 0) {
-											aurl = aurl.substring(0, i);
+										var parentDefine = cache.data.parentDefine;
+										if(parentDefine) {
+											defineCount--;
 										}
+										var aurl = cache.src;
+										if(isCurrentScriptDefine) {
+											if(cache.src == theLoaderUrl) {
+												aurl = _getAbsolutePath(scriptData.node); //获取脚本地址
+											} else {
+												aurl = cache.src || _getAbsolutePath(scriptData.node); //获取脚本地址
+											}
+										}
+
+										if(aurl) {
+											var i = aurl.indexOf("?");
+											if(i >= 0) {
+												aurl = aurl.substring(0, i);
+											}
+										}
+										//对于只有一个define的脚本，优先使用外部指定的模块名称、同时也保留define提供的名称。
+										if(defineCount == 1 && !parentDefine) {
+											var name = scriptData.name || cache.name;
+											cache.selfname = cache.name;
+											cache.name = name;
+										} else {
+											cache.name = cache.name || scriptData.name;
+										}
+
+										//TODO STRONG 对应的脚本应该是先执行
+										_onScriptComplete(cache.name, cache, aurl);
 									}
-									//对于只有一个define的脚本，优先使用外部指定的模块名称、同时也保留define提供的名称。
-									if(defineCount == 1 && !parentDefine) {
-										var name = scriptData.name || cache.name;
-										cache.selfname = cache.name;
-										cache.name = name;
-									} else {
-										cache.name = cache.name || scriptData.name;
+
+									if(defineCount == 0) { //用于支持没有define的js库
+										//module.jsScriptCount++;
+										callbackObj.module.finish([]);
+										//callbackObj.module.setState("defined");
+										//checkFinish(index, scriptData.name, undefined, syncHandle);
 									}
 
-									//TODO STRONG 对应的脚本应该是先执行
-									_onScriptComplete(cache.name, cache, aurl);
 								}
-
-								if(defineCount == 0) { //用于支持没有define的js库
-									//module.jsScriptCount++;
-									callbackObj.module.finish([]);
-									//callbackObj.module.setState("defined");
-									//checkFinish(index, scriptData.name, undefined, syncHandle);
-								}
-
-							}
-						};
+							};
 						callbackObj.onScriptError = function(evt) {
 							if(callbackObj.removed) {
 								return;
