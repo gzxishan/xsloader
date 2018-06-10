@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-10 11:30
+ * latest:2018-06-10 15:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -846,6 +846,15 @@ var queryString2ParamsMap;
 		if(pluginIndex > 0) {
 			path = path.substring(0, pluginIndex);
 		}
+		var index = path.indexOf("?");
+		if(index > 0) {
+			path = path.substring(0, index);
+		}
+		index = path.indexOf("#");
+		if(index > 0) {
+			path = path.substring(0, index);
+		}
+
 		var isJs = _endsWith(path, ".js");
 		return isJs ? path : false;
 	}
@@ -1946,7 +1955,14 @@ var queryString2ParamsMap;
 				return deps;
 			},
 			dealUrl: function(module, url) {
-				var urlArg = this.autoUrlArgs() ? "_t=" + new Date().getTime() : this.urlArgs[isString(module) && module || module && module.name || "*"] || this.urlArgs["*"];
+				var urlArg;
+				if(this.autoUrlArgs()) {
+					urlArg = "_t=" + new Date().getTime();
+				} else if(isString(module)) {
+					urlArg = this.urlArgs[module] || this.urlArgs["*"]
+				} else {
+					urlArg = this.urlArgs[module.name] || this.urlArgs[module.aurl] || this.urlArgs["*"];
+				}
 				return _appendArgs2Url(url, urlArg);
 			},
 			dealUrlArgs: function(url) {
@@ -1984,10 +2000,19 @@ var queryString2ParamsMap;
 			delete option.urlArgs["*"];
 
 			var urlArgsArr = [];
-			for(var x in option.urlArgs) {
+			for(var url in option.urlArgs) {
+				if(_isJsFile(url)) {
+					if(_startsWith(url, "https:") || _startsWith(url, "http:") || _startsWith(url, "//")) {
+						url = url;
+					} else if(_startsWith(url, ".") || _startsWith(url, "/") || _startsWith(url, "https:") || _startsWith(url, "http:")) {
+						url = _getPathWithRelative(theLoaderUrl, url);
+					} else {
+						url = option.baseUrl + url;
+					}
+				}
 				urlArgsArr.push({
-					url: x,
-					args: option.urlArgs[x]
+					url: url,
+					args: option.urlArgs[url]
 				});
 			}
 
