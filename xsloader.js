@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-10 15:00
+ * latest:2018-06-15 13:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -842,6 +842,9 @@ var queryString2ParamsMap;
 	}
 
 	function _isJsFile(path) {
+		if(!isString(path)){
+			return false;
+		}
 		var pluginIndex = path.indexOf("!");
 		if(pluginIndex > 0) {
 			path = path.substring(0, pluginIndex);
@@ -1961,7 +1964,10 @@ var queryString2ParamsMap;
 				} else if(isString(module)) {
 					urlArg = this.urlArgs[module] || this.urlArgs["*"]
 				} else {
-					urlArg = this.urlArgs[module.name] || this.urlArgs[module.aurl] || this.urlArgs["*"];
+					urlArg = this.urlArgs[module.name] || this.urlArgs[url] || this.urlArgs["*"];
+				}
+				if(isFunction(urlArg)){
+					urlArg=urlArg.call(this);
 				}
 				return _appendArgs2Url(url, urlArg);
 			},
@@ -2000,7 +2006,8 @@ var queryString2ParamsMap;
 			delete option.urlArgs["*"];
 
 			var urlArgsArr = [];
-			for(var url in option.urlArgs) {
+			for(var k in option.urlArgs) {
+				var url=k;
 				if(_isJsFile(url)) {
 					if(_startsWith(url, "https:") || _startsWith(url, "http:") || _startsWith(url, "//")) {
 						url = url;
@@ -2012,7 +2019,7 @@ var queryString2ParamsMap;
 				}
 				urlArgsArr.push({
 					url: url,
-					args: option.urlArgs[url]
+					args: option.urlArgs[k]
 				});
 			}
 
