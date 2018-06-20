@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-15 13:30
+ * latest:2018-06-20 13:50
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -275,8 +275,10 @@ var queryString2ParamsMap;
 	indexInArray = _indexInArray;
 
 	function _getPathWithRelative(path, relative, isPathDir) {
-		if(_startsWith(relative, "//") || _startsWith(relative, "http:") || _startsWith(relative, "https:")) {
+		if(_startsWith(relative, "http:") || _startsWith(relative, "https:")) {
 			return relative;
+		} else if(_startsWith(relative, "//")) {
+			return location.protocol + relative;
 		} else if(_startsWith(relative, "/")) {
 			return location.protocol + "//" + location.host + relative;
 		}
@@ -842,7 +844,7 @@ var queryString2ParamsMap;
 	}
 
 	function _isJsFile(path) {
-		if(!isString(path)){
+		if(!isString(path)) {
 			return false;
 		}
 		var pluginIndex = path.indexOf("!");
@@ -1119,9 +1121,9 @@ var queryString2ParamsMap;
 						};
 						module2.setState("loading");
 						each(urls, function(url, index) {
-							if(_startsWith(url, "https:") || _startsWith(url, "http:") || _startsWith(url, "//")) {
+							if(_startsWith(url, "https:") || _startsWith(url, "http:")) {
 								url = url;
-							} else if(_startsWith(url, ".") || _startsWith(url, "/") || _startsWith(url, "https:") || _startsWith(url, "http:")) {
+							} else if(_startsWith(url, ".") || _startsWith(url, "/")) {
 								if(!module2.aurl) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
@@ -1755,7 +1757,7 @@ var queryString2ParamsMap;
 		}
 
 		//处理属性引用
-		function replaceProperties(obj, property) {
+		function replaceProperties(obj, property, enableKeyAttr) {
 			if(!obj) {
 				return obj;
 			}
@@ -1763,7 +1765,7 @@ var queryString2ParamsMap;
 				return obj;
 			} else if(isArray(obj)) {
 				for(var i = 0; i < obj.length; i++) {
-					obj[i] = replaceProperties(obj[i], property);
+					obj[i] = replaceProperties(obj[i], property, enableKeyAttr);
 				}
 			} else if(isString(obj)) {
 				obj = replaceStringProperties(obj, properties, property);
@@ -1771,14 +1773,23 @@ var queryString2ParamsMap;
 				if(property) {
 					property.has = false;
 				}
+				var replaceKeyMap = {};
 				for(var x in obj) {
 					if(property) {
-						//						if(typeof obj[x] !== "string") {
-						//							throw new Error("property " + x + " only can be string!");
-						//						}
 						property.propertyKey = x;
 					}
-					obj[x] = replaceProperties(obj[x], property);
+					obj[x] = replaceProperties(obj[x], property, enableKeyAttr);
+					if(enableKeyAttr) {
+						var _x = replaceStringProperties(x, properties, property);
+						if(_x !== x) {
+							replaceKeyMap[x] = _x;
+						}
+					}
+				}
+				for(var x in replaceKeyMap) {
+					var objx = obj[x];
+					delete obj[x];
+					obj[replaceKeyMap[x]] = objx;
 				}
 			}
 
@@ -1803,7 +1814,7 @@ var queryString2ParamsMap;
 			properties.__dealt__ = true;
 		}
 
-		return replaceProperties(configObject);
+		return replaceProperties(configObject, undefined, true);
 	}
 
 	define = function(name, deps, callback) {
@@ -1962,12 +1973,14 @@ var queryString2ParamsMap;
 				if(this.autoUrlArgs()) {
 					urlArg = "_t=" + new Date().getTime();
 				} else if(isString(module)) {
-					urlArg = this.urlArgs[module] || this.urlArgs["*"]
+					urlArg = this.urlArgs[module] || this.forPrefixSuffix(module) || this.urlArgs["*"]
 				} else {
-					urlArg = this.urlArgs[module.name] || this.urlArgs[url] || this.urlArgs["*"];
+					urlArg = this.urlArgs[url] || this.forPrefixSuffix(url) ||
+						this.urlArgs[module.name] || this.forPrefixSuffix(module.name) ||
+						this.urlArgs["*"];
 				}
-				if(isFunction(urlArg)){
-					urlArg=urlArg.call(this);
+				if(isFunction(urlArg)) {
+					urlArg = urlArg.call(this);
 				}
 				return _appendArgs2Url(url, urlArg);
 			},
@@ -1985,6 +1998,8 @@ var queryString2ParamsMap;
 		if(!_endsWith(option.baseUrl, "/")) {
 			option.baseUrl += "/";
 		}
+		option.baseUrl = _getPathWithRelative(location.href, option.baseUrl);
+
 		if(!isFunction(option.autoUrlArgs)) {
 			var isAutoUrlArgs = option.autoUrlArgs;
 			option.autoUrlArgs = function() {
@@ -2007,13 +2022,13 @@ var queryString2ParamsMap;
 
 			var urlArgsArr = [];
 			for(var k in option.urlArgs) {
-				var url=k;
-				if(_isJsFile(url)) {
-					if(_startsWith(url, "https:") || _startsWith(url, "http:") || _startsWith(url, "//")) {
+				var url = k;
+				if(_isJsFile(url)) { //处理相对
+					if(_startsWith(url, "https:") || _startsWith(url, "http:")) {
 						url = url;
-					} else if(_startsWith(url, ".") || _startsWith(url, "/") || _startsWith(url, "https:") || _startsWith(url, "http:")) {
+					} else if(_startsWith(url, ".") || _startsWith(url, "/")) {
 						url = _getPathWithRelative(theLoaderUrl, url);
-					} else {
+					} else if(!_startsWith(url, "*")) { //排除*[与*]
 						url = option.baseUrl + url;
 					}
 				}
@@ -2039,6 +2054,69 @@ var queryString2ParamsMap;
 				option.urlArgs[urlArgObj.url] = urlArgObj.args;
 			}
 		}
+		//预处理urlArgs中的*[与*]
+		var _urlArgs_prefix = [];
+		var _urlArgs_suffix = [];
+		option._urlArgs_prefix = _urlArgs_prefix;
+		option._urlArgs_suffix = _urlArgs_suffix;
+
+		for(var k in option.urlArgs) {
+			var url = k;
+			if(_startsWith(url, "*[")) {
+
+				var strfix = url.substring(2);
+
+				if(_startsWith(strfix, "https:") || _startsWith(strfix, "http:")) {
+					strfix = strfix;
+				} else if(_startsWith(strfix, ".") || _startsWith(strfix, "/")) {
+					strfix = _getPathWithRelative(theLoaderUrl, strfix);
+				} else {
+					strfix = option.baseUrl + strfix;
+				}
+
+				_urlArgs_prefix.push({
+					strfix: strfix,
+					value: option.urlArgs[k]
+				});
+				delete option.urlArgs[k];
+			} else if(_startsWith(url, "*]")) {
+				_urlArgs_suffix.push({
+					strfix: url.substring(2),
+					value: option.urlArgs[k]
+				});
+				delete option.urlArgs[k];
+			}
+		}
+
+		option.forPrefixSuffix = function(urlOrName) {
+			//前缀判断
+			for(var i = 0; i < _urlArgs_prefix.length; i++) {
+				var strfixObj = _urlArgs_prefix[i];
+				if(_startsWith(urlOrName, strfixObj.strfix)) {
+					var value;
+					if(isFunction(strfixObj.value)) {
+						value = urlArg.call(this);
+					} else {
+						value = strfixObj.value;
+					}
+					return value;
+				}
+			}
+
+			//后缀判断
+			for(var i = 0; i < _urlArgs_suffix.length; i++) {
+				var strfixObj = _urlArgs_suffix[i];
+				if(_endsWith(urlOrName, strfixObj.strfix)) {
+					var value;
+					if(isFunction(strfixObj.value)) {
+						value = urlArg.call(this);
+					} else {
+						value = strfixObj.value;
+					}
+					return value;
+				}
+			}
+		};
 
 		for(var name in option.paths) {
 			_replaceModulePrefix(option, option.paths[name]); //前缀替换

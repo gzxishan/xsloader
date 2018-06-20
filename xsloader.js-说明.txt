@@ -77,7 +77,9 @@
      ===（1）name!插件格式:name!moduleName=>>modulePath；作用：用于给模块命名
      ===（2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
      ===（3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖
- 10、===1）config.modulePrefix
+ 10、config参数详解
+ 
+    ===1）config.modulePrefix
  	类型：对象
  	用于替换模块url（或urlArgs中）地址前缀,其中prefix不能以"."、"/"开头
  	{
@@ -88,10 +90,18 @@
  	   		replace:"replacePrefix"
  	   }
  	}
+ 	
  	===2）urlArgs
  	类型：对象或返回对象的函数
- 	key：可以是模块名称或地址(地址中以“.”开头表示相对于xsloader地址，其余非绝对路径表示相对于baseUrl)，其中*表示对所有模块,其他模块的重名地址参数会覆盖*的。
- 	value:string或返回string的函数（函数的this为当前配置）
+ 	key：
+ 	    (1)key为绝对地址;以"."开头，表示相对于xsloader地址的模块;相对于baseUrl的地址（不以"."开头的相对地址）;含有modulePrefix前缀的地址
+ 	    (2)key以"*["开头，表示指定前缀的地址，支持相对地址（.相对于xsloader地址，以及相对与baseUrl）;key以"*]"结尾，表示指定前缀的地址。
+ 	    (3)key为模块名
+ 	    (4)key为"*"时，表示对所有模块，但优先级最低,其他模块的重名地址参数会覆盖*的。
+ 	value:
+ 	    (1)value为字符串，
+ 	    (2)value为函数，函数this为当前配置对象，返回值为字符串
+
     ===3）autoUrlArgs（优先与urlArgs）
        类型：boolean，默认为false
        自动添加当前时间_t=currentTimeMillis
@@ -168,3 +178,4 @@
 1.properties中属性是function的，会执行(this为当前的properties)得到结果；且函数会在属性引用前处理。
 2.通过${properName}引用字符串属性
 3.通过$[properName]引用属性（对应的属性值可以是任何类型,除了undefined与function）
+4.key中也支持属性引用(除了properties)
