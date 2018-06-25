@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-20 13:50
+ * latest:2018-06-25 15:50
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1985,6 +1985,7 @@ var queryString2ParamsMap;
 				return _appendArgs2Url(url, urlArg);
 			},
 			dealUrlArgs: function(url) {
+				url=_getPathWithRelative(location.href, url);
 				return this.dealUrl(url, url);
 			},
 			defaultVersion: {}
