@@ -100,7 +100,7 @@
  	    (4)key为"*"时，表示对所有模块，但优先级最低,其他模块的重名地址参数会覆盖*的。
  	value:
  	    (1)value为字符串，
- 	    (2)value为函数，函数this为当前配置对象，返回值为字符串
+ 	    (2)value为函数function(moduleNameOrUrl)，函数this为当前配置对象，返回值为字符串,
 
     ===3）autoUrlArgs（优先与urlArgs）
        类型：boolean，默认为false

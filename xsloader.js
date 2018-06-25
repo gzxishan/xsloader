@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-06-25 15:50
+ * latest:2018-06-25 17:50
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1970,22 +1970,55 @@ var queryString2ParamsMap;
 			},
 			dealUrl: function(module, url) {
 				var urlArg;
+				var nameOrUrl;
 				if(this.autoUrlArgs()) {
 					urlArg = "_t=" + new Date().getTime();
 				} else if(isString(module)) {
-					urlArg = this.urlArgs[module] || this.forPrefixSuffix(module) || this.urlArgs["*"]
+					urlArg = this.urlArgs[module];
+					if(urlArg) {
+						nameOrUrl = module;
+					} else {
+						nameOrUrl = module;
+						urlArg = this.forPrefixSuffix(module);
+					}
+
+					if(!urlArg) {
+						nameOrUrl = "*";
+						urlArg = this.urlArgs["*"];
+					}
+
 				} else {
-					urlArg = this.urlArgs[url] || this.forPrefixSuffix(url) ||
-						this.urlArgs[module.name] || this.forPrefixSuffix(module.name) ||
-						this.urlArgs["*"];
+
+					urlArg = this.urlArgs[url];
+					if(urlArg) {
+						nameOrUrl = url;
+					} else {
+						urlArg = this.forPrefixSuffix(url);
+					}
+
+					if(!urlArg) {
+						nameOrUrl = module.name;
+						urlArg = this.urlArgs[module.name];
+					}
+
+					if(!urlArg) {
+						nameOrUrl = module.name;
+						urlArg = this.forPrefixSuffix(module.name);
+					}
+
+					if(!urlArg) {
+						nameOrUrl = "*";
+						urlArg = this.urlArgs["*"]
+					}
+
 				}
 				if(isFunction(urlArg)) {
-					urlArg = urlArg.call(this);
+					urlArg = urlArg.call(this, nameOrUrl);
 				}
 				return _appendArgs2Url(url, urlArg);
 			},
 			dealUrlArgs: function(url) {
-				url=_getPathWithRelative(location.href, url);
+				url = _getPathWithRelative(location.href, url);
 				return this.dealUrl(url, url);
 			},
 			defaultVersion: {}
@@ -2096,7 +2129,7 @@ var queryString2ParamsMap;
 				if(_startsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this);
+						value = urlArg.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
@@ -2110,7 +2143,7 @@ var queryString2ParamsMap;
 				if(_endsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this);
+						value = urlArg.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
