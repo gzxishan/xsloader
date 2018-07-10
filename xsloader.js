@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-07-10 11:00
+ * latest:2018-07-10 18:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -65,7 +65,7 @@ var queryString2ParamsMap;
 		if(isIE) {
 			var reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
 			var fIEVersion = parseInt(reIE && reIE[1] || -1);
-			return fIEVersion==-1?-1||"ie"+fIEVersion;
+			return fIEVersion == -1 ? -1 : "ie" + fIEVersion;
 		} else if(isEdge) {
 			return 'edge'; //edge
 		} else if(isIE11) {
@@ -347,7 +347,7 @@ var queryString2ParamsMap;
 	}
 
 	function _appendArgs2Url(url, urlArgs) {
-		if(url===undefined||url===null||!urlArgs) {
+		if(url === undefined || url === null || !urlArgs) {
 			return url;
 		}
 
