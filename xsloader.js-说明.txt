@@ -1,17 +1,18 @@
 一、xsloader基础格式
 {
 	baseUrl:"",//===基础参考路径（除绝对路径和相对路径，如./(当前目录),../(上一级目录),//(域名),/(根目录),xx/(baseUrl+)）
+	modulePrefix:{},//===
 	urlArgs:{},//===
+	autoUrlArgs:false,//===是否自动添加地址参数，防止缓存。1）为true或false；2）function,返回true或false
 	paths:{},//===用于指定模块的路径(*.js)，不能使用插件
 	depsPaths:{},//===用于指定模块的路径(*.js)，并可以为其中的模块配置依赖，不能使用插件。
 	deps:{},//===用于配置依赖，map。
 			//===（1）*表示对depsPaths中的所有模块加上此依赖:*中的模块不能依赖depsPaths中的模块(会报循环依赖错误)，但可以依赖paths中的模块
 			//===（2）key的格式path1::path2::path3...
-	modulePrefix:{},//===	
+		
 	defineFunction:{},//===map,{moduleName:function(originCallback,originThis,originArgs){}},用于自定义操作模块的回调函数
 	defaultVersion:{},//==={'group:project':'versionName'}默认包名配置
 	waitSeconds:10,//===加载模块默认等待时间，默认10秒,
-	autoUrlArgs:false,//===是否自动添加地址参数，防止缓存。1）为true或false；2）function,返回true或false
 	instance:"single",//===对模块对象的默认处理方式，取值为single(默认)或clone
 	properties:{//===所有的字符串中都可以使用，格式为${propertyName}
 		name1:anyType,
@@ -29,7 +30,7 @@
  1、===注意：
  	（1）当js里只有一个define时，优先使用配置里定义的模块名、同时也保留define提供的名称。
             （2）匿名define的模块名为对应路径或为配置里定义的模块名。
-            （3）模块路径应该都以".js"结尾,但以"."、"/"、"https:"、"http:"开头的，末尾可以省略".js"    
+            （3）模块路径应该都以".js"为后缀,/*但以"."、"/"、"https:"、"http:"开头的，末尾可以省略".js"*/。  
  2、===xsloader.onError=function(code,errinfo)回调函数
                               
  3、require基础方法：
@@ -44,7 +45,7 @@
   	===（3）define(moduleName,[deps],content)
   	===（4）define(moduleName,content)
   	===（5）define.then({onError:function(err),orderDep:false,instance:"single",}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
- 5、1）回调函数的this对象、pluginMain函数、模块对象(为define(...Object))的_invoker_
+ 5、1）回调函数(包括pluginMain函数)的this对象、模块对象(为define(...Object))的_invoker_
         ===（1）require(...),同require,但具有当前js文件的路径信息、从而可以使用相对路径
         ===（2）getUrl(relativeUrl,appendArgs)：appendArgs表示是否加上urlArgs参数。
         								1.当没有提供了relativeUrl时，获取当前模块的url路径；
@@ -95,14 +96,14 @@
  	类型：对象或返回对象的函数
  	key：
  	    (1)key为绝对地址;以"."开头，表示相对于xsloader地址的模块;相对于baseUrl的地址（不以"."开头的相对地址）;含有modulePrefix前缀的地址
- 	    (2)key以"*["开头，表示指定前缀的地址，支持相对地址（.相对于xsloader地址，以及相对与baseUrl）;key以"*]"结尾，表示指定前缀的地址。
+ 	    (2)key以"*["开头，表示指定前缀的地址，支持相对地址（.相对于xsloader地址，以及相对于baseUrl）;key以"*]"开头，表示指定后缀的地址。
  	    (3)key为模块名
  	    (4)key为"*"时，表示对所有模块，但优先级最低,其他模块的重名地址参数会覆盖*的。
  	value:
  	    (1)value为字符串，
  	    (2)value为函数function(moduleNameOrUrl)，函数this为当前配置对象，返回值为字符串,
 
-    ===3）autoUrlArgs（优先与urlArgs）
+    ===3）autoUrlArgs（优先于urlArgs）
        类型：boolean，默认为false
        自动添加当前时间_t=currentTimeMillis
        
