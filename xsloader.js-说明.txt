@@ -125,23 +125,24 @@
     xsloader.isRegExp(arg);
     xsloader.getObjectAttr(obj, attrNames,defaultValue);
     xsloader.setObjectAttr(obj, attrNames, value);
-    xsloader.tryCall(fun, defaultReturn)
+    xsloader.tryCall(fun, defaultReturn,thiz)
     xsloader.asyncCall(fun):异步执行
     xsloader.IE_VERSION:ie版本（-1表示不是ie，其余检测结果为ie6~ie11及edge）
   2）startsWith()
     endsWith()
     xsParseJson(str,option):注意key需要用引号包裹
     		（1）通过“/*{f}*/”与“/*{f}*/”可包裹function来支持函数，如json字符串{'callback':/*{f*/function(){}/*f}*/}
-    		（2）通过option.fnStart与option.fnEnd来指定（2）中函数的开始与结束的标志,如果没有该标志则不会进行函数的转换。
+    		（2）通过option.fnStart与option.fnEnd来指定（1）中函数的开始与结束的标志,如果没有该标志则不会进行函数的转换。
     		（3）在function外的json部分，支持“//#//”行注释,可通过option.rcomment修改(正则相关字符需要转义)
-    xsJson2String()
+    xsJson2String(obj)
     randId()
-    indexInArray()
-    getPathWithRelative()
+    indexInArray(array, ele, compare)
+    indexInArrayFrom(array, ele,offset, compare)
+    getPathWithRelative(path, relative, isPathDir)
     appendArgs2Url()
-    queryString2ParamsMap()
+    queryString2ParamsMap(argsStr, decode)
     Array.prototype.indexOf(elem,[fromIndex])
-    Array.pushAll(arr)
+    Array.pushAll(targetArr,arr)
 三、xsloader配置服务
 1.data-xsloader-conf相对于当前页面地址的配置路径，data-xsloader-conf2相对于加载器地址的配置路径。
 2.data-xsloader-main用于手动指定main.getPath()的返回值，相对于当前页面地址。

@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-07-10 18:00
+ * latest:2018-07-19 19:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -22,6 +22,7 @@ var randId;
  * function(array,ele,compare):得到ele在array中的位置，若array为空或没有找到返回-1；compare(arrayEle,ele)可选函数，默认为==比较.
  */
 var indexInArray;
+var indexInArrayFrom;
 /**
  * function(path,relative,isPathDir):相对于path，获取relative的绝对路径
  */
@@ -252,12 +253,12 @@ var queryString2ParamsMap;
 	};
 	endsWith = _endsWith;
 
-	function _indexInArray(array, ele, compare) {
+	function _indexInArray(array, ele, offset, compare) {
 		var index = -1;
 		if(array) {
-			for(var i = 0; i < array.length; i++) {
+			for(var i = offset || 0; i < array.length; i++) {
 				if(compare) {
-					if(compare(array[i], ele)) {
+					if(compare(array[i], ele, i, array)) {
 						index = i;
 						break;
 					}
@@ -272,9 +273,13 @@ var queryString2ParamsMap;
 		}
 		return index;
 	};
-	indexInArray = _indexInArray;
+	indexInArrayFrom = _indexInArray;
+	indexInArray = function(array, ele, compare) {
+		return _indexInArray(array, ele, 0, compare);
+	};
 
 	function _getPathWithRelative(path, relative, isPathDir) {
+
 		if(_startsWith(relative, "http:") || _startsWith(relative, "https:")) {
 			return relative;
 		} else if(_startsWith(relative, "//")) {
@@ -283,20 +288,50 @@ var queryString2ParamsMap;
 			return location.protocol + "//" + location.host + relative;
 		}
 
+		if(isPathDir === undefined) {
+			var index = path.lastIndexOf("/");
+			if(index == path.length - 1) {
+				isPathDir = true;
+			} else {
+				if(index == -1) {
+					index = 0;
+				} else {
+					index++;
+				}
+				isPathDir = path.indexOf(".", index) == -1;
+			}
+		}
+
+		if(_endsWith(path, "/")) {
+			path = path.substring(0, path.length - 1);
+		}
+
+		if(_endsWith(relative, "/")) {
+			relative = relative.substring(0, relative.length - 1);
+		}
+
 		var prefix = "";
 		var index = -1;
 		if(_startsWith(path, "http://")) {
 			index = path.indexOf("/", 7);
+			if(index == -1) {
+				index = path.length;
+			}
 		} else if(_startsWith(path, "https://")) {
 			index = path.indexOf("/", 8);
+			if(index == -1) {
+				index = path.length;
+			}
 		} else if(_startsWith(path, "//")) {
 			index = path.indexOf("/", 2);
+			if(index == -1) {
+				index = path.length;
+			}
+		} else if(_startsWith(path, "/")) {
+			index = 1;
 		}
-		if(index == -1) {
-			index = 0;
-		}
-		prefix = path.substring(0, index);
-		path = path.substring(index);
+		prefix = path.substring(0, index + 1);
+		path = path.substring(index + 1);
 
 		var stack = path.split("/");
 		if(!isPathDir && stack.length > 0) {
@@ -322,6 +357,9 @@ var queryString2ParamsMap;
 	getPathWithRelative = _getPathWithRelative;
 
 	function toParamsMap(argsStr, decode) {
+		if(isObject(argsStr)) {
+			return argsStr;
+		}
 		if(!argsStr) {
 			return {};
 		}
@@ -341,7 +379,8 @@ var queryString2ParamsMap;
 				continue;
 			}
 			s = seg[i].split('=');
-			ret[s[0]] = decode ? decodeURIComponent(s[1]) : s[1];
+			var name = decode ? decodeURIComponent(s[0]) : s[0];
+			ret[name] = decode ? decodeURIComponent(s[1]) : s[1];
 		}
 		return ret;
 	}
@@ -730,6 +769,7 @@ var queryString2ParamsMap;
 					deps: dep,
 					orderDep: isOrderDep
 				};
+				console.log(innerDepsMap[modName]);
 				deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
 			}
 		}
@@ -1727,7 +1767,7 @@ var queryString2ParamsMap;
 			rs = ALL_TYPE_PROPERTIES_EXP.exec(str);
 			if(rs) {
 				var propKey = rs[1];
-				var propValue = properties[propKey];
+				var propValue = xsloader.getObjectAttr(properties, propKey);
 				if(propValue === undefined) {
 					return str;
 				} else {
@@ -1749,7 +1789,7 @@ var queryString2ParamsMap;
 						property.has = true;
 					}
 					result += str.substring(0, rs.index);
-					result += properties[propKey];
+					result += xsloader.getObjectAttr(properties, propKey);
 					str = str.substring(rs.index + rs[0].length);
 				}
 			}
@@ -1962,9 +2002,17 @@ var queryString2ParamsMap;
 			},
 			getDeps: function(m) {
 				var as = this.dealtDeps[m] || [];
-				var deps = new Array(as.length);
+				var _deps = [];
+				var deps = _deps;
+				if(as.length > 0 && (as[0] === true || as[0] === false)) {
+					if(as[0]) {
+						deps = [_deps];
+					} else {
+						as.splice(0, 1);
+					}
+				}
 				for(var i = 0; i < as.length; i++) {
-					deps[i] = as[i];
+					_deps.push(as[i]);
 				}
 				return deps;
 			},
@@ -2162,6 +2210,15 @@ var queryString2ParamsMap;
 		//处理依赖
 		var dealtDeps = option.dealtDeps;
 
+		var pushDeps = function(dealtDepArray, depsArray) {
+			if(depsArray.length > 0 && (depsArray[0] !== true && depsArray[0] !== false)) {
+				depsArray.splice(0, 0, false);
+			}
+			each(depsArray, function(dep) {
+				dealtDepArray.push(dep);
+			});
+		}
+
 		for(var keyName in option.deps) {
 			var paths = keyName.split('::');
 			var depsArray = option.deps[keyName];
@@ -2169,15 +2226,11 @@ var queryString2ParamsMap;
 				if(path == '*') {
 					for(var m in option.depsPaths) {
 						var dealtDepArray = dealtDeps[m] = dealtDeps[m] || [];
-						each(depsArray, function(dep) {
-							dealtDepArray.push(dep);
-						});
+						pushDeps(dealtDepArray, depsArray);
 					}
 				} else {
 					var dealtDepArray = (dealtDeps[path] = dealtDeps[path] || []);
-					each(depsArray, function(dep) {
-						dealtDepArray.push(dep);
-					});
+					pushDeps(dealtDepArray, depsArray);
 				}
 			});
 		}
@@ -2195,10 +2248,11 @@ var queryString2ParamsMap;
 	xsloader.define = define;
 	xsloader.require = require;
 	xsloader.randId = randId;
-	xsloader.tryCall = function(fun, defaultReturn) {
+	xsloader.tryCall = function(fun, defaultReturn, thiz) {
 		var rs;
 		try {
-			rs = fun();
+			thiz = thiz === undefined ? this : thiz;
+			rs = fun.call(thiz);
 		} catch(e) {
 			console.log(e);
 		}
@@ -2667,6 +2721,8 @@ var queryString2ParamsMap;
 		var failCallback = option.fail;
 		var uploadStartCallback = option.uploadStart;
 		var uploadProgressCallback = option.uploadProgress;
+		var uploadOkCallback = option.uploadOk;
+		var uploadErrorCallback = option.uploadError;
 		var uploadEndCallback = option.uploadEnd;
 
 		var _beforeOpenHook = option._beforeOpenHook || httpRequest._beforeOpenHook;
@@ -2710,11 +2766,11 @@ var queryString2ParamsMap;
 			};
 			_beforeOpenHook(option, function() {
 				_connAfterOpenHook(option, xhr);
-			});
+			}, xhr);
 		};
 
 		function _doOnFailResponseHook(option, xhr, err, extraErr) {
-			_onFailResponseHook(option, xhr, function(result) {
+			_onFailResponseHook(option, function(result) {
 				if(result !== false && result !== undefined) {
 					if(typeof okCallback == "function") {
 						okCallback(result, xhr);
@@ -2725,7 +2781,7 @@ var queryString2ParamsMap;
 				} else {
 					console.error(err);
 				}
-			}, extraErr);
+			}, xhr, extraErr);
 		};
 
 		function _connAfterOpenHook(option, xhr) {
@@ -2779,6 +2835,15 @@ var queryString2ParamsMap;
 			if(typeof uploadProgressCallback == "function") {
 				xhr.upload.onprogress = uploadProgressCallback;
 			}
+
+			if(typeof uploadOkCallback == "function") {
+				xhr.upload.onload = uploadOkCallback;
+			}
+
+			if(typeof uploadErrorCallback == "function") {
+				xhr.upload.onerror = uploadErrorCallback;
+			}
+
 			if(typeof uploadEndCallback == "function") {
 				xhr.upload.onloadend = uploadEndCallback;
 			}
@@ -2813,11 +2878,11 @@ var queryString2ParamsMap;
 						} else if(option.handleType === "text") {
 							result = xhr.responseText;
 						}
-						_onOkResponseHook(result, option, xhr, function(result) {
+						_onOkResponseHook(result, option, function(result) {
 							if(typeof okCallback == "function") {
 								okCallback(result, xhr);
 							}
-						});
+						}, xhr);
 					}
 
 				} else {
@@ -2843,6 +2908,14 @@ var queryString2ParamsMap;
 			},
 			uploadProgress: function(uploadProgress) {
 				uploadProgressCallback = uploadProgress;
+				return this;
+			},
+			uploadOk: function(callback) {
+				uploadOkCallback = callback;
+				return this;
+			},
+			uploadError: function(callback) {
+				uploadErrorCallback = callback;
 				return this;
 			},
 			uploadEnd: function(uploadEnd) {
@@ -2903,6 +2976,18 @@ var queryString2ParamsMap;
 				failCallback = callback;
 				return this;
 			},
+			_beforeOpenHook: function(callback) {
+				_beforeOpenHook = callback;
+				return this;
+			},
+			_onOkResponseHook: function(callback) {
+				_onOkResponseHook = callback;
+				return this;
+			},
+			_onFailResponseHook: function(callback) {
+				_onFailResponseHook = callback;
+				return this;
+			},
 			done: function() {
 				try {
 					conn();
@@ -2919,21 +3004,21 @@ var queryString2ParamsMap;
 	};
 	/**
 	 */
-	httpRequest._beforeOpenHook = function(option, callback) {
+	httpRequest._beforeOpenHook = function(option, callback, xhr) {
 		callback();
 	};
 
 	/**
 	 * function(result,option,xhr,callback),callback(result)的result为最终的结果
 	 */
-	httpRequest._onOkResponseHook = function(result, option, xhr, callback) {
+	httpRequest._onOkResponseHook = function(result, option, callback, xhr) {
 		callback(result);
 	};
 	/**
 	 * function(option,xhr,callback,extraErrorType),callback(result)的result为false则不会处理后面的,如果为非undefined则作为成功的结果。
 	 * extraErrorType=="parse-json-error"表示转换成json时出错
 	 */
-	httpRequest._onFailResponseHook = function(option, xhr, callback) {
+	httpRequest._onFailResponseHook = function(option, callback, xhr, extraErrorType) {
 		callback(undefined);
 	};
 
@@ -3631,26 +3716,31 @@ var queryString2ParamsMap;
 			var activeListenerMyIds = {}; //inactiveUniqueId:[id]
 
 			//callback:function(data,source,type,optionData,originStr)
-			//origin.originSend,origin.originReceive
+			//originObj.originSend,originObj.originReceive
 			//isActive为false表示被动者,被动者是根据cmd发送、且发给所有的，主动者根据id发送.
-			handle.listen = function(cmd, origin, callback, isActive) {
+			handle.listen = function(cmd, originObj, isActive, callback) {
+
+				if(xsloader.isString(originObj.originReceive)) {
+					var originReceiveStr = originObj.originReceive;
+					originObj.originReceive = function(source, originStr, data) {
+						return originReceiveStr == '*' || originReceiveStr == originStr;
+					};
+				}
+
+				if(xsloader.isString(originObj.originSend)) {
+					var originSendStr = originObj.originSend;
+					originObj.originSend = function(source) {
+						return originSendStr;
+					};
+				}
+
 				var id = isActive ? randId() : cmd;
 				var listener = {
 					callback: callback,
 					cmd: cmd,
 					active: isActive,
-					origin: origin
+					originReceive: originObj.originReceive
 				};
-				var originReceive;
-				if(xsloader.isString(origin.originReceive)) {
-					originReceive = function(originStr) {
-						return origin.originReceive == '*' || origin.originReceive == originStr;
-					};
-				} else {
-					originReceive = origin.originReceive;
-				}
-				listener.originReceive = originReceive;
-				origin.originSend = xsloader.isString(origin.originSend) ? origin.originSend : origin.originSend();
 				listeners[id] = listener;
 				if(!isActive) {
 					listener.uniqueId = randId();
@@ -3679,15 +3769,15 @@ var queryString2ParamsMap;
 				}
 
 			};
-			handle.send = function(id, data, source, origin) {
+			handle.send = function(id, data, source, originObj) {
 				var listener = listeners[id];
 				var optionData = {
 					uniqueId: listener.uniqueId
 				};
-				_send(id, data, source, origin, "msg", optionData);
+				_send(id, data, source, originObj, "msg", optionData);
 			};
 
-			function _send(id, data, source, origin, type, optionData) {
+			function _send(id, data, source, originObj, type, optionData) {
 				var listener = listeners[id];
 				if(!listener) {
 					return;
@@ -3706,29 +3796,29 @@ var queryString2ParamsMap;
 					console.log("send from:" + location.href);
 					console.log(msg);
 				}
-				var originStr = origin.originSend;
-				source.postMessage(xsJson2String(msg), origin.originSend);
+				var originStr = originObj.originSend(source);
+				source.postMessage(xsJson2String(msg), originStr);
 			};
 
-			handle.sendConn = function(id, data, source, origin, conndata) {
+			handle.sendConn = function(id, data, source, originObj, conndata) {
 				var optionData = {
 					thatId: id,
 					conndata: conndata
 				};
-				_send(id, data, source, origin, "conn", optionData);
+				_send(id, data, source, originObj, "conn", optionData);
 			};
 
-			handle.sendConned = function(id, data, source, origin, thatOptionData, conndata) {
+			handle.sendConned = function(id, data, source, originObj, thatOptionData, conndata) {
 				var listener = listeners[id];
 				var optionData = {
 					myId: thatOptionData.thatId,
 					conndata: conndata
 				};
-				_send(id, data, source, origin, "conned", optionData);
+				_send(id, data, source, originObj, "conned", optionData);
 			};
 
-			handle.sendResponse = function(id, data, source, origin) {
-				_send(id, data, source, origin, "response")
+			handle.sendResponse = function(id, data, source, originObj) {
+				_send(id, data, source, originObj, "response")
 			};
 
 			window.addEventListener('message', function(event) {
@@ -3766,7 +3856,7 @@ var queryString2ParamsMap;
 						var listener = listeners[myId];
 						var callback = listener ? listener.callback : null;
 						if(callback) {
-							if(listener.originReceive(originStr, optionData)) {
+							if(listener.originReceive(source,originStr, optionData)) {
 								callback(cmdData, source, type, optionData, originStr);
 							}
 						}
@@ -3782,7 +3872,7 @@ var queryString2ParamsMap;
 								var listener = listeners[myId];
 								var callback = listener ? listener.callback : null;
 								if(callback) {
-									if(listener.originReceive(originStr, optionData)) {
+									if(listener.originReceive(source, originStr, optionData)) {
 										callback(cmdData, source, type, optionData, originStr);
 									}
 								}
@@ -3806,7 +3896,7 @@ var queryString2ParamsMap;
 			return handle;
 		})();
 
-		function CommunicationUnit(cmd, source, origin, isActive, conndata) {
+		function CommunicationUnit(cmd, source, originObj, isActive, conndata) {
 			var msgQueue = new LinkedList();
 			var receiveCacheList = new LinkedList();
 
@@ -3865,13 +3955,16 @@ var queryString2ParamsMap;
 				postMessageBridge.remove(handleId);
 			};
 
-			var handleId = postMessageBridge.listen(cmd, origin, function(msg, _source, type, optionData, originStr) {
+			var handleId = postMessageBridge.listen(cmd, originObj, isActive, function(msg, _source, type, optionData, originStr) {
 				if(type == "conn") { //发起连接
 					source = _source;
-					isConnected = true;
 					postMessageBridge.sendConned(handleId, { //确认连接
 						conned: true
-					}, source, origin, optionData, conndata);
+					}, source, originObj, optionData, conndata);
+					if(isConnected) {
+						return;
+					}
+					isConnected = true;
 					if(thiz.onConnectedListener) {
 						thiz.onConnectedListener.call(thiz, optionData.conndata, {
 							originStr: originStr
@@ -3879,12 +3972,15 @@ var queryString2ParamsMap;
 					}
 					sendTop();
 				} else if(type == "conned") { //已经连接
-					isConnected = true;
+					if(isConnected) {
+						return;
+					}
 					if(thiz.onConnectedListener) {
 						thiz.onConnectedListener.call(thiz, optionData.conndata, {
 							originStr: originStr
 						});
 					}
+					isConnected = true;
 					sendTop();
 				} else if(type == "response") { //消息回复,移除消息
 					msgQueue.remove(function(elem) {
@@ -3906,16 +4002,16 @@ var queryString2ParamsMap;
 					postMessageBridge.sendResponse(handleId, { //回应已经收到
 						response: true,
 						id: msg.id
-					}, source, origin);
+					}, source, originObj);
 
 				}
-			}, isActive);
+			});
 
 			function sendTop() {
 				if(isConnected) {
 					var msg = msgQueue.pop();
 					if(msg) {
-						postMessageBridge.send(handleId, msg, source, origin);
+						postMessageBridge.send(handleId, msg, source, originObj);
 						postMessageBridge.runAfter(SLEEP, init);
 					}
 				}
@@ -3927,7 +4023,7 @@ var queryString2ParamsMap;
 				}
 				postMessageBridge.sendConn(handleId, {
 					conn: true
-				}, source, origin, conndata);
+				}, source, originObj, conndata);
 				connectCount++;
 				postMessageBridge.runAfter(SLEEP, init);
 			}
@@ -3943,7 +4039,7 @@ var queryString2ParamsMap;
 			};
 		}
 
-		var handle = api;
+		var handleApi = api;
 
 		/**
 		 * 
@@ -3960,25 +4056,25 @@ var queryString2ParamsMap;
 				listener: null,
 				connected: null,
 				conndata: null,
-				origin: {
+				originObj: {
 					originSend: option.originSend || currentOriginStr,
 					originReceive: option.originReceive || currentOriginStr
 				}
 			}, option);
 
-			var cmd = option.cmd;
+			var cmd = option.cmd||"default-cmd";
 			var connectedCallback = option.connected;
 			var receiveCallback = option.listener;
 			var conndata = option.conndata;
 
 			var isActive = !notActive;
-			var origin = option.origin;
+			var originObj = option.originObj;
 
 			var unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, origin, isActive, conndata);
+				unit = new CommunicationUnit(cmd, null, originObj, isActive, conndata);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, origin, isActive, conndata);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, originObj, isActive, conndata);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
@@ -4014,11 +4110,11 @@ var queryString2ParamsMap;
 		function _connectIFrame(iframe, option) {
 			var winObj;
 			if(typeof iframe == "string") {
-				//iframe = $(iframe)[0];
+				//iframe = ddocument.querySelector(iframe);
 				winObj = function(callback) {
-					$(iframe).on("load", function() {
+					iframe.onload = function() {
 						callback(this.contentWindow);
-					});
+					};
 				};
 			} else {
 				winObj = iframe.contentWindow;
@@ -4033,7 +4129,7 @@ var queryString2ParamsMap;
 		 * @param {Object} option
 		 * @return 返回sender
 		 */
-		handle.connectIFrame = function(iframe, option) {
+		handleApi.connectIFrame = function(iframe, option) {
 			return _connectIFrame(iframe, option);
 		};
 
@@ -4042,7 +4138,7 @@ var queryString2ParamsMap;
 		 * @param {Object} option
 		 * @return 返回sender
 		 */
-		handle.connectParent = function(option) {
+		handleApi.connectParent = function(option) {
 			return _connectWindow(window.parent, option);
 		};
 
@@ -4051,7 +4147,7 @@ var queryString2ParamsMap;
 		 * @param {Object} option
 		 * @return 返回sender
 		 */
-		handle.connectTop = function(option) {
+		handleApi.connectTop = function(option) {
 			return _connectWindow(window.top, option);
 		};
 
@@ -4060,7 +4156,7 @@ var queryString2ParamsMap;
 		 * @param {Object} option
 		 * @return 返回sender
 		 */
-		handle.connectOpener = function(option) {
+		handleApi.connectOpener = function(option) {
 			return _connectWindow(window.opener, option);
 		};
 
@@ -4069,11 +4165,11 @@ var queryString2ParamsMap;
 		 * @param {Object} option
 		 * @return 返回一个sender
 		 */
-		handle.listenMessage = function(option) {
+		handleApi.listenMessage = function(option) {
 			return _connectWindow(null, option, true);
 		};
 
-		api.debug = function(isDebug) {
+		handleApi.debug = function(isDebug) {
 			isXsMsgDebug = isDebug;
 		};
 
@@ -4082,8 +4178,8 @@ var queryString2ParamsMap;
 		 * option参数
 		 *********************
 		 * cmd:
-		 * originSend:String||function(origin){}//默认只能是同域
-		 * originReceive:String||function(origin,data){}//默认只能是同域
+		 * originSend:String||function(source){}//默认只能是同域
+		 * originReceive:String||function(source,origin,data){}//默认只能是同域
 		 * listener: function(data,sender,extra)
 		 * connected:function(sender,conndata,extra)
 		 * conndata:
@@ -4092,7 +4188,7 @@ var queryString2ParamsMap;
 		 **************
 		 * originStr:对方页面的地址
 		 */
-		define("xsmsg", api); //TODO STRONG xsmsg
+		define("xsmsg", handleApi); //TODO STRONG xsmsg
 		define("XsLinkedList", function() {
 			return LinkedList;
 		});
