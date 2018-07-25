@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-07-19 19:00
+ * latest:2018-07-25 8:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -223,7 +223,7 @@ var queryString2ParamsMap;
 		window._xsloader_randid_2_ = _randId;
 		var win = window;
 		while(true) {
-			if(win.parent && win != win.parent && win.parent._xsloader_randid_2_) {
+			if(win.parent && win != win.parent && win.parent._xsloader_randid_2_ && (win.location.hostname == win.parent.hostname)) {
 				randId = win.parent._xsloader_randid_2_;
 				win = win.parent;
 			} else {
@@ -278,14 +278,46 @@ var queryString2ParamsMap;
 		return _indexInArray(array, ele, 0, compare);
 	};
 
+	var ABSOLUTE_PROTOCOL_REG = /^(([a-zA-Z0-9_]*:\/\/)|(\/)|(\/\/))/;
+	var ABSOLUTE_PROTOCOL_REG2 = /^([a-zA-Z0-9_]+:)\/\/([^/\s]+)/;
+
+	function _dealAbsolute(path, currentUrl) {
+		currentUrl = currentUrl || location.href;
+		var rs = ABSOLUTE_PROTOCOL_REG.exec(path);
+
+		var finalPath;
+		var absolute;
+		if(rs) {
+			var protocol = rs[1];
+			absolute = true;
+
+			rs = ABSOLUTE_PROTOCOL_REG2.exec(currentUrl);
+			var _protocol = rs && rs[1] || location.protocol;
+			var _host = rs && rs[2] || location.host;
+
+			if(protocol == "//") {
+				finalPath = _protocol + "//" + path;
+			} else if(protocol == "/") {
+				finalPath = _protocol + "//" + _host + path;
+			} else {
+				finalPath = path;
+			}
+
+		} else {
+			absolute = false;
+			finalPath = path;
+		}
+		return {
+			absolute: absolute,
+			path: finalPath
+		};
+	}
+
 	function _getPathWithRelative(path, relative, isPathDir) {
 
-		if(_startsWith(relative, "http:") || _startsWith(relative, "https:")) {
-			return relative;
-		} else if(_startsWith(relative, "//")) {
-			return location.protocol + relative;
-		} else if(_startsWith(relative, "/")) {
-			return location.protocol + "//" + location.host + relative;
+		var absolute = _dealAbsolute(relative);
+		if(absolute.absolute) {
+			return absolute.path;
 		}
 
 		if(isPathDir === undefined) {
@@ -306,30 +338,26 @@ var queryString2ParamsMap;
 			path = path.substring(0, path.length - 1);
 		}
 
+		var isRelativeDir=false;
 		if(_endsWith(relative, "/")) {
 			relative = relative.substring(0, relative.length - 1);
+			isRelativeDir=true;
+		}else if(relative=="."||relative==".."||_endsWith("/.")||_endsWith("/..")){
+			isRelativeDir=true;
 		}
 
 		var prefix = "";
 		var index = -1;
-		if(_startsWith(path, "http://")) {
-			index = path.indexOf("/", 7);
+		var absolute2 = _dealAbsolute(path);
+		if(absolute2.absolute) {
+			path = absolute2.path;
+			var index2 = path.indexOf("//");
+			index = path.indexOf("/", index2 + 2);
 			if(index == -1) {
 				index = path.length;
 			}
-		} else if(_startsWith(path, "https://")) {
-			index = path.indexOf("/", 8);
-			if(index == -1) {
-				index = path.length;
-			}
-		} else if(_startsWith(path, "//")) {
-			index = path.indexOf("/", 2);
-			if(index == -1) {
-				index = path.length;
-			}
-		} else if(_startsWith(path, "/")) {
-			index = 1;
 		}
+
 		prefix = path.substring(0, index + 1);
 		path = path.substring(index + 1);
 
@@ -352,7 +380,11 @@ var queryString2ParamsMap;
 		if(stack.length == 0) {
 			return "";
 		}
-		return prefix + stack.join("/");
+		var result = prefix + stack.join("/");
+		if(isRelativeDir&&!_endsWith(result,"/")){
+			result+="/";
+		}
+		return result;
 	};
 	getPathWithRelative = _getPathWithRelative;
 
@@ -769,7 +801,8 @@ var queryString2ParamsMap;
 					deps: dep,
 					orderDep: isOrderDep
 				};
-				console.log(innerDepsMap[modName]);
+				
+				 //console.log(innerDepsMap[modName]);
 				deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
 			}
 		}
@@ -852,12 +885,17 @@ var queryString2ParamsMap;
 
 		for(var i = 0; i < deps.length; i++) {
 			var m = deps[i];
-			var pluginIndex = m.indexOf("!");
-			var pluginParam = pluginIndex > 0 ? m.substring(pluginIndex) : "";
-			m = pluginIndex > 0 ? m.substring(0, pluginIndex) : m;
+			var index = m.indexOf("!");
+			var pluginParam = index > 0 ? m.substring(index) : "";
+			m = index > 0 ? m.substring(0, index) : m;
+
+			index = m.indexOf("?");
+			var query = index > 0 ? m.substring(index) : "";
+			m = index > 0 ? m.substring(0, index) : m;
+
 			var isJsFile = _isJsFile(m);
-			if(!isJsFile && (_startsWith(m, ".") || _startsWith(m, "/") || _startsWith(m, "https:") || _startsWith(m, "http:"))) {
-				deps[i] = m + ".js" + pluginParam;
+			if(!isJsFile && (_startsWith(m, ".") || _dealAbsolute(m).absolute)) {
+				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
 
@@ -1161,16 +1199,19 @@ var queryString2ParamsMap;
 						};
 						module2.setState("loading");
 						each(urls, function(url, index) {
-							if(_startsWith(url, "https:") || _startsWith(url, "http:")) {
-								url = url;
-							} else if(_startsWith(url, ".") || _startsWith(url, "/")) {
+							if(_startsWith(url, ".") || _startsWith(url, "/")) {
 								if(!module2.aurl) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
 								url = _getPathWithRelative(module2.aurl, url);
 							} else {
-								url = config.baseUrl + url;
+								var absolute = _dealAbsolute(url);
+								if(absolute.absolute) {
+									url = absolute.path;
+								} else {
+									url = config.baseUrl + url;
+								}
 							}
 							urls[index] = config.dealUrl(thenOption.thatInvoker && thenOption.thatInvoker.getName() || module2, url);
 						});
@@ -1217,9 +1258,7 @@ var queryString2ParamsMap;
 			var url;
 			if(relativeUrl === undefined) {
 				url = this.getAbsoluteUrl();
-			} else if(_startsWith(relativeUrl, ".") ||
-				_startsWith(relativeUrl, "/") ||
-				_startsWith(relativeUrl, "http:") || _startsWith(relativeUrl, "https:")) {
+			} else if(_startsWith(relativeUrl, ".") || _dealAbsolute(relativeUrl).absolute) {
 				url = _getPathWithRelative(this.getAbsoluteUrl(), relativeUrl);
 			} else {
 				url = theConfig.baseUrl + relativeUrl;
@@ -1264,16 +1303,6 @@ var queryString2ParamsMap;
 				if(isObject(obj)) {
 					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
 				} else if(isFunction(obj)) {
-					//					var fun = (function(originFun) {
-					//						var f = function() {
-					//							return originFun.apply(invoker, arguments);
-					//						};
-					//						return f;
-					//					})(obj);
-					//					for(var x in obj) {
-					//						fun[x] = obj[x];
-					//					}
-					//					this._object = fun;
 					this._object = obj;
 				}
 
@@ -1752,14 +1781,13 @@ var queryString2ParamsMap;
 		return handle;
 	};
 
-	function _propertiesDeal(configObject, properties) {
+	var REPLACE_STRING_PROPERTIES_EXP = new RegExp("\\$\\{([^\\{]+)\\}");
+	var ALL_TYPE_PROPERTIES_EXP = new RegExp("^\\$\\[([^\\[\\]]+)\\]$");
 
+	function _propertiesDeal(configObject, properties) {
 		if(!properties) {
 			return configObject;
 		}
-
-		var REPLACE_STRING_PROPERTIES_EXP = new RegExp("\\$\\{([^\\{]+)\\}");
-		var ALL_TYPE_PROPERTIES_EXP = new RegExp("^\\$\\[([^\\[\\]]+)\\]$");
 
 		function replaceStringProperties(string, properties, property) {
 			var rs;
@@ -2106,13 +2134,17 @@ var queryString2ParamsMap;
 			for(var k in option.urlArgs) {
 				var url = k;
 				if(_isJsFile(url)) { //处理相对
-					if(_startsWith(url, "https:") || _startsWith(url, "http:")) {
-						url = url;
-					} else if(_startsWith(url, ".") || _startsWith(url, "/")) {
+					if(_startsWith(url, ".") || _startsWith(url, "/") && !_startsWith(url, "//")) {
 						url = _getPathWithRelative(theLoaderUrl, url);
-					} else if(!_startsWith(url, "*")) { //排除*[与*]
-						url = option.baseUrl + url;
+					} else {
+						var absolute = _dealAbsolute(url);
+						if(absolute.absolute) {
+							url = absolute.path;
+						} else if(!_startsWith(url, "*")) { //排除*[与*]
+							url = option.baseUrl + url;
+						}
 					}
+
 				}
 				urlArgsArr.push({
 					url: url,
@@ -2147,13 +2179,15 @@ var queryString2ParamsMap;
 			if(_startsWith(url, "*[")) {
 
 				var strfix = url.substring(2);
-
-				if(_startsWith(strfix, "https:") || _startsWith(strfix, "http:")) {
-					strfix = strfix;
-				} else if(_startsWith(strfix, ".") || _startsWith(strfix, "/")) {
+				if(_startsWith(strfix, ".") || _startsWith(strfix, "/") && !_startsWith(strfix, "//")) {
 					strfix = _getPathWithRelative(theLoaderUrl, strfix);
 				} else {
-					strfix = option.baseUrl + strfix;
+					var absolute = _dealAbsolute(strfix);
+					if(absolute.absolute) {
+						strfix = absolute.path;
+					} else {
+						url = option.baseUrl + url;
+					}
 				}
 
 				_urlArgs_prefix.push({
@@ -2447,30 +2481,6 @@ var queryString2ParamsMap;
 	 * 0.1.8
 	 * Guy Bedford 2014
 	 * MIT
-	 */
-	/*
-	 *
-	 * Usage:
-	 *  require(['css!./mycssFile']);
-	 *
-	 * Tested and working in (up to latest versions as of March 2013):
-	 * Android
-	 * iOS 6
-	 * IE 6 - 10
-	 * Chome 3 - 26
-	 * Firefox 3.5 - 19
-	 * Opera 10 - 12
-	 * 
-	 * browserling.com used for virtual testing environment
-	 *
-	 * Credit to B Cavalier & J Hann for the IE 6 - 9 method,
-	 * refined with help from Martin Cermak
-	 * 
-	 * Sources that helped along the way:
-	 * - https://developer.mozilla.org/en-US/docs/Browser_detection_using_the_user_agent
-	 * - http://www.phpied.com/when-is-a-stylesheet-really-loaded/
-	 * - https://github.com/cujojs/curl/blob/master/src/curl/plugin/css.js
-	 *
 	 */
 	define("css", function() {
 		if(typeof window == 'undefined')
@@ -3038,153 +3048,6 @@ var queryString2ParamsMap;
 
 	//  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
 	//  NOT CONTROL.
-
-	//  This file creates a global JSON object containing two methods: stringify
-	//  and parse. This file provides the ES5 JSON capability to ES3 systems.
-	//  If a project might run on IE8 or earlier, then this file should be included.
-	//  This file does nothing on ES5 systems.
-
-	//      JSON.stringify(value, replacer, space)
-	//          value       any JavaScript value, usually an object or array.
-	//          replacer    an optional parameter that determines how object
-	//                      values are stringified for objects. It can be a
-	//                      function or an array of strings.
-	//          space       an optional parameter that specifies the indentation
-	//                      of nested structures. If it is omitted, the text will
-	//                      be packed without extra whitespace. If it is a number,
-	//                      it will specify the number of spaces to indent at each
-	//                      level. If it is a string (such as "\t" or "&nbsp;"),
-	//                      it contains the characters used to indent at each level.
-	//          This method produces a JSON text from a JavaScript value.
-	//          When an object value is found, if the object contains a toJSON
-	//          method, its toJSON method will be called and the result will be
-	//          stringified. A toJSON method does not serialize: it returns the
-	//          value represented by the name/value pair that should be serialized,
-	//          or undefined if nothing should be serialized. The toJSON method
-	//          will be passed the key associated with the value, and this will be
-	//          bound to the value.
-
-	//          For example, this would serialize Dates as ISO strings.
-
-	//              Date.prototype.toJSON = function (key) {
-	//                  function f(n) {
-	//                      // Format integers to have at least two digits.
-	//                      return (n < 10)
-	//                          ? "0" + n
-	//                          : n;
-	//                  }
-	//                  return this.getUTCFullYear()   + "-" +
-	//                       f(this.getUTCMonth() + 1) + "-" +
-	//                       f(this.getUTCDate())      + "T" +
-	//                       f(this.getUTCHours())     + ":" +
-	//                       f(this.getUTCMinutes())   + ":" +
-	//                       f(this.getUTCSeconds())   + "Z";
-	//              };
-
-	//          You can provide an optional replacer method. It will be passed the
-	//          key and value of each member, with this bound to the containing
-	//          object. The value that is returned from your method will be
-	//          serialized. If your method returns undefined, then the member will
-	//          be excluded from the serialization.
-
-	//          If the replacer parameter is an array of strings, then it will be
-	//          used to select the members to be serialized. It filters the results
-	//          such that only members with keys listed in the replacer array are
-	//          stringified.
-
-	//          Values that do not have JSON representations, such as undefined or
-	//          functions, will not be serialized. Such values in objects will be
-	//          dropped; in arrays they will be replaced with null. You can use
-	//          a replacer function to replace those with JSON values.
-
-	//          JSON.stringify(undefined) returns undefined.
-
-	//          The optional space parameter produces a stringification of the
-	//          value that is filled with line breaks and indentation to make it
-	//          easier to read.
-
-	//          If the space parameter is a non-empty string, then that string will
-	//          be used for indentation. If the space parameter is a number, then
-	//          the indentation will be that many spaces.
-
-	//          Example:
-
-	//          text = JSON.stringify(["e", {pluribus: "unum"}]);
-	//          // text is '["e",{"pluribus":"unum"}]'
-
-	//          text = JSON.stringify(["e", {pluribus: "unum"}], null, "\t");
-	//          // text is '[\n\t"e",\n\t{\n\t\t"pluribus": "unum"\n\t}\n]'
-
-	//          text = JSON.stringify([new Date()], function (key, value) {
-	//              return this[key] instanceof Date
-	//                  ? "Date(" + this[key] + ")"
-	//                  : value;
-	//          });
-	//          // text is '["Date(---current time---)"]'
-
-	//      JSON.parse(text, reviver)
-	//          This method parses a JSON text to produce an object or array.
-	//          It can throw a SyntaxError exception.
-
-	//          The optional reviver parameter is a function that can filter and
-	//          transform the results. It receives each of the keys and values,
-	//          and its return value is used instead of the original value.
-	//          If it returns what it received, then the structure is not modified.
-	//          If it returns undefined then the member is deleted.
-
-	//          Example:
-
-	//          // Parse the text. Values that look like ISO date strings will
-	//          // be converted to Date objects.
-
-	//          myData = JSON.parse(text, function (key, value) {
-	//              var a;
-	//              if (typeof value === "string") {
-	//                  a =
-	//   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2}(?:\.\d*)?)Z$/.exec(value);
-	//                  if (a) {
-	//                      return new Date(Date.UTC(
-	//                         +a[1], +a[2] - 1, +a[3], +a[4], +a[5], +a[6]
-	//                      ));
-	//                  }
-	//                  return value;
-	//              }
-	//          });
-
-	//          myData = JSON.parse(
-	//              "[\"Date(09/09/2001)\"]",
-	//              function (key, value) {
-	//                  var d;
-	//                  if (
-	//                      typeof value === "string"
-	//                      && value.slice(0, 5) === "Date("
-	//                      && value.slice(-1) === ")"
-	//                  ) {
-	//                      d = new Date(value.slice(5, -1));
-	//                      if (d) {
-	//                          return d;
-	//                      }
-	//                  }
-	//                  return value;
-	//              }
-	//          );
-
-	//  This is a reference implementation. You are free to copy, modify, or
-	//  redistribute.
-
-	/*jslint
-	    eval, for, this
-	*/
-
-	/*property
-	    JSON, apply, call, charCodeAt, getUTCDate, getUTCFullYear, getUTCHours,
-	    getUTCMinutes, getUTCMonth, getUTCSeconds, hasOwnProperty, join,
-	    lastIndex, length, parse, prototype, push, replace, slice, stringify,
-	    test, toJSON, toString, valueOf
-	*/
-
-	// Create a JSON object only if one does not already exist. We create the
-	// methods in a closure to avoid creating global variables.
 
 	if(typeof JSON !== "object") {
 		JSON = {};
@@ -3856,7 +3719,7 @@ var queryString2ParamsMap;
 						var listener = listeners[myId];
 						var callback = listener ? listener.callback : null;
 						if(callback) {
-							if(listener.originReceive(source,originStr, optionData)) {
+							if(listener.originReceive(source, originStr, optionData)) {
 								callback(cmdData, source, type, optionData, originStr);
 							}
 						}
@@ -4062,7 +3925,7 @@ var queryString2ParamsMap;
 				}
 			}, option);
 
-			var cmd = option.cmd||"default-cmd";
+			var cmd = option.cmd || "default-cmd";
 			var connectedCallback = option.connected;
 			var receiveCallback = option.listener;
 			var conndata = option.conndata;
