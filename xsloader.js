@@ -332,7 +332,7 @@ var queryString2ParamsMap;
 		
 		var absolute = _dealAbsolute(relative);
 		if(absolute.absolute) {
-			return absolute.path;
+			return absolute.path+relativeQuery;
 		}
 
 		if(isPathDir === undefined) {
