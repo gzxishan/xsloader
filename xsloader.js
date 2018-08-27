@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-07-25 8:30
+ * latest:2018-08-27 18:15
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -164,7 +164,7 @@ var queryString2ParamsMap;
 				}
 				var fnId = "_[_" + randId() + "_]_";
 				var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
-				if(!_startsWith(fnStr, "function")) {
+				if(!_startsWith(fnStr, "function(")) {
 					throw "not a function:" + fnStr;
 				}
 				try {
@@ -314,7 +314,22 @@ var queryString2ParamsMap;
 	}
 
 	function _getPathWithRelative(path, relative, isPathDir) {
-
+		
+		var pathQuery="";
+		var relativeQuery="";
+		var qIndex=path.lastIndexOf("?");
+		if(qIndex>=0){
+			pathQuery=path.substring(qIndex);
+			path=path.substring(0,qIndex);
+		}
+		
+		qIndex=relative.lastIndexOf("?");
+		if(qIndex>=0){
+			relativeQuery=relative.substring(qIndex);
+			relative=relative.substring(0,qIndex);
+		}
+		
+		
 		var absolute = _dealAbsolute(relative);
 		if(absolute.absolute) {
 			return absolute.path;
@@ -338,12 +353,12 @@ var queryString2ParamsMap;
 			path = path.substring(0, path.length - 1);
 		}
 
-		var isRelativeDir=false;
+		var isRelativeDir = false;
 		if(_endsWith(relative, "/")) {
 			relative = relative.substring(0, relative.length - 1);
-			isRelativeDir=true;
-		}else if(relative=="."||relative==".."||_endsWith("/.")||_endsWith("/..")){
-			isRelativeDir=true;
+			isRelativeDir = true;
+		} else if(relative == "." || relative == ".." || _endsWith("/.") || _endsWith("/..")) {
+			isRelativeDir = true;
 		}
 
 		var prefix = "";
@@ -381,9 +396,11 @@ var queryString2ParamsMap;
 			return "";
 		}
 		var result = prefix + stack.join("/");
-		if(isRelativeDir&&!_endsWith(result,"/")){
-			result+="/";
+		if(isRelativeDir && !_endsWith(result, "/")) {
+			result += "/";
 		}
+		result+=pathQuery;
+		result=_appendArgs2Url(result,relativeQuery);
 		return result;
 	};
 	getPathWithRelative = _getPathWithRelative;
@@ -460,10 +477,17 @@ var queryString2ParamsMap;
 		}
 		var oldParams = index < 0 ? {} : toParamsMap(url.substring(index + 1, hashIndex), false);
 		var newParams = toParamsMap(urlArgs, false);
+		var has=false;
 		for(var k in newParams) {
-			oldParams[k] = newParams[k];
+			if(oldParams[k] != newParams[k]) {
+				oldParams[k] = newParams[k];
+				has=true;
+			}
 		}
-
+		if(!has){
+			return url;//参数没有变化直接返回
+		}
+		
 		var path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
 		var params = [];
 
@@ -801,8 +825,8 @@ var queryString2ParamsMap;
 					deps: dep,
 					orderDep: isOrderDep
 				};
-				
-				 //console.log(innerDepsMap[modName]);
+
+				//console.log(innerDepsMap[modName]);
 				deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
 			}
 		}
@@ -4083,7 +4107,11 @@ var queryString2ParamsMap;
 			main: {
 				getPath: function() {
 					var path = location.pathname;
-					var index = path.lastIndexOf("/");
+					var index=path.lastIndexOf("?");
+					if(index>=0){
+						path=path.substring(0,index);
+					}
+					index = path.lastIndexOf("/");
 					var name = path.substring(index + 1);
 					if(name === "") {
 						name = "index";
