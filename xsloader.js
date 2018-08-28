@@ -2164,7 +2164,7 @@ var queryString2ParamsMap;
 						var absolute = _dealAbsolute(url);
 						if(absolute.absolute) {
 							url = absolute.path;
-						} else if(!_startsWith(url, "*")) { //排除*[与*]
+						} else if(!_startsWith(url, "*]")) { //排除*]；单*[可以有前缀
 							url = option.baseUrl + url;
 						}
 					}
@@ -2180,9 +2180,15 @@ var queryString2ParamsMap;
 				var replaceStr = option.modulePrefix[prefix].replace;
 				for(var i = 0; i < urlArgsArr.length; i++) {
 					var urlArgObj = urlArgsArr[i];
+					var starP="";
+					if(_startsWith(urlArgObj.url,"*[")){
+						starP="*[";
+						urlArgObj.url=urlArgObj.url.substring(2);
+					}
 					if(_startsWith(urlArgObj.url, prefix)) {
 						urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
 					}
+					starP&&(urlArgObj.url=starP+urlArgObj.url);
 				}
 			}
 			option.urlArgs = {};
