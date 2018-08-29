@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-08-27 18:15
+ * latest:2018-08-29 13:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -314,25 +314,36 @@ var queryString2ParamsMap;
 	}
 
 	function _getPathWithRelative(path, relative, isPathDir) {
-		
-		var pathQuery="";
-		var relativeQuery="";
-		var qIndex=path.lastIndexOf("?");
-		if(qIndex>=0){
-			pathQuery=path.substring(qIndex);
-			path=path.substring(0,qIndex);
+
+		var pathQuery = "";
+		var relativeQuery = "";
+		var qIndex = path.lastIndexOf("?");
+		if(qIndex >= 0) {
+			pathQuery = path.substring(qIndex);
+			path = path.substring(0, qIndex);
+		} else {
+			qIndex = path.lastIndexOf("#");
+			if(qIndex >= 0) {
+				pathQuery = path.substring(qIndex);
+				path = path.substring(0, qIndex);
+			}
 		}
-		
-		qIndex=relative.lastIndexOf("?");
-		if(qIndex>=0){
-			relativeQuery=relative.substring(qIndex);
-			relative=relative.substring(0,qIndex);
+
+		qIndex = relative.lastIndexOf("?");
+		if(qIndex >= 0) {
+			relativeQuery = relative.substring(qIndex);
+			relative = relative.substring(0, qIndex);
+		} else {
+			qIndex = relative.lastIndexOf("#");
+			if(qIndex >= 0) {
+				relativeQuery = relative.substring(qIndex);
+				relative = relative.substring(0, qIndex);
+			}
 		}
-		
-		
+
 		var absolute = _dealAbsolute(relative);
 		if(absolute.absolute) {
-			return absolute.path+relativeQuery;
+			return absolute.path + relativeQuery;
 		}
 
 		if(isPathDir === undefined) {
@@ -399,8 +410,8 @@ var queryString2ParamsMap;
 		if(isRelativeDir && !_endsWith(result, "/")) {
 			result += "/";
 		}
-		result+=pathQuery;
-		result=_appendArgs2Url(result,relativeQuery);
+		result += pathQuery;
+		result = _appendArgs2Url(result, relativeQuery);
 		return result;
 	};
 	getPathWithRelative = _getPathWithRelative;
@@ -477,17 +488,17 @@ var queryString2ParamsMap;
 		}
 		var oldParams = index < 0 ? {} : toParamsMap(url.substring(index + 1, hashIndex), false);
 		var newParams = toParamsMap(urlArgs, false);
-		var has=false;
+		var has = false;
 		for(var k in newParams) {
 			if(oldParams[k] != newParams[k]) {
 				oldParams[k] = newParams[k];
-				has=true;
+				has = true;
 			}
 		}
-		if(!has){
-			return url;//参数没有变化直接返回
+		if(!has) {
+			return url; //参数没有变化直接返回
 		}
-		
+
 		var path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
 		var params = [];
 
@@ -2180,15 +2191,15 @@ var queryString2ParamsMap;
 				var replaceStr = option.modulePrefix[prefix].replace;
 				for(var i = 0; i < urlArgsArr.length; i++) {
 					var urlArgObj = urlArgsArr[i];
-					var starP="";
-					if(_startsWith(urlArgObj.url,"*[")){
-						starP="*[";
-						urlArgObj.url=urlArgObj.url.substring(2);
+					var starP = "";
+					if(_startsWith(urlArgObj.url, "*[")) {
+						starP = "*[";
+						urlArgObj.url = urlArgObj.url.substring(2);
 					}
 					if(_startsWith(urlArgObj.url, prefix)) {
 						urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
 					}
-					starP&&(urlArgObj.url=starP+urlArgObj.url);
+					starP && (urlArgObj.url = starP + urlArgObj.url);
 				}
 			}
 			option.urlArgs = {};
@@ -4113,11 +4124,8 @@ var queryString2ParamsMap;
 			main: {
 				getPath: function() {
 					var path = location.pathname;
-					var index=path.lastIndexOf("?");
-					if(index>=0){
-						path=path.substring(0,index);
-					}
-					index = path.lastIndexOf("/");
+
+					var index = path.lastIndexOf("/");
 					var name = path.substring(index + 1);
 					if(name === "") {
 						name = "index";
