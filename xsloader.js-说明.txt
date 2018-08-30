@@ -47,7 +47,7 @@
   	===（5）define.then({onError:function(err),orderDep:false,instance:"single",}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
  5、1）回调函数(包括pluginMain函数)的this对象、模块对象(为define(...Object))的_invoker_
         ===（1）require(...),同require,但具有当前js文件的路径信息、从而可以使用相对路径
-        ===（2）getUrl(relativeUrl,appendArgs)：appendArgs表示是否加上urlArgs参数。
+        ===（2）getUrl(relativeUrl,appendArgs)：appendArgs表示是否加上urlArgs参数,默认为true。
         								1.当没有提供了relativeUrl时，获取当前模块的url路径；
         							  2.提供了relativeUrl时，获取相对于当前模块的url路径、获取path映射路径或绝对路径。
         ===（3）getAbsoluteUrl(),获取当前模块的绝对路径

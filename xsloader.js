@@ -1292,6 +1292,9 @@ var queryString2ParamsMap;
 		var module=obj.module||obj;
 		
 		invoker.getUrl = function(relativeUrl, appendArgs) {
+			if(appendArgs===undefined){
+				appendArgs=true;
+			}
 			var url;
 			if(relativeUrl === undefined) {
 				url = this.getAbsoluteUrl();
