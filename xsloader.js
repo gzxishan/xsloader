@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-08-29 13:00
+ * latest:2018-08-30 11:40
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1289,6 +1289,8 @@ var queryString2ParamsMap;
 
 	function _buildInvoker(obj, name) {
 		var invoker = obj[name || "thiz"];
+		var module=obj.module||obj;
+		
 		invoker.getUrl = function(relativeUrl, appendArgs) {
 			var url;
 			if(relativeUrl === undefined) {
@@ -1299,7 +1301,7 @@ var queryString2ParamsMap;
 				url = theConfig.baseUrl + relativeUrl;
 			}
 			if(appendArgs) {
-				return theConfig.dealUrl(this.getName(), url);
+				return theConfig.dealUrl(module, url);
 			} else {
 				return url;
 			}
@@ -2109,12 +2111,12 @@ var queryString2ParamsMap;
 
 					if(!urlArg) {
 						nameOrUrl = module.name;
-						urlArg = this.urlArgs[module.name];
+						urlArg = this.urlArgs[nameOrUrl];
 					}
 
 					if(!urlArg) {
-						nameOrUrl = module.name;
-						urlArg = this.forPrefixSuffix(module.name);
+						nameOrUrl = module.aurl;
+						urlArg = this.forPrefixSuffix(nameOrUrl);
 					}
 
 					if(!urlArg) {
