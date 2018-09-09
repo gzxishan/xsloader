@@ -2461,6 +2461,7 @@ var queryString2ParamsMap;
 	 */
 	(function() { //TODO STRONG name插件
 		define("name", {
+			isSingle:false,
 			pluginMain: function(arg, onload, onerror, config, http) {
 				var index = arg.indexOf("=>>");
 				if(index == -1) {
@@ -2653,6 +2654,7 @@ var queryString2ParamsMap;
 
 (function() { //TODO STRONG text插件
 	define("text", ["xshttp"], {
+		isSingle:false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)
@@ -2674,6 +2676,7 @@ var queryString2ParamsMap;
  */
 (function() { //TODO STRONG window插件,用于添加模块到window对象中
 	define("window", {
+		isSingle:false,
 		pluginMain: function(arg, onload, onerror, config, http) {
 			var index = arg.indexOf("=>>");
 			if(index == -1) {
@@ -2732,6 +2735,7 @@ var queryString2ParamsMap;
 	 * 加载json对象
 	 */
 	define("json", ["xshttp"], {
+		isSingle:false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)
