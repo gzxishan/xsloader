@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-08-30 11:40
+ * latest:2018-09-9 19:40
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1348,6 +1348,7 @@ var queryString2ParamsMap;
 
 			},
 			_object: null,
+			_isPluginSingle:true,
 			_setDepModuleObjectGen: function(obj) {
 				this._object = obj;
 				this.initInvoker();
@@ -1361,13 +1362,25 @@ var queryString2ParamsMap;
 				return this._object;
 			},
 			init: function() {
-				var that = this;
 				var relyCallback = this.callback;
 				this._module_ = module.dealInstance(this);
 				this._setDepModuleObjectGen(module.moduleObject);
 				if(pluginArgs !== undefined) {
+					if(this._object.isSingle===false){
+						this._isPluginSingle=false;//同样的参数也需要重新调用
+					}
+					if(this._isPluginSingle){
+						this.module._pluginSingleResult=this.module._pluginSingleResult||[];
+					}
 					var that = this;
 					var onload = function(result, ignoreAspect) {
+						
+						if(that._isPluginSingle&&!that.module._pluginSingleResult[pluginArgs]){
+							that.module._pluginSingleResult[pluginArgs]={
+								result:result,
+								ignoreAspect:ignoreAspect
+							};
+						}
 						module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
 						that._setDepModuleObjectGen(result);
 						relyCallback(that);
@@ -1377,7 +1390,12 @@ var queryString2ParamsMap;
 					};
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
-						that._object.pluginMain.apply(this.thiz, args);
+						if(that._isPluginSingle&&that.module._pluginSingleResult[pluginArgs]){
+							var last=that.module._pluginSingleResult[pluginArgs];
+							onload(last.result,last.ignoreAspect);
+						}else{
+							that._object.pluginMain.apply(this.thiz, args);
+						}
 					} catch(e) {
 						console.log(e);
 						onerror(e);
@@ -2291,9 +2309,9 @@ var queryString2ParamsMap;
 		var dealtDeps = option.dealtDeps;
 
 		var pushDeps = function(dealtDepArray, depsArray) {
-			if(depsArray.length > 0 && (depsArray[0] !== true && depsArray[0] !== false)) {
-				depsArray.splice(0, 0, false);
-			}
+//			if(depsArray.length > 0 && (depsArray[0] !== true && depsArray[0] !== false)) {
+//				depsArray.splice(0, 0, false);
+//			}
 			each(depsArray, function(dep) {
 				dealtDepArray.push(dep);
 			});

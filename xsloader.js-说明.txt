@@ -9,6 +9,7 @@
 	deps:{},//===用于配置依赖，map。
 			//===（1）*表示对depsPaths中的所有模块加上此依赖:*中的模块不能依赖depsPaths中的模块(会报循环依赖错误)，但可以依赖paths中的模块
 			//===（2）key的格式path1::path2::path3...
+			//===（3）内部的元素为数组的情况、该数组第一个元素orderDep默认为true。
 		
 	defineFunction:{},//===map,{moduleName:function(originCallback,originThis,originArgs){}},用于自定义操作模块的回调函数
 	defaultVersion:{},//==={'group:project':'versionName'}默认包名配置
@@ -58,7 +59,8 @@
  6、plugin定义：
   	pluginObject格式:
   	{
-  		===pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...)
+  		===pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...),
+  		isSingle:true//当pluginArgs相同时，使用之前的
   	}
   	===（1）define([pluginName],[deps],pluginObject)
   	===（2）onload(result，ignoreAspect=true),onerror(err)
