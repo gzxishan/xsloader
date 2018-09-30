@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-09-9 19:40
+ * latest:2018-09-30 14:00
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -1010,9 +1010,11 @@ var queryString2ParamsMap;
 			}
 			var paths = graphPath.tryAddEdge(module.name, m);
 			if(paths.length > 0) {
-				var errinfo = "loop dependency:" + paths.join(" --> ");
-				errCallback(errinfo);
-				return;
+				var moduleLoop = theDefinedMap[m];//该模块必定已经被定义过
+				moduleLoop.loopObject = {};
+				//				var errinfo = "loop dependency:" + paths.join(" --> ");
+				//				errCallback(errinfo);
+				//				return;
 				//throwError(-6, errinfo);
 			}
 		}
@@ -1289,11 +1291,11 @@ var queryString2ParamsMap;
 
 	function _buildInvoker(obj, name) {
 		var invoker = obj[name || "thiz"];
-		var module=obj.module||obj;
-		
+		var module = obj.module || obj;
+
 		invoker.getUrl = function(relativeUrl, appendArgs) {
-			if(appendArgs===undefined){
-				appendArgs=true;
+			if(appendArgs === undefined) {
+				appendArgs = true;
 			}
 			var url;
 			if(relativeUrl === undefined) {
@@ -1341,14 +1343,17 @@ var queryString2ParamsMap;
 				var isSingle = module.instanceType != "clone";
 
 				if(isObject(obj)) {
-					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
+					if(module.loopObject&&!isSingle){
+						throwError(-1202,"loop dependency not support single option:"+module.name);
+					}
+					this._object = addTheAttrs(isSingle? obj : _clone(obj));
 				} else if(isFunction(obj)) {
 					this._object = obj;
 				}
 
 			},
 			_object: null,
-			_isPluginSingle:true,
+			_isPluginSingle: true,
 			_setDepModuleObjectGen: function(obj) {
 				this._object = obj;
 				this.initInvoker();
@@ -1364,21 +1369,21 @@ var queryString2ParamsMap;
 			init: function() {
 				var relyCallback = this.callback;
 				this._module_ = module.dealInstance(this);
-				this._setDepModuleObjectGen(module.moduleObject);
+				this._setDepModuleObjectGen(module.loopObject || module.moduleObject);
 				if(pluginArgs !== undefined) {
-					if(this._object.isSingle===false){
-						this._isPluginSingle=false;//同样的参数也需要重新调用
+					if(this._object.isSingle === false) {
+						this._isPluginSingle = false; //同样的参数也需要重新调用
 					}
-					if(this._isPluginSingle){
-						this.module._pluginSingleResult=this.module._pluginSingleResult||[];
+					if(this._isPluginSingle) {
+						this.module._pluginSingleResult = this.module._pluginSingleResult || [];
 					}
 					var that = this;
 					var onload = function(result, ignoreAspect) {
-						
-						if(that._isPluginSingle&&!that.module._pluginSingleResult[pluginArgs]){
-							that.module._pluginSingleResult[pluginArgs]={
-								result:result,
-								ignoreAspect:ignoreAspect
+
+						if(that._isPluginSingle && !that.module._pluginSingleResult[pluginArgs]) {
+							that.module._pluginSingleResult[pluginArgs] = {
+								result: result,
+								ignoreAspect: ignoreAspect
 							};
 						}
 						module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
@@ -1390,10 +1395,10 @@ var queryString2ParamsMap;
 					};
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
-						if(that._isPluginSingle&&that.module._pluginSingleResult[pluginArgs]){
-							var last=that.module._pluginSingleResult[pluginArgs];
-							onload(last.result,last.ignoreAspect);
-						}else{
+						if(that._isPluginSingle && that.module._pluginSingleResult[pluginArgs]) {
+							var last = that.module._pluginSingleResult[pluginArgs];
+							onload(last.result, last.ignoreAspect);
+						} else {
 							that._object.pluginMain.apply(this.thiz, args);
 						}
 					} catch(e) {
@@ -1432,6 +1437,7 @@ var queryString2ParamsMap;
 			aurl: null, //绝对路径,可能等于当前页面路径
 			callback: callback,
 			moduleObject: undefined, //依赖模块对应的对象
+			loopObject: undefined, //循环依赖对象
 			invoker: thatInvoker,
 			instanceType: "single",
 			setInstanceType: function(instanceType) {
@@ -1457,6 +1463,15 @@ var queryString2ParamsMap;
 						console.log("ignore moudule named '" + moduleMap.name + "':" + obj);
 					}
 				}
+				if(this.loopObject) {
+					if(!isObject(obj)) {
+						throwError(-1201, "循环依赖的模块必须是对象：" + this.name);
+					}
+					for(var x in obj) {
+						this.loopObject[x] = obj[x];
+					}
+					obj = this.loopObject;
+				}
 				if(this.moduleObject === undefined) { //用于支持exports
 					this.moduleObject = obj;
 				}
@@ -1466,7 +1481,7 @@ var queryString2ParamsMap;
 			errinfo: null,
 			_callback: function(fun) {
 				var _state = this.state;
-				if(_state == 'defined') {
+				if(_state == 'defined' || this.loopObject) {
 
 					if(fun) {
 						var depModule = _newDepModule(this, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
@@ -1979,13 +1994,12 @@ var queryString2ParamsMap;
 		_appendInnerDeps(deps, callback);
 
 		var customOnError;
-		var isError;
 		var data = {
-			isRequire: true
+			isRequire: true,
+			isError: undefined
 		};
 		var onError = function(isErr) {
 			data.isError = isErr;
-			isError = isErr;
 			if(customOnError) {
 				customOnError(isErr);
 			}
@@ -2025,7 +2039,7 @@ var queryString2ParamsMap;
 			});
 		});
 		timeid = setTimeout(function() {
-			if(!theDefinedMap[moduleName] || theDefinedMap[moduleName].state != 'defined' && !isError) {
+			if((!theDefinedMap[moduleName] || theDefinedMap[moduleName].state != 'defined') && !data.isError) {
 				var module = theDefinedMap[moduleName];
 				if(module) {
 					each(module.deps, function(dep) {
@@ -2309,9 +2323,9 @@ var queryString2ParamsMap;
 		var dealtDeps = option.dealtDeps;
 
 		var pushDeps = function(dealtDepArray, depsArray) {
-//			if(depsArray.length > 0 && (depsArray[0] !== true && depsArray[0] !== false)) {
-//				depsArray.splice(0, 0, false);
-//			}
+			//			if(depsArray.length > 0 && (depsArray[0] !== true && depsArray[0] !== false)) {
+			//				depsArray.splice(0, 0, false);
+			//			}
 			each(depsArray, function(dep) {
 				dealtDepArray.push(dep);
 			});
@@ -2461,7 +2475,7 @@ var queryString2ParamsMap;
 	 */
 	(function() { //TODO STRONG name插件
 		define("name", {
-			isSingle:false,
+			isSingle: false,
 			pluginMain: function(arg, onload, onerror, config, http) {
 				var index = arg.indexOf("=>>");
 				if(index == -1) {
@@ -2654,7 +2668,7 @@ var queryString2ParamsMap;
 
 (function() { //TODO STRONG text插件
 	define("text", ["xshttp"], {
-		isSingle:false,
+		isSingle: false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)
@@ -2676,7 +2690,7 @@ var queryString2ParamsMap;
  */
 (function() { //TODO STRONG window插件,用于添加模块到window对象中
 	define("window", {
-		isSingle:false,
+		isSingle: false,
 		pluginMain: function(arg, onload, onerror, config, http) {
 			var index = arg.indexOf("=>>");
 			if(index == -1) {
@@ -2735,7 +2749,7 @@ var queryString2ParamsMap;
 	 * 加载json对象
 	 */
 	define("json", ["xshttp"], {
-		isSingle:false,
+		isSingle: false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)

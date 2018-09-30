@@ -32,9 +32,17 @@
 		}
 
 		define("A", ["C"], function(C) {
-			return {
-				name: "A"
+			divLog(C);
+			var obj={
+				name: "A",
+				test:function(name){
+					divLog("delay loop dependency invoke:"+name+"->"+this.name);
+				}
 			};
+			setTimeout(function(){
+				C.test(obj.name);
+			},10);
+			return obj;
 		});
 		define("B", ["A"], function(A) {
 			divLog(A);
@@ -42,11 +50,18 @@
 				name: "B"
 			};
 		});
-		define("C", ["B"], function(B) {
+		define("C", ["B","A"], function(B,A) {
 			divLog(B);
-			return {
-				name: "C"
+			var obj= {
+				name: "C",
+				test:function(name){
+					divLog("delay loop dependency invoke:"+name+"->"+this.name);
+				}
 			};
+			setTimeout(function(){
+				A.test(obj.name);
+			},10);
+			return obj;
 		});
 		xsloader({
 			properties: {
