@@ -140,6 +140,7 @@ var queryString2ParamsMap;
 		if(str === "" || str === null || str === undefined || !isString(str)) {
 			return str;
 		}
+		
 		option = xsloader.extend({
 			fnStart: "/*{f}*/",
 			fnEnd: "/*{f}*/",
@@ -192,7 +193,7 @@ var queryString2ParamsMap;
 		}
 
 		try {
-			return JSON.parse(str, replacer);
+			return xsJSON.parse(str, replacer);
 		} catch(e) {
 			try {
 				var reg = new RegExp('position[\\s]*([0-9]+)[\\s]*$')
@@ -200,14 +201,14 @@ var queryString2ParamsMap;
 					var posStr = e.message.substring(e.message.lastIndexOf("position") + 8);
 					var pos = parseInt(posStr.trim());
 					var _str = str.substring(pos);
-					console.error(_str.substring(0, _str.length > 100 ? 100 : _str.length));
+					console.error(e.message+":"+_str.substring(0, _str.length > 100 ? 100 : _str.length));
 				}
 			} catch(e) {}
 			throw e;
 		}
 	};
 	xsJson2String = function(obj) {
-		return JSON.stringify(obj);
+		return xsJSON.stringify(obj);
 	};
 	var idCount = 1991;
 	//生成一个随机的id，只保证在本页面是唯一的
@@ -1825,7 +1826,8 @@ var queryString2ParamsMap;
 			try {
 				if(cache.src) {
 					var node = document.currentScript;
-					if(node && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName && cache.src != theLoaderUrl && cache.src != thePageUrl) {
+					if(node &&node.getAttribute("src")&& node.getAttribute(DATA_ATTR_CONTEXT) != defContextName 
+						&& cache.src != theLoaderUrl && cache.src != thePageUrl) {
 						console.error("unknown js script module:" + xsJson2String(cache));
 						console.error(node);
 						return;
@@ -3130,9 +3132,10 @@ var queryString2ParamsMap;
 
 	//  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
 	//  NOT CONTROL.
-
-	if(typeof JSON !== "object") {
-		JSON = {};
+	var JSON = {};
+	window.xsJSON=JSON;
+	if(typeof window.JSON !== "object") {
+		window.JSON = JSON;
 	}
 
 	(function() {
