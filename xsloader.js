@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-10-11 12:00
+ * latest:2018-10-12 14:30
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -140,7 +140,7 @@ var queryString2ParamsMap;
 		if(str === "" || str === null || str === undefined || !isString(str)) {
 			return str;
 		}
-		
+
 		option = xsloader.extend({
 			fnStart: "/*{f}*/",
 			fnEnd: "/*{f}*/",
@@ -201,7 +201,7 @@ var queryString2ParamsMap;
 					var posStr = e.message.substring(e.message.lastIndexOf("position") + 8);
 					var pos = parseInt(posStr.trim());
 					var _str = str.substring(pos);
-					console.error(e.message+":"+_str.substring(0, _str.length > 100 ? 100 : _str.length));
+					console.error(e.message + ":" + _str.substring(0, _str.length > 100 ? 100 : _str.length));
 				}
 			} catch(e) {}
 			throw e;
@@ -1011,7 +1011,7 @@ var queryString2ParamsMap;
 			}
 			var paths = graphPath.tryAddEdge(module.name, m);
 			if(paths.length > 0) {
-				var moduleLoop = theDefinedMap[m];//该模块必定已经被定义过
+				var moduleLoop = theDefinedMap[m]; //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
 				//				var errinfo = "loop dependency:" + paths.join(" --> ");
 				//				errCallback(errinfo);
@@ -1116,20 +1116,22 @@ var queryString2ParamsMap;
 					}
 					module2.aurl = urls[0];
 
-					if(_deps.length > 0) {
-						_everyRequired(data, thenOption, module2, _deps, function(depModules, module2) {
-							var args = [];
-							var hasExports = false;
-							each(depModules, function(depModule) {
-								args.push(depModule && depModule.moduleObject());
+					var loadAllScript = function() {
+						if(_deps.length > 0) {
+							_everyRequired(data, thenOption, module2, _deps, function(depModules, module2) {
+								var args = [];
+								var hasExports = false;
+								each(depModules, function(depModule) {
+									args.push(depModule && depModule.moduleObject());
+								});
+								mayAsyncCallLoadScript();
+							}, function(err) {
+								isError = err;
+								errCallback(err);
 							});
+						} else {
 							mayAsyncCallLoadScript();
-						}, function(err) {
-							isError = err;
-							errCallback(err);
-						});
-					} else {
-						mayAsyncCallLoadScript();
+						}
 					}
 
 					function mayAsyncCallLoadScript() {
@@ -1256,6 +1258,7 @@ var queryString2ParamsMap;
 						__browserLoader(context, module2, urls, callbackObj);
 					}
 
+					loadAllScript();
 				} while (false);
 			}
 			relyItFun();
@@ -1344,10 +1347,10 @@ var queryString2ParamsMap;
 				var isSingle = module.instanceType != "clone";
 
 				if(isObject(obj)) {
-					if(module.loopObject&&!isSingle){
-						throwError(-1202,"loop dependency not support single option:"+module.name);
+					if(module.loopObject && !isSingle) {
+						throwError(-1202, "loop dependency not support single option:" + module.name);
 					}
-					this._object = addTheAttrs(isSingle? obj : _clone(obj));
+					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
 				} else if(isFunction(obj)) {
 					this._object = obj;
 				}
@@ -1826,8 +1829,8 @@ var queryString2ParamsMap;
 			try {
 				if(cache.src) {
 					var node = document.currentScript;
-					if(node &&node.getAttribute("src")&& node.getAttribute(DATA_ATTR_CONTEXT) != defContextName 
-						&& cache.src != theLoaderUrl && cache.src != thePageUrl) {
+					if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
+						cache.src != theLoaderUrl && cache.src != thePageUrl) {
 						console.error("unknown js script module:" + xsJson2String(cache));
 						console.error(node);
 						return;
@@ -3133,7 +3136,7 @@ var queryString2ParamsMap;
 	//  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
 	//  NOT CONTROL.
 	var JSON = {};
-	window.xsJSON=JSON;
+	window.xsJSON = JSON;
 	if(typeof window.JSON !== "object") {
 		window.JSON = JSON;
 	}
