@@ -5,7 +5,7 @@
 		<meta charset="UTF-8">
 		<title>循环依赖测试</title>
 		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
-		
+
 		<script src="../xsloader.js" type="text/javascript" charset="utf-8"></script>
 	</head>
 
@@ -17,7 +17,6 @@
 		</pre>
 	</body>
 	<script type="text/javascript">
-		
 		window.divLog = function(obj) {
 			var div = document.getElementById("logDiv");
 			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
@@ -33,15 +32,15 @@
 
 		define("A", ["C"], function(C) {
 			divLog(C);
-			var obj={
+			var obj = {
 				name: "A",
-				test:function(name){
-					divLog("delay loop dependency invoke:"+name+"->"+this.name);
+				test: function(name) {
+					divLog("delay loop dependency invoke:" + name + "->" + this.name);
 				}
 			};
-			setTimeout(function(){
+			setTimeout(function() {
 				C.test(obj.name);
-			},10);
+			}, 10);
 			return obj;
 		});
 		define("B", ["A"], function(A) {
@@ -50,18 +49,29 @@
 				name: "B"
 			};
 		});
-		define("C", ["B","A"], function(B,A) {
+		define("C", ["B", "A"], function(B, A) {
 			divLog(B);
-			var obj= {
+			var obj = {
 				name: "C",
-				test:function(name){
-					divLog("delay loop dependency invoke:"+name+"->"+this.name);
+				test: function(name) {
+					divLog("delay loop dependency invoke:" + name + "->" + this.name);
 				}
 			};
-			setTimeout(function(){
+			setTimeout(function() {
 				A.test(obj.name);
-			},10);
+			}, 10);
 			return obj;
+		});
+		define("D", function() {
+			return {
+				"name":"D"
+			};
+		});
+
+		define("E", function() {
+			return {
+				"name":"E"
+			};
 		});
 		xsloader({
 			properties: {
@@ -78,12 +88,16 @@
 
 			},
 			deps: {
-				"*": "$"
+				"*": "$",
+				"D": "E",
+				"E": "D"
 			}
 		});
 
-		require(["C"], function(C) {
+		require(["C","D","E"], function(C,D,E) {
 			divLog(C);
+			divLog(D);
+			divLog(E);
 		}).then({
 			onError: function(err) {
 				divLog(err);
