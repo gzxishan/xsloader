@@ -18,6 +18,7 @@ var define, require, xsloader;
 /////////////
 var startsWith, endsWith, xsParseJson, xsJson2String;
 var randId;
+var xsEval;
 /**
  * function(array,ele,compare):得到ele在array中的位置，若array为空或没有找到返回-1；compare(arrayEle,ele)可选函数，默认为==比较.
  */
@@ -136,14 +137,19 @@ var queryString2ParamsMap;
 		return it && (it instanceof RegExp) || ostring.call(it) === '[object RegExp]';
 	}
 
+	xsEval = function(scriptString) {
+		var rs = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
+		return rs;
+	}
+
 	xsParseJson = function(str, option) {
 		if(str === "" || str === null || str === undefined || !isString(str)) {
 			return str;
 		}
 
 		option = xsloader.extend({
-			fnStart: "",//"/*{f}*/",
-			fnEnd:  "",//"/*{f}*/",
+			fnStart: "", //"/*{f}*/",
+			fnEnd: "", //"/*{f}*/",
 			rcomment: "\\/\\/#\\/\\/"
 		}, option);
 
@@ -170,7 +176,7 @@ var queryString2ParamsMap;
 				}
 				try {
 					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-					var fn = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + fnStr + "][0]") : eval("(" + fnStr + ")");
+					var fn = xsEval(fnStr);
 					fnMap[fnId] = fn;
 				} catch(e) {
 					console.error(fnStr);
@@ -4159,7 +4165,7 @@ var queryString2ParamsMap;
 	var dataConf = xsloader.script().getAttribute(DATA_CONF);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN);
 	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE) == "json" ? "json" : "json-script";
-	
+
 	if(dataConf) {
 		url = getPathWithRelative(location.href, dataConf);
 	} else if((dataConf = xsloader.script().getAttribute(DATA_CONF2))) {
@@ -4225,10 +4231,10 @@ var queryString2ParamsMap;
 			ok: function(confText) {
 
 				var conf;
-				if(dataConfType=="json-script"){
-					conf = eval("(" + confText + ")");
-				}else{
-					conf=xsParseJson(confText);
+				if(dataConfType == "json-script") {
+					conf = xsEval(confText);
+				} else {
+					conf = xsParseJson(confText);
 				}
 
 				conf = extendConfig(conf);
