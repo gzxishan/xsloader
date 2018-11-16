@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-10-12 14:30
+ * latest:2018-11-16 15:06
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -66,7 +66,7 @@ var queryString2ParamsMap;
 		if(isIE) {
 			var reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
 			var fIEVersion = parseInt(reIE && reIE[1] || -1);
-			return fIEVersion == -1 ? -1 : "ie" + fIEVersion;
+			return fIEVersion == -1 ? -1 : fIEVersion;
 		} else if(isEdge) {
 			return 'edge'; //edge
 		} else if(isIE11) {
@@ -142,8 +142,8 @@ var queryString2ParamsMap;
 		}
 
 		option = xsloader.extend({
-			fnStart: "/*{f}*/",
-			fnEnd: "/*{f}*/",
+			fnStart: "",//"/*{f}*/",
+			fnEnd:  "",//"/*{f}*/",
 			rcomment: "\\/\\/#\\/\\/"
 		}, option);
 
@@ -4153,10 +4153,13 @@ var queryString2ParamsMap;
 	var DATA_CONF = "data-xsloader-conf";
 	var DATA_CONF2 = "data-xsloader-conf2";
 	var DATA_MAIN = "data-xsloader-main";
+	var DATA_CONF_TYPE = "data-conf-type";
 
 	var url;
 	var dataConf = xsloader.script().getAttribute(DATA_CONF);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN);
+	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE) == "json" ? "json" : "json-script";
+	
 	if(dataConf) {
 		url = getPathWithRelative(location.href, dataConf);
 	} else if((dataConf = xsloader.script().getAttribute(DATA_CONF2))) {
@@ -4218,7 +4221,16 @@ var queryString2ParamsMap;
 			url: url,
 			method: "get",
 			timeout: 20000,
-			ok: function(conf) {
+			handleType: "text",
+			ok: function(confText) {
+
+				var conf;
+				if(dataConfType=="json-script"){
+					conf = eval("(" + confText + ")");
+				}else{
+					conf=xsParseJson(confText);
+				}
+
 				conf = extendConfig(conf);
 				conf = xsloader.dealProperties(conf, conf.properties); //参数处理
 

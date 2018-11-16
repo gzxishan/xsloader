@@ -37,7 +37,10 @@
 			'//#//这是注释3\r'+
 			'/*{f}*/function(){divLog("xsParseJson support function ok");}/*{f}*/}'+
 			'//#//这是注释4';
-			var obj=xsParseJson(strFn);
+			var obj=xsParseJson(strFn,{
+				fnStart:"/*{f}*/",
+				fnEnd:"/*{f}*/"
+			});
 			obj.fn();
 		});
 	</script>
