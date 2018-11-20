@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-11-16 15:06
+ * latest:2018-11-19 15:36
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -199,7 +199,13 @@ var queryString2ParamsMap;
 		}
 
 		try {
-			return xsJSON.parse(str, replacer);
+			var jsonObj;
+			if(typeof window.JSON !== "object") {
+				jsonObj = xsJSON;
+			} else {
+				jsonObj = xsJSON;
+			}
+			return jsonObj.parse(str, replacer);
 		} catch(e) {
 			try {
 				var reg = new RegExp('position[\\s]*([0-9]+)[\\s]*$')
@@ -214,7 +220,13 @@ var queryString2ParamsMap;
 		}
 	};
 	xsJson2String = function(obj) {
-		return xsJSON.stringify(obj);
+		var jsonObj;
+		if(typeof window.JSON !== "object") {
+			jsonObj = xsJSON;
+		} else {
+			jsonObj = xsJSON;
+		}
+		return jsonObj.stringify(obj);
 	};
 	var idCount = 1991;
 	//生成一个随机的id，只保证在本页面是唯一的
@@ -3143,9 +3155,6 @@ var queryString2ParamsMap;
 	//  NOT CONTROL.
 	var JSON = {};
 	window.xsJSON = JSON;
-	if(typeof window.JSON !== "object") {
-		window.JSON = JSON;
-	}
 
 	(function() {
 		"use strict";
