@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-11-19 15:36
+ * latest:2018-11-24 21:19
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -4298,7 +4298,14 @@ var queryString2ParamsMap;
 			window[localConfig.main.localConfigVar] = localConfig;
 
 			var mainName = localConfig.main.name;
-			var mainPath = getPathWithRelative(location.href, localConfig.main.getPath.call(localConfig));
+			
+			var href=location.href;
+			var index=href.lastIndexOf("?");
+			if(index>=0){
+				href=href.substring(0,index);
+			}
+			
+			var mainPath = getPathWithRelative(href, localConfig.main.getPath.call(localConfig));
 			var loaderName = localConfig.chooseLoader.call(localConfig, null);
 
 			var loader = localConfig.loader[loaderName];
