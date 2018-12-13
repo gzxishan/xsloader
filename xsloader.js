@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-11-24 21:19
+ * latest:2018-12-13 20:39
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -561,8 +561,35 @@ var queryString2ParamsMap;
 	var theDefinedMap = {}; //存放原始模块
 	var theLoaderScript = document.currentScript || scripts("xsloader");
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
-	var currentDefineModuleQueue = []; //当前回调的模块
+
 	var loadScriptMap = {}; //已经加载成功的脚本
+
+	//去掉模块url的参数
+	function removeUrlParam(nameOrUrl) {
+		if(!nameOrUrl) {
+			return nameOrUrl;
+		}
+		var index = nameOrUrl.indexOf("?");
+		if(index >= 0) {
+			return nameOrUrl.substring(0, index);
+		} else {
+			return nameOrUrl;
+		}
+	}
+
+	function getModule(nameOrUrl) {
+		nameOrUrl = removeUrlParam(nameOrUrl);
+		return theDefinedMap[nameOrUrl];
+	}
+
+	function setModule(nameOrUrl, m) {
+		nameOrUrl = removeUrlParam(nameOrUrl);
+		var last = theDefinedMap[nameOrUrl];
+		theDefinedMap[nameOrUrl] = m;
+		return last;
+	}
+
+	var currentDefineModuleQueue = []; //当前回调的模块
 	currentDefineModuleQueue.peek = function() {
 		if(this.length > 0) {
 			return this[this.length - 1];
@@ -739,7 +766,7 @@ var queryString2ParamsMap;
 			}
 			var url = urls[index];
 
-			var urlModule = theDefinedMap[url];
+			var urlModule = getModule(url);
 			if(urlModule) {
 				//console.log("has-loading....." + url);
 				if(urlModule !== module) {
@@ -755,7 +782,7 @@ var queryString2ParamsMap;
 				}
 			}
 			//console.log(url);
-			theDefinedMap[url] = module; //绑定绝对路径
+			setModule(url, module); //绑定绝对路径
 
 			module.aurl = url;
 			var config = (context && context.config) || {},
@@ -863,10 +890,9 @@ var queryString2ParamsMap;
 	}
 
 	function _onScriptComplete(moduleName, cache, aurl) {
-		if(theDefinedMap[moduleName] &&
-			theDefinedMap[moduleName].state != 'loading' &&
-			theDefinedMap[moduleName].state != 'init') {
-			var lastModule = theDefinedMap[moduleName];
+		var ifmodule = getModule(moduleName);
+		if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
+			var lastModule = ifmodule;
 			if(aurl && lastModule.aurl == aurl && moduleName == aurl) { //已经加载过js模块
 				try {
 					console.warn("already loaded js:" + aurl);
@@ -886,7 +912,11 @@ var queryString2ParamsMap;
 		var thenOption = cache.thenOption;
 		cache.name = moduleName || cache.name;
 
-		var module = theDefinedMap[moduleName] ? theDefinedMap[moduleName] : _newModule(moduleName, null, callback, thenOption.thatInvoker);
+		var module = getModule(moduleName);
+		if(!module) {
+			module = _newModule(moduleName, null, callback, thenOption.thatInvoker);
+		}
+
 		deps = cache.deps = module.mayAddDeps(deps);
 
 		if(cache.name && xsloader._ignoreAspect_[cache.name] || cache.selfname && xsloader._ignoreAspect_[cache.selfname]) {
@@ -894,16 +924,16 @@ var queryString2ParamsMap;
 		}
 
 		if(cache.selfname && cache.selfname != cache.name) {
-			var moduleSelf = theDefinedMap[cache.selfname];
+			var moduleSelf = getModule(cache.selfname);
 			if(moduleSelf) {
 				if(moduleSelf.state == "init") {
-					theDefinedMap[cache.selfname] = module;
+					setModule(cache.selfname, module);
 					moduleSelf.toOtherModule(module);
 				} else {
 					throwError(-2, "already define '" + cache.selfname + "'");
 				}
 			} else {
-				theDefinedMap[cache.selfname] = module;
+				setModule(cache.selfname, module);
 			}
 		}
 		module.aurl = aurl;
@@ -1029,7 +1059,7 @@ var queryString2ParamsMap;
 			}
 			var paths = graphPath.tryAddEdge(module.name, m);
 			if(paths.length > 0) {
-				var moduleLoop = theDefinedMap[m]; //该模块必定已经被定义过
+				var moduleLoop = getModule(m); //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
 				//				var errinfo = "loop dependency:" + paths.join(" --> ");
 				//				errCallback(errinfo);
@@ -1067,7 +1097,7 @@ var queryString2ParamsMap;
 				dep = dep.substring(0, pluginIndex);
 			}
 			var relyItFun = function() {
-				theDefinedMap[dep].relyIt(thenOption.thatInvoker || module.thiz, function(depModule, err) {
+				getModule(dep).relyIt(thenOption.thatInvoker || module.thiz, function(depModule, err) {
 					if(!err) {
 						depCount--;
 						if(dep == "exports") {
@@ -1085,7 +1115,7 @@ var queryString2ParamsMap;
 			};
 
 			var isJsFile = _isJsFile(dep);
-			if(!theDefinedMap[dep]) {
+			if(!getModule(dep)) {
 				do {
 
 					var willDelay = false;
@@ -1646,7 +1676,16 @@ var queryString2ParamsMap;
 			each(leafs, function(leaf) {
 				var infos = [];
 				genErrs(leaf, infos);
-				console.error("load module error stack:" + infos.reverse().join("-->"));
+				infos = infos.reverse();
+				console.error("load module error stack:");
+				for(var i = 1; i < infos.length;) {
+					var as = [];
+					as.push("");
+					for(var k = 0; k < 3 && i < infos.length; k++) {
+						as.push(infos[i++]);
+					}
+					console.info(as.join("--->"));
+				}
 			});
 
 		};
@@ -1666,7 +1705,7 @@ var queryString2ParamsMap;
 				if(indexPlguin > 0) {
 					dep = dep.substring(0, indexPlguin);
 				}
-				var mod = theDefinedMap[dep];
+				var mod = getModule(dep);
 				if(mod && mod.state == "defined") {
 					return;
 				}
@@ -1682,7 +1721,7 @@ var queryString2ParamsMap;
 				}
 			});
 		};
-		theDefinedMap[name] = moduleMap;
+		setModule(name, moduleMap);
 		_buildInvoker(moduleMap);
 		return moduleMap;
 	}
@@ -1997,7 +2036,7 @@ var queryString2ParamsMap;
 		}
 		var thatInvoker = this && isFunction(this.invoker) && isFunction(this.getName) && isFunction(this.getUrl) && isFunction(this.getAbsoluteUrl) ? this : null;
 		if(isString(deps)) {
-			var module = theDefinedMap[deps];
+			var module = getModule(deps);
 			if(!module) {
 				throwError(-12, "the module '" + deps + "' is not load!");
 			} else if(module.state != "defined") {
@@ -2062,11 +2101,13 @@ var queryString2ParamsMap;
 			});
 		});
 		timeid = setTimeout(function() {
-			if((!theDefinedMap[moduleName] || theDefinedMap[moduleName].state != 'defined') && !data.isError) {
-				var module = theDefinedMap[moduleName];
+			var ifmodule = getModule(moduleName);
+			if((!ifmodule || ifmodule.state != 'defined') && !data.isError) {
+				var module = ifmodule;
 				if(module) {
 					each(module.deps, function(dep) {
-						theDefinedMap[dep] && theDefinedMap[dep].printOnNotDefined();
+						var mod = getModule(dep);
+						mod && mod.printOnNotDefined();
 					});
 				}
 				console.error("require timeout:'" + deps + "'," + callback);
@@ -2081,7 +2122,7 @@ var queryString2ParamsMap;
 			return false;
 		}
 		for(var i = 0; i < args.length; i++) {
-			var module = theDefinedMap[args[i]];
+			var module = getModule(args[i]);
 			if(!module || module.state != "defined") {
 				return false;
 			}
@@ -2508,12 +2549,11 @@ var queryString2ParamsMap;
 				var moduleName = arg.substring(0, index);
 				var dep = arg.substring(index + 3);
 				this.invoker().require([dep], function(mod, depModuleArgs) {
-
-					if(theDefinedMap[moduleName]) {
+					if(getModule(moduleName)) {
 						onerror("already define:" + moduleName);
 						return;
 					}
-					theDefinedMap[moduleName] = depModuleArgs[0].module;
+					setModule(moduleName, depModuleArgs[0].module)
 					onload(mod);
 				});
 			}
@@ -4298,13 +4338,13 @@ var queryString2ParamsMap;
 			window[localConfig.main.localConfigVar] = localConfig;
 
 			var mainName = localConfig.main.name;
-			
-			var href=location.href;
-			var index=href.lastIndexOf("?");
-			if(index>=0){
-				href=href.substring(0,index);
+
+			var href = location.href;
+			var index = href.lastIndexOf("?");
+			if(index >= 0) {
+				href = href.substring(0, index);
 			}
-			
+
 			var mainPath = getPathWithRelative(href, localConfig.main.getPath.call(localConfig));
 			var loaderName = localConfig.chooseLoader.call(localConfig, null);
 
