@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-12-13 20:39
+ * latest:2018-12-18 14:57
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -544,7 +544,7 @@ var queryString2ParamsMap;
 	var defContextName = "xsloader1.0.0";
 
 	//来自于requirejs
-	var head, baseElement,
+	var head,
 		op = Object.prototype,
 		ostring = op.toString,
 		isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]',
@@ -559,8 +559,9 @@ var queryString2ParamsMap;
 	var innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 	var globalDefineQueue = []; //在config之前，可以调用define来定义模块
 	var theDefinedMap = {}; //存放原始模块
-	var theLoaderScript = document.currentScript || scripts("xsloader");
+	var theLoaderScript = document.currentScript || scripts("xsloader.js");
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
+	var lastAppendHeadDom = theLoaderScript;
 
 	var loadScriptMap = {}; //已经加载成功的脚本
 
@@ -615,11 +616,7 @@ var queryString2ParamsMap;
 	///////////
 
 	{
-		head = document.getElementsByTagName('head')[0];
-		baseElement = document.getElementsByTagName('base')[0];
-		if(baseElement) {
-			head = baseElement.parentNode;
-		}
+		head = document.head || document.getElementsByTagName('head')[0];
 	}
 
 	/////////////////////////
@@ -809,11 +806,7 @@ var queryString2ParamsMap;
 				node.addEventListener('error', errListen, false);
 			}
 			node.src = url;
-			if(baseElement) {
-				head.insertBefore(node, baseElement);
-			} else {
-				head.appendChild(node);
-			}
+			xsloader.appendHeadDom(node);
 		};
 		if(urls.length == 0) {
 			throwError(-9, "url is empty:" + moduleName);
@@ -2438,6 +2431,23 @@ var queryString2ParamsMap;
 		return rs;
 	};
 
+	xsloader.isDOM = (typeof HTMLElement === 'object') ?
+		function(obj) {
+			return obj && (obj instanceof HTMLElement);
+		} :
+		function(obj) {
+			return obj && typeof obj === 'object' && obj.nodeType === 1 && typeof obj.nodeName === 'string';
+		};
+
+	xsloader.appendHeadDom = function(dom) {
+		if(!xsloader.isDOM(dom)) {
+			throw new Error("expected dom object,but provided:" + dom);
+		}
+		head.insertBefore && head.insertBefore(dom, lastAppendHeadDom) ||
+			head.appendChild(dom);
+		lastAppendHeadDom = dom;
+	}
+
 	xsloader.IE_VERSION = IE_VERSION;
 
 	//用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
@@ -2631,7 +2641,6 @@ var queryString2ParamsMap;
 					load()
 				}
 			};
-		var head = document.getElementsByTagName('head')[0];
 		var engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
 		var useImportLoad = false;
 		var useOnload = true;
@@ -2642,11 +2651,10 @@ var queryString2ParamsMap;
 		else if(engine[4])
 			useImportLoad = parseInt(engine[4]) < 18;
 		var cssAPI = {};
-		cssAPI.pluginBuilder = './css-builder';
 		var curStyle, curSheet;
 		var createStyle = function() {
 			curStyle = document.createElement('style');
-			head.appendChild(curStyle);
+			xsloader.appendHeadDom(curStyle);
 			curSheet = curStyle.styleSheet || curStyle.sheet;
 		}
 		var ieCnt = 0;
@@ -2716,7 +2724,7 @@ var queryString2ParamsMap;
 					}
 				}, 10);
 			link.href = url;
-			head.appendChild(link);
+			xsloader.appendHeadDom(link);
 		}
 		cssAPI.pluginMain = function(cssId, onload, onerror, config) {
 			if(cssId.indexOf(".css") != cssId.length - 4) {
