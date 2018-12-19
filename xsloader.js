@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-12-18 14:57
+ * latest:2018-12-19 10:45
  * version:1.0.0
  * date:2018-1-25
  * 参数说明
@@ -2443,8 +2443,10 @@ var queryString2ParamsMap;
 		if(!xsloader.isDOM(dom)) {
 			throw new Error("expected dom object,but provided:" + dom);
 		}
-		head.insertBefore && head.insertBefore(dom, lastAppendHeadDom) ||
-			head.appendChild(dom);
+		
+		var nextDom=lastAppendHeadDom.nextSibling;
+		head.insertBefore(dom, nextDom);
+		//			head.appendChild(dom);
 		lastAppendHeadDom = dom;
 	}
 
