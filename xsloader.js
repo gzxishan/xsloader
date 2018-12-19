@@ -231,7 +231,7 @@ var queryString2ParamsMap;
 	var idCount = 1991;
 	//生成一个随机的id，只保证在本页面是唯一的
 	function _randId(suffix) {
-		var id = new Date().getTime() + "_" + parseInt(Math.random() * 100000) + "_rid" + (idCount++);
+		var id = "rid_"+parseInt(new Date().getTime()/1000) + "_" + parseInt(Math.random() * 100000) + "_rid" + (idCount++);
 		if(suffix !== undefined) {
 			id += suffix;
 		}
