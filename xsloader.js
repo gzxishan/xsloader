@@ -5,11 +5,9 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-12-19 10:45
+ * latest:2018-12-30 18:55
  * version:1.0.0
  * date:2018-1-25
- * 参数说明
- * config.xhtml
  * 
  * @param {Object} window
  * @param {Object} undefined
@@ -231,7 +229,7 @@ var queryString2ParamsMap;
 	var idCount = 1991;
 	//生成一个随机的id，只保证在本页面是唯一的
 	function _randId(suffix) {
-		var id = "rid_"+parseInt(new Date().getTime()/1000) + "_" + parseInt(Math.random() * 100000) + "_rid" + (idCount++);
+		var id = "rid_" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 100000) + "_rid" + (idCount++);
 		if(suffix !== undefined) {
 			id += suffix;
 		}
@@ -2443,8 +2441,8 @@ var queryString2ParamsMap;
 		if(!xsloader.isDOM(dom)) {
 			throw new Error("expected dom object,but provided:" + dom);
 		}
-		
-		var nextDom=lastAppendHeadDom.nextSibling;
+
+		var nextDom = lastAppendHeadDom.nextSibling;
 		head.insertBefore(dom, nextDom);
 		//			head.appendChild(dom);
 		lastAppendHeadDom = dom;
@@ -4223,7 +4221,10 @@ var queryString2ParamsMap;
 	var url;
 	var dataConf = xsloader.script().getAttribute(DATA_CONF);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN);
-	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE) == "json" ? "json" : "json-script";
+	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
+	if(dataConfType !== "json" && dataConfType != "js") {
+		dataConfType = "auto";
+	}
 
 	if(dataConf) {
 		url = getPathWithRelative(location.href, dataConf);
@@ -4290,10 +4291,17 @@ var queryString2ParamsMap;
 			ok: function(confText) {
 
 				var conf;
-				if(dataConfType == "json-script") {
+				if(dataConfType == "js") {
 					conf = xsEval(confText);
-				} else {
+				} else if(dataConfType == "json") {
 					conf = xsParseJson(confText);
+				} else {
+					if(startsWith(url, location.protocol + "//" + location.host + "/")) {
+						//同域则默认用脚本解析
+						conf = xsEval(confText);
+					} else {
+						conf = xsParseJson(confText);
+					}
 				}
 
 				conf = extendConfig(conf);

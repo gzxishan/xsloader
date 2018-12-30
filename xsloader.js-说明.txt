@@ -150,7 +150,8 @@
 三、xsloader配置服务
 1.data-xsloader-conf相对于当前页面地址的配置路径，data-xsloader-conf2相对于加载器地址的配置路径。
 2.data-xsloader-main用于手动指定main.getPath()的返回值，相对于当前页面地址。
-3.配置格式:
+3.data-conf-type:json,js,auto.
+4.配置格式:
 {
 	properties:{},
 	main:{
