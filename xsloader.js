@@ -1668,7 +1668,7 @@ var queryString2ParamsMap;
 				var infos = [];
 				genErrs(leaf, infos);
 				infos = infos.reverse();
-				console.error("load module error stack:my page="+location.href);
+				console.error("load module error stack:my page=" + location.href);
 				for(var i = 1; i < infos.length;) {
 					var as = [];
 					as.push("");
@@ -2449,7 +2449,7 @@ var queryString2ParamsMap;
 	}
 
 	xsloader.IE_VERSION = IE_VERSION;
-	
+
 	xsloader.queryParam = function(name, otherValue, optionUrl) {
 
 		var search;
@@ -3766,7 +3766,8 @@ var queryString2ParamsMap;
 					osource: source,
 					active: isActive,
 					connectingSource: connectingSource,
-					id: randId()
+					id: randId(),
+					refused: {}
 				};
 
 				if(!cmd2ListenerMap[cmd]) {
@@ -3831,6 +3832,8 @@ var queryString2ParamsMap;
 
 					return function(isAccept, msg) {
 						if(!isAccept) {
+							var listener = instanceMap[instanceid];
+							listener.refused[oinstanceid] = true;
 							return;
 						}
 						if(oinstanceidMap[oinstanceid]) {
@@ -3852,7 +3855,9 @@ var queryString2ParamsMap;
 
 				for(var i = 0; i < listeners.length; i++) {
 					var listener = listeners[i];
-					listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+					if(!listener.refused[oinstanceid]) {
+						listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+					}
 				}
 			}
 
@@ -3866,6 +3871,8 @@ var queryString2ParamsMap;
 
 					return function(isAccept, msg) {
 						if(!isAccept) {
+							var listener = instanceMap[instanceid];
+							listener.refused[oinstanceid] = true;
 							return;
 						}
 						if(oinstanceidMap[oinstanceid]) {
@@ -3889,7 +3896,7 @@ var queryString2ParamsMap;
 
 				for(var i = 0; i < listeners.length; i++) {
 					var listener = listeners[i];
-					if(listener.id == minstanceid) { //当前为主动发起连接的页面
+					if(listener.id == minstanceid && !listener.refused[oinstanceid]) { //当前为主动发起连接的页面
 						listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
 					}
 				}
