@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2018-12-30 18:55
+ * latest:2019-01-06 18:55
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -3726,43 +3726,40 @@ var queryString2ParamsMap;
 
 		var postMessageBridge = (function() {
 			var handle = {};
-			var listeners = {};
-			var activeListenerMyIds = {}; //inactiveUniqueId:[id]
 
-			//callback:function(data,source,type,optionData,originStr)
-			//originObj.originSend,originObj.originReceive
-			//isActive为false表示被动者,被动者是根据cmd发送、且发给所有的，主动者根据id发送.
-			handle.listen = function(cmd, originObj, isActive, callback) {
+			var instanceMap = {}; //id:listener
+			var cmd2ListenerMap = {}; //cmd:[]
+			var instanceBindMap = {}; //instanceid:true
+			var oinstanceidMap = {}; //已经被绑定的oinstanceid:instanceid
 
-				if(xsloader.isString(originObj.originReceive)) {
-					var originReceiveStr = originObj.originReceive;
-					originObj.originReceive = function(source, originStr, data) {
-						return originReceiveStr == '*' || originReceiveStr == originStr;
-					};
-				}
+			//isActive为false表示监听者
+			handle.listen = function(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse) {
 
-				if(xsloader.isString(originObj.originSend)) {
-					var originSendStr = originObj.originSend;
-					originObj.originSend = function(source) {
-						return originSendStr;
-					};
-				}
-
-				var id = isActive ? randId() : cmd;
 				var listener = {
-					callback: callback,
 					cmd: cmd,
+					_onConned: _onConned,
+					_onMsg: _onMsg,
+					_onResponse: _onResponse,
+					_onElse: _onElse,
+					conndata: conndata,
+					osource: source,
 					active: isActive,
-					originReceive: originObj.originReceive
+					connectingSource: connectingSource,
+					id: randId()
 				};
-				listeners[id] = listener;
-				if(!isActive) {
-					listener.uniqueId = randId();
+
+				if(!cmd2ListenerMap[cmd]) {
+					cmd2ListenerMap[cmd] = [];
 				}
-				return id;
+				cmd2ListenerMap[cmd].push(listener)
+
+				var instanceid = listener.id;
+				instanceMap[instanceid] = listener;
+				return instanceid;
 			};
 
-			handle.remove = function(id) {
+			handle.remove = function(instanceid) {
+				//TODO !!!!!!!
 				var listener = listeners[id];
 				delete listeners[id];
 				if(listener.active) {
@@ -3783,61 +3780,155 @@ var queryString2ParamsMap;
 				}
 
 			};
-			handle.send = function(id, data, source, originObj) {
-				var listener = listeners[id];
-				var optionData = {
-					uniqueId: listener.uniqueId
-				};
-				_send(id, data, source, originObj, "msg", optionData);
+
+			handle.send = function(data, instanceid, msgid) {
+				var listener = instanceMap[instanceid];
+				_sendData("msg", listener.cmd, listener.osource, data, instanceid, msgid);
 			};
 
-			function _send(id, data, source, originObj, type, optionData) {
-				var listener = listeners[id];
-				if(!listener) {
+			handle.sendConn = function(instanceid) {
+				var listener = instanceMap[instanceid];
+				_sendData("conn", listener.cmd, listener.osource, listener.conndata, instanceid);
+			};
+
+			handle.sendResponse = function(data, instanceid) {
+				var listener = instanceMap[instanceid];
+				_sendData("response", listener.cmd, listener.osource, data, instanceid);
+			};
+
+			function handleConn(cmd, fromSource, originStr, data, oinstanceid) {
+				if(oinstanceidMap[oinstanceid]) {
+					//console.warn("already bind:" + cmd);
 					return;
 				}
-				var msg = {
-					data: data,
-					cmd: listener.cmd,
-					active: listener.active,
-					optionData: optionData,
-					uniqueId: listener.uniqueId
-				};
-				if(type) {
-					msg.type = type;
+				var listeners = cmd2ListenerMap[cmd];
+				if(!listeners) {
+					return;
 				}
+
+				function Callback(instanceid) {
+
+					return function(isAccept, msg) {
+						if(!isAccept) {
+							return;
+						}
+						if(oinstanceidMap[oinstanceid]) {
+							console.warn("already bind other:" + cmd + ",my page:" + location.href);
+						} else if(instanceBindMap[instanceid]) {
+							console.warn("already self bind:" + cmd + ",my page:" + location.href);
+							_sendData("binded", cmd, fromSource, oinstanceid);
+						} else {
+							oinstanceidMap[oinstanceid] = instanceid;
+							instanceBindMap[instanceid] = true;
+							var listener = instanceMap[instanceid];
+							listener.osource = fromSource;
+							listener.origin = originStr;
+							_sendData("accept", cmd, fromSource, listener.conndata, instanceid, oinstanceid);
+						}
+					}
+
+				}
+
+				for(var i = 0; i < listeners.length; i++) {
+					var listener = listeners[i];
+					listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+				}
+			}
+
+			function handleAccept(cmd, fromSource, originStr, data, oinstanceid, minstanceid) {
+				var listeners = cmd2ListenerMap[cmd];
+				if(!listeners) {
+					return;
+				}
+
+				function Callback(instanceid) {
+
+					return function(isAccept, msg) {
+						if(!isAccept) {
+							return;
+						}
+						if(oinstanceidMap[oinstanceid]) {
+							console.warn("already bind:" + cmd + ",my page:" + location.href);
+						} else if(instanceBindMap[instanceid]) {
+							console.warn("already self bind:" + cmd + ",my page:" + location.href);
+							_sendData("binded", cmd, fromSource, oinstanceid);
+						} else {
+							oinstanceidMap[oinstanceid] = instanceid;
+							instanceBindMap[instanceid] = true;
+
+							var listener = instanceMap[instanceid];
+							listener.osource = fromSource;
+							listener.origin = originStr;
+							_sendData("conned", cmd, fromSource, listener.conndata, instanceid);
+							listener._onConned(fromSource, data);
+						}
+					}
+
+				}
+
+				for(var i = 0; i < listeners.length; i++) {
+					var listener = listeners[i];
+					if(listener.id == minstanceid) { //当前为主动发起连接的页面
+						listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+					}
+				}
+			}
+
+			function handleBinded(cmd, fromSource, originStr, minstanceid) {
+				var listener = instanceMap[minstanceid];
+				listener._onElse("binded");
+			}
+
+			function checkSource(listener, fromSource, originStr) {
+				if(listener.osource != fromSource && listener.origin != originStr) {
+					console.warn("expected:" + listener.origin + ",but:" + originStr);
+					throw new Error("source changed!");
+				}
+			}
+
+			function handleConned(cmd, fromSource, originStr, data, oinstanceid) {
+				var instanceid = oinstanceidMap[oinstanceid];
+				var listener = instanceMap[instanceid];
+				checkSource(listener, fromSource, originStr);
+
+				listener._onConned(listener.osource, data);
+			}
+
+			function handleMsg(cmd, fromSource, originStr, data, oinstanceid, msgid) {
+				var instanceid = oinstanceidMap[oinstanceid];
+				var listener = instanceMap[instanceid];
+				checkSource(listener, fromSource, originStr);
+
+				listener._onMsg(data, msgid);
+			}
+
+			function handleResponse(cmd, fromSource, originStr, data, oinstanceid) {
+				var instanceid = oinstanceidMap[oinstanceid];
+				var listener = instanceMap[instanceid];
+				checkSource(listener, fromSource, originStr);
+
+				listener._onResponse(data);
+			}
+
+			function _sendData(type, cmd, source, data, instanceid, msgid) {
+				var msg = {
+					type: type,
+					data: data,
+					cmd: cmd,
+					id: instanceid,
+					msgid: msgid
+				};
+
 				if(isDebug("postMessageBridge")) {
 					console.log("send from:" + location.href);
 					console.log(msg);
 				}
-				var originStr = originObj.originSend(source);
-				source.postMessage(xsJson2String(msg), originStr);
-			};
-
-			handle.sendConn = function(id, data, source, originObj, conndata) {
-				var optionData = {
-					thatId: id,
-					conndata: conndata
-				};
-				_send(id, data, source, originObj, "conn", optionData);
-			};
-
-			handle.sendConned = function(id, data, source, originObj, thatOptionData, conndata) {
-				var listener = listeners[id];
-				var optionData = {
-					myId: thatOptionData.thatId,
-					conndata: conndata
-				};
-				_send(id, data, source, originObj, "conned", optionData);
-			};
-
-			handle.sendResponse = function(id, data, source, originObj) {
-				_send(id, data, source, originObj, "response")
-			};
+				source.postMessage(xsJson2String(msg), "*");
+			}
 
 			window.addEventListener('message', function(event) {
 				if(isDebug("postMessageBridge")) {
-					console.log("receive from:" + event.origin + ",current:" + location.href);
+					console.log("receive from:" + event.origin + ",my page:" + location.href);
 					console.log(event.data);
 				}
 				var data = xsParseJson(event.data);
@@ -3846,59 +3937,23 @@ var queryString2ParamsMap;
 				}
 
 				var cmd = data.cmd;
-				var cmdData = data.data;
-				var active = data.active;
+				var oinstanceid = data.id;
+				var rdata = data.data;
 				var type = data.type;
-				var optionData = data.optionData;
+				var msgid = data.msgid;
 
-				if(type == "conned") {
-					var uniqueId = data.uniqueId;
-					var myId = data.optionData.myId;
-					var as = activeListenerMyIds[uniqueId];
-					if(!as) {
-						as = [];
-						activeListenerMyIds[uniqueId] = as;
-					}
-					as.push(myId);
-				}
-
-				var originStr = event.origin;
-				var source = event.source;
-				if(active) { //来自于主动者,则my:id==cmd
-					var myId = cmd;
-					try {
-						var listener = listeners[myId];
-						var callback = listener ? listener.callback : null;
-						if(callback) {
-							if(listener.originReceive(source, originStr, optionData)) {
-								callback(cmdData, source, type, optionData, originStr);
-							}
-						}
-					} catch(e) {
-						console.error(e);
-					}
-				} else { //来自于被动者（后发消息者），则my:id要从activeListenerMyIds中取
-					var ids = activeListenerMyIds[data.uniqueId];
-					if(ids) {
-						for(var i = 0; i < ids.length; i++) {
-							var myId = ids[i];
-							try {
-								var listener = listeners[myId];
-								var callback = listener ? listener.callback : null;
-								if(callback) {
-									if(listener.originReceive(source, originStr, optionData)) {
-										callback(cmdData, source, type, optionData, originStr);
-									}
-								}
-							} catch(e) {
-								console.error(e);
-							}
-						}
-					} else {
-						if(isDebug("postMessageBridge")) {
-							console.log("active handle for cmd '" + cmd + "' is null!");
-						}
-					}
+				if(type == "conn") {
+					handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
+				} else if(type == "accept") {
+					handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+				} else if(type == "conned") {
+					handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
+				} else if(type == "msg") {
+					handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+				} else if(type == "response") {
+					handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
+				} else if(type == "binded") {
+					handleBinded(cmd, event.source, event.origin, rdata);
 				}
 
 			}, false);
@@ -3910,49 +3965,17 @@ var queryString2ParamsMap;
 			return handle;
 		})();
 
-		function CommunicationUnit(cmd, source, originObj, isActive, conndata) {
+		function CommunicationUnit(cmd, source, connectingSource, isActive, conndata) {
 			var msgQueue = new LinkedList();
-			var receiveCacheList = new LinkedList();
 
 			var MAX_TRY = 100,
 				SLEEP = 500;
-			var RECEIVE_CACHE_TIME = 20 * SLEEP + MAX_TRY * SLEEP;
-			var isChecking = false;
 			var isConnected = false,
 				connectCount = 0;
-
-			/**
-			 * 如果已经接收过,则返回true.
-			 * @param {Object} msg
-			 */
-			function cacheReceive(msg) {
-				var id = msg.id;
-				var ele = receiveCacheList.find(function(element) {
-					return element.id = id;
-				});
-				if(isDebug("CommunicationUnit")) {
-					console.log("received before:");
-					console.log(ele);
-				}
-				var cached = ele ? true : false;
-				if(!cached) {
-					receiveCacheList.append({
-						id: id,
-						time: new Date().getTime()
-					});
-				}
-
-				var time = new Date().getTime();
-				//移除超时的接收缓存
-				receiveCacheList.eachForRemove(function(element) {
-					var willRemove = time - element.time > RECEIVE_CACHE_TIME;
-					return willRemove;
-				});
-
-				return cached;
-			};
+			var isCanceled = false;
 
 			var thiz = this;
+			var handleId;
 
 			this.onConnectedListener = null;
 			this.onReceiveListener = null;
@@ -3969,85 +3992,70 @@ var queryString2ParamsMap;
 				postMessageBridge.remove(handleId);
 			};
 
-			var handleId = postMessageBridge.listen(cmd, originObj, isActive, function(msg, _source, type, optionData, originStr) {
-				if(type == "conn") { //发起连接
-					source = _source;
-					postMessageBridge.sendConned(handleId, { //确认连接
-						conned: true
-					}, source, originObj, optionData, conndata);
-					if(isConnected) {
-						return;
-					}
-					isConnected = true;
-					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata, {
-							originStr: originStr
-						});
-					}
-					sendTop();
-				} else if(type == "conned") { //已经连接
-					if(isConnected) {
-						return;
-					}
-					if(thiz.onConnectedListener) {
-						thiz.onConnectedListener.call(thiz, optionData.conndata, {
-							originStr: originStr
-						});
-					}
-					isConnected = true;
-					sendTop();
-				} else if(type == "response") { //消息回复,移除消息
-					msgQueue.remove(function(elem) {
-						return elem.id = msg.id;
-					});
-					sendTop();
-				} else { //收到消息
+			function _onConned(_source, data) {
+				thiz.onConnectedListener.call(thiz, data);
+				isConnected = true;
+				sendTop();
+			};
 
-					//var receivedBefore = cacheReceive(msg);
-
-					//if(!receivedBefore) { //防止重复接收
-					if(thiz.onReceiveListener) {
-						thiz.onReceiveListener.call(thiz, msg.data, {
-							originStr: originStr
-						});
-					}
-					//}
-
-					postMessageBridge.sendResponse(handleId, { //回应已经收到
-						response: true,
-						id: msg.id
-					}, source, originObj);
-
+			function _onMsg(data, msgid) {
+				try {
+					thiz.onReceiveListener.call(thiz, data);
+				} catch(e) {
+					console.warn(e);
 				}
-			});
+				postMessageBridge.sendResponse({ //回应已经收到
+					id: msgid
+				}, handleId);
+			}
+
+			function _onResponse(data) {
+				msgQueue.remove(function(elem) {
+					return elem.id = data.id;
+				});
+				sendTop();
+			};
+
+			function _onElse(type) {
+				if(type == "binded") {
+					isCanceled = true;
+					console.error("connect failed,that page already binded:" + cmd + ",my page:" + location.href);
+				}
+			}
+
+			function initListen() {
+				handleId = postMessageBridge.listen(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse);
+			}
 
 			function sendTop() {
 				if(isConnected) {
 					var msg = msgQueue.pop();
 					if(msg) {
-						postMessageBridge.send(handleId, msg, source, originObj);
+						postMessageBridge.send(msg.data, handleId, msg.id);
 						postMessageBridge.runAfter(SLEEP, init);
 					}
 				}
 			}
 
 			function init() {
-				if(isConnected || connectCount > MAX_TRY) {
+				if(isConnected || connectCount > MAX_TRY || isCanceled) {
 					return;
 				}
-				postMessageBridge.sendConn(handleId, {
-					conn: true
-				}, source, originObj, conndata);
+				postMessageBridge.sendConn(handleId);
 				connectCount++;
 				postMessageBridge.runAfter(SLEEP, init);
 			}
 			if(source) {
+				initListen();
 				init();
+			} else if(!isActive) {
+				initListen();
 			}
 
 			this.setSource = function(_source) {
 				source = _source;
 				if(source) {
+					initListen();
 					init();
 				}
 			};
@@ -4058,21 +4066,17 @@ var queryString2ParamsMap;
 		/**
 		 * 
 		 * @param {Object} winObjOrCallback
-		 * @param {Object} cmd
-		 * @param {Object} connectedCallback function(sender,conndata)
-		 * @param {Object} receiveCallback function(data,sender)|function(sender,data)
+		 * @param {Object} option
 		 * @param {Object} notActive
 		 */
 		function _connectWindow(winObjOrCallback, option, notActive) {
-			var currentOriginStr = location.protocol + "//" + location.host;
 			option = xsloader.extendDeep({
 				cmd: null,
 				listener: null,
 				connected: null,
 				conndata: null,
-				originObj: {
-					originSend: option.originSend || currentOriginStr,
-					originReceive: option.originReceive || currentOriginStr
+				connectingSource: function(source, origin, conndata, callback) {
+					callback(true, "default");
 				}
 			}, option);
 
@@ -4082,31 +4086,31 @@ var queryString2ParamsMap;
 			var conndata = option.conndata;
 
 			var isActive = !notActive;
-			var originObj = option.originObj;
+			var connectingSource = option.connectingSource;
 
 			var unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, originObj, isActive, conndata);
+				unit = new CommunicationUnit(cmd, null, connectingSource, isActive, conndata);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, originObj, isActive, conndata);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, isActive, conndata);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
 				console.log((isActive ? "active" : "") + " connected:" + cmd);
 			};
 			if(connectedCallback) {
-				unit.onConnectedListener = function(conndata, extra) {
+				unit.onConnectedListener = function(conndata) {
 					try {
-						connectedCallback(this.send, conndata, extra);
+						connectedCallback(this.send, conndata);
 					} catch(e) {
 						console.error(e);
 					}
 				};
 			}
 			if(receiveCallback) {
-				unit.onReceiveListener = function(data, extra) {
+				unit.onReceiveListener = function(data) {
 					try {
-						receiveCallback(data, this.send, extra);
+						receiveCallback(data, this.send);
 					} catch(e) {
 						console.error(e);
 					}
@@ -4191,12 +4195,11 @@ var queryString2ParamsMap;
 		 * *******************
 		 * option参数
 		 *********************
-		 * cmd:
-		 * originSend:String||function(source){}//默认只能是同域
-		 * originReceive:String||function(source,origin,data){}//默认只能是同域
-		 * listener: function(data,sender,extra)
-		 * connected:function(sender,conndata,extra)
-		 * conndata:
+		 * option.cmd:
+		 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))
+		 * option.listener: function(data,sender)
+		 * option.connected:function(sender,conndata)
+		 * option.conndata:
 		 **************
 		 * 回调的extra参数
 		 **************
