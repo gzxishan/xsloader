@@ -619,29 +619,38 @@ var queryString2ParamsMap;
 
 	/////////////////////////
 
-	function each(ary, func, isSync) {
+	function each(ary, func, isSync, fromEnd) {
 		if(ary) {
 			if(isSync) {
 				function fun(index) {
-					if(index >= ary.length) {
+					if(fromEnd ? index < 0 : index >= ary.length) {
 						return;
 					}
 					var handle = function(rs) {
 						if(rs) {
 							return;
 						}
-						fun(index + 1);
+						fun(fromEnd ? index - 1 : index + 1);
 					};
 					func(ary[index], index, ary, handle);
 				}
-				fun(0);
-				return;
-			}
-			for(var i = 0; i < ary.length; i += 1) {
-				if(func(ary[i], i, ary)) {
-					break;
+				fun(fromEnd ? ary.length - 1 : 0);
+			} else {
+				if(fromEnd) {
+					for(var i = ary.length - 1; i >= 0; i--) {
+						if(func(ary[i], i, ary)) {
+							break;
+						}
+					}
+				} else {
+					for(var i = 0; i < ary.length; i++) {
+						if(func(ary[i], i, ary)) {
+							break;
+						}
+					}
 				}
 			}
+
 		}
 	}
 
@@ -649,7 +658,9 @@ var queryString2ParamsMap;
 	function GraphPath() {
 		var pathEdges = {};
 		var vertexMap = {};
+		var depMap = {};
 		this.addEdge = function(begin, end) {
+			depMap[begin + "|" + end] = true;
 			if(!pathEdges[begin]) {
 				pathEdges[begin] = [];
 			}
@@ -663,6 +674,10 @@ var queryString2ParamsMap;
 				begin: begin,
 				end: end
 			});
+		};
+
+		this.hasDep = function(name, dep) {
+			return depMap[name + "|" + dep];
 		};
 
 		this.tryAddEdge = function(begin, end) {
@@ -939,8 +954,8 @@ var queryString2ParamsMap;
 		if(deps.length == 0) {
 			module.finish([]); //递归结束
 		} else {
-
 			_everyRequired(data, thenOption, module, deps, function(depModules) {
+
 				var args = [];
 				var depModuleArgs = [];
 				each(depModules, function(depModule) {
@@ -1041,8 +1056,16 @@ var queryString2ParamsMap;
 
 		for(var i = 0; i < deps.length; i++) {
 			var m = deps[i];
+			var jsFilePath = _isJsFile(m);
+
+			if(jsFilePath) {
+				var absolute = _dealAbsolute(m);
+				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
+					m = config.baseUrl + m;
+					deps[i] = m;
+				}
+			}
 			if(module.aurl) { //替换相对路径为绝对路径
-				var jsFilePath = _isJsFile(m);
 				if(jsFilePath && _startsWith(m, ".")) {
 					m = _getPathWithRelative(module.aurl, jsFilePath) + _getPluginParam(m);
 					deps[i] = m;
@@ -1069,7 +1092,7 @@ var queryString2ParamsMap;
 		function checkFinish(index, dep, depModule, syncHandle) {
 			depModules[index] = depModule;
 
-			if( /*(depCount == 0 || depCount - module.jsScriptCount == 0)*/ depCount == 0 && !isError) {
+			if( /*(depCount == 0 || depCount - module.jsScriptCount == 0)*/ depCount <= 0 && !isError) {
 				everyOkCallback(depModules, module);
 			} else if(isError) {
 				module.setState('error', isError);
@@ -1089,6 +1112,7 @@ var queryString2ParamsMap;
 			}
 			var relyItFun = function() {
 				getModule(dep).relyIt(thenOption.thatInvoker || module.thiz, function(depModule, err) {
+
 					if(!err) {
 						depCount--;
 						if(dep == "exports") {
@@ -1105,8 +1129,8 @@ var queryString2ParamsMap;
 				}, pluginArgs);
 			};
 
-			var isJsFile = _isJsFile(dep);
 			if(!getModule(dep)) {
+				var isJsFile = _isJsFile(dep);
 				do {
 
 					var willDelay = false;
@@ -1199,6 +1223,7 @@ var queryString2ParamsMap;
 
 									//TODO STRONG 直接认定队列里的模块全来自于该脚本
 									var scriptData = __getScriptData(evt, callbackObj);
+
 									loadScriptMap[scriptData.node.src] = true;
 									callbackObj.removed = true;
 									var hasAnonymous = false;
@@ -1208,12 +1233,7 @@ var queryString2ParamsMap;
 
 									for(var i2 = 0; i2 < defQueue.length; i2++) {
 										var cache = defQueue[i2];
-										//									console.log(cache);
-										//									console.log(scriptData);
-										//									console.log("*************************:" + defQueue.length + ",ie=" + IE_VERSION + ",syncHandle=" + (typeof syncHandle));
-
 										var isCurrentScriptDefine = true;
-										//scriptData.node.src;
 										if(hasAnonymous || !isCurrentScriptDefine) {
 											if(!cache.name) {
 												var errinfo = "multi anonymous define in a script:" + (scriptData.node && scriptData.node.src) + "," + (cache.callback && cache.callback.originCallback || cache.callback);
@@ -1229,6 +1249,7 @@ var queryString2ParamsMap;
 										if(parentDefine) {
 											defineCount--;
 										}
+
 										var aurl = cache.src;
 										if(isCurrentScriptDefine) {
 											if(cache.src == theLoaderUrl) {
@@ -1361,7 +1382,7 @@ var queryString2ParamsMap;
 
 	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs) {
 		var depModule = {
-			callback: relyCallback,
+			relyCallback: relyCallback,
 			_invoker: thatInvoker,
 			_module_: null,
 			initInvoker: function() {
@@ -1410,7 +1431,7 @@ var queryString2ParamsMap;
 				return this._object;
 			},
 			init: function() {
-				var relyCallback = this.callback;
+				var relyCallback = this.relyCallback;
 				this._module_ = module.dealInstance(this);
 				this._setDepModuleObjectGen(module.loopObject || module.moduleObject);
 				if(pluginArgs !== undefined) {
@@ -1420,9 +1441,11 @@ var queryString2ParamsMap;
 					if(this._isPluginSingle) {
 						this.module._pluginSingleResult = this.module._pluginSingleResult || [];
 					}
-					var that = this;
-					var onload = function(result, ignoreAspect) {
 
+					var that = this;
+					var hasFinished = false;
+					var onload = function(result, ignoreAspect) {
+						hasFinished = true;
 						if(that._isPluginSingle && !that.module._pluginSingleResult[pluginArgs]) {
 							that.module._pluginSingleResult[pluginArgs] = {
 								result: result,
@@ -1434,10 +1457,12 @@ var queryString2ParamsMap;
 						relyCallback(that);
 					};
 					var onerror = function(err) {
+						hasFinished = true;
 						relyCallback(that, err || false);
 					};
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
+						
 						if(that._isPluginSingle && that.module._pluginSingleResult[pluginArgs]) {
 							var last = that.module._pluginSingleResult[pluginArgs];
 							onload(last.result, last.ignoreAspect);
@@ -1447,6 +1472,13 @@ var queryString2ParamsMap;
 					} catch(e) {
 						console.log(e);
 						onerror(e);
+					}
+					if(!hasFinished) {
+						setTimeout(function() {
+							if(!hasFinished){
+								console.warn("invoke plugin may failed:page="+location.href+",plugin="+module.name+"!"+pluginArgs);
+							}
+						}, xsloader.config().waitSeconds * 1000);
 					}
 				} else {
 					relyCallback(this);
@@ -1475,6 +1507,7 @@ var queryString2ParamsMap;
 			id: idCount++,
 			name: name,
 			deps: deps || [],
+			directDefineIndex: 0, //模块直接声明的依赖开始索引
 			ignoreAspect: false,
 			depModules: null,
 			aurl: null, //绝对路径,可能等于当前页面路径
@@ -1486,7 +1519,14 @@ var queryString2ParamsMap;
 			setInstanceType: function(instanceType) {
 				this.instanceType = instanceType;
 			},
-			finish: function(args, depModuleArgs) {
+			finish: function(args) {
+				if(this.directDefineIndex != 0) {
+					var _directArgs = [];
+					for(var i = this.directDefineIndex; i < args.length; i++) {
+						_directArgs.push(args[i]);
+					}
+					args = _directArgs;
+				}
 				this.depModules = args;
 				var obj;
 				if(isFunction(this.callback)) {
@@ -1525,7 +1565,6 @@ var queryString2ParamsMap;
 			_callback: function(fun) {
 				var _state = this.state;
 				if(_state == 'defined' || this.loopObject) {
-
 					if(fun) {
 						var depModule = _newDepModule(this, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
 						depModule.init();
@@ -1631,12 +1670,15 @@ var queryString2ParamsMap;
 		//添加到前面
 		moduleMap.mayAddDeps = function(deps) {
 			var moduleDeps = this.deps;
+			var insertCount = 0;
 			each(moduleDeps, function(dep) {
 				if(indexInArray(deps, dep) < 0) {
-					deps.push(dep);
+					deps.splice(0, 0, dep);
+					insertCount++;
 				}
-			});
+			}, false, true);
 			this.deps = deps;
+			this.directDefineIndex += insertCount;
 			return deps;
 		};
 		moduleMap.printOnNotDefined = function() {
@@ -1677,19 +1719,39 @@ var queryString2ParamsMap;
 					}
 					console.info(as.join("--->"));
 				}
+				var errModule = leaf.module;
+				if(leaf.module.state == "defined") {
+					errModule = leaf.parent.module;
+				}
+				var as = [];
+				for(var i = 0; i < errModule.deps.length; i++) {
+					var dep = errModule.deps[i];
+					var index = dep.lastIndexOf("!");
+					if(index != -1) {
+						dep = dep.substring(0, index);
+					}
+					var depMod = theDefinedMap[dep];
+					if(depMod) {
+						as.push(dep + ":" + depMod.state);
+					} else {
+						as.push(dep + ":null");
+					}
+				}
+				console.info("failed module '" + errModule.name + "' deps state infos [" + as.join(",") + "]");
 			});
 
 		};
 		moduleMap._printOnNotDefined = function(parentNode) {
-			if(this.state == "defined") {
-				return;
-			}
 			var node = {
 				err: "[" + this.name + "].state=" + this.state,
+				module: this,
 				parent: parentNode,
 				nodes: []
 			};
 			parentNode.nodes.push(node);
+			if(this.state == "defined") {
+				return;
+			}
 
 			each(this.deps, function(dep) {
 				var indexPlguin = dep.indexOf("!");
@@ -1698,6 +1760,7 @@ var queryString2ParamsMap;
 				}
 				var mod = getModule(dep);
 				if(mod && mod.state == "defined") {
+					mod._printOnNotDefined(node);
 					return;
 				}
 				//只打印一个错误栈
@@ -1873,6 +1936,9 @@ var queryString2ParamsMap;
 		};
 		if(context) {
 			cache.src = src || _getCurrentScriptSrc(cache) || null;
+			if(cache.src == thePageUrl && data.parentDefine && data.parentDefine.aurl) {
+				cache.src = data.parentDefine.aurl;
+			}
 
 			try {
 				if(cache.src) {
@@ -1892,7 +1958,7 @@ var queryString2ParamsMap;
 				asyncCall(function() {
 					_onScriptComplete(name, cache, cache.src);
 				});
-			} else if(data.isGlobal) {
+			} else if(data.isGlobal || data.parentDefine) {
 				_onScriptComplete(name, cache, cache.src);
 			} else {
 				context.defQueue.push(cache);
@@ -2091,7 +2157,9 @@ var queryString2ParamsMap;
 				thatInvoker: thatInvoker
 			});
 		});
-		timeid = setTimeout(function() {
+
+		var checkTimeoutCount = 0;
+		var checkResultFun = function() {
 			var ifmodule = getModule(moduleName);
 			if((!ifmodule || ifmodule.state != 'defined') && !data.isError) {
 				var module = ifmodule;
@@ -2102,8 +2170,11 @@ var queryString2ParamsMap;
 					});
 				}
 				console.error("require timeout:'" + deps + "'," + callback);
+				console.log(theDefinedMap);
 			}
-		}, theConfig.waitSeconds * 1000);
+		};
+
+		timeid = setTimeout(checkResultFun, theConfig.waitSeconds * 1000);
 
 		return handle;
 	};
@@ -3993,7 +4064,7 @@ var queryString2ParamsMap;
 			return handle;
 		})();
 
-		function CommunicationUnit(cmd, source, connectingSource, isActive, conndata) {
+		function CommunicationUnit(cmd, source, connectingSource,onfailed, isActive, conndata) {
 			var msgQueue = new LinkedList();
 
 			var MAX_TRY = 100,
@@ -4048,6 +4119,7 @@ var queryString2ParamsMap;
 				if(type == "binded") {
 					isCanceled = true;
 					console.error("connect failed,that page already binded:" + cmd + ",my page:" + location.href);
+					onfailed("canceled")
 				}
 			}
 
@@ -4067,6 +4139,9 @@ var queryString2ParamsMap;
 
 			function init() {
 				if(isConnected || connectCount > MAX_TRY || isCanceled) {
+					if(!isConnected&&!isCanceled){
+						onfailed("timeout");
+					}
 					return;
 				}
 				postMessageBridge.sendConn(handleId);
@@ -4099,28 +4174,34 @@ var queryString2ParamsMap;
 		 */
 		function _connectWindow(winObjOrCallback, option, notActive) {
 			option = xsloader.extendDeep({
-				cmd: null,
+				cmd: "default-cmd",
 				listener: null,
 				connected: null,
 				conndata: null,
 				connectingSource: function(source, origin, conndata, callback) {
 					callback(true, "default");
+				},
+				onfailed:function(errtype){
+					if(errtype=="timeout"){
+						console.warn("connect may timeout:cmd="+option.cmd+",my page="+location.href);
+					}
 				}
 			}, option);
 
-			var cmd = option.cmd || "default-cmd";
+			var cmd = option.cmd;
 			var connectedCallback = option.connected;
 			var receiveCallback = option.listener;
 			var conndata = option.conndata;
+			var onfailed=option.onfailed;
 
 			var isActive = !notActive;
 			var connectingSource = option.connectingSource;
 
 			var unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, connectingSource, isActive, conndata);
+				unit = new CommunicationUnit(cmd, null, connectingSource,onfailed, isActive, conndata);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, isActive, conndata);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource,onfailed, isActive, conndata);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
@@ -4227,6 +4308,7 @@ var queryString2ParamsMap;
 		 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))
 		 * option.listener: function(data,sender)
 		 * option.connected:function(sender,conndata)
+		 * option.onfailed:function(errtype):errtype,timeout,canceled
 		 * option.conndata:
 		 **************
 		 * 回调的extra参数
