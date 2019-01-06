@@ -1668,7 +1668,7 @@ var queryString2ParamsMap;
 				var infos = [];
 				genErrs(leaf, infos);
 				infos = infos.reverse();
-				console.error("load module error stack:");
+				console.error("load module error stack:my page="+location.href);
 				for(var i = 1; i < infos.length;) {
 					var as = [];
 					as.push("");
