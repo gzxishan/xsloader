@@ -2449,6 +2449,27 @@ var queryString2ParamsMap;
 	}
 
 	xsloader.IE_VERSION = IE_VERSION;
+	
+	xsloader.queryParam = function(name, otherValue, optionUrl) {
+
+		var search;
+		if(optionUrl) {
+			var index = optionUrl.indexOf('?');
+			if(index < 0) {
+				index = 0;
+			} else {
+				index += 1;
+			}
+			search = optionUrl.substr(index);
+		} else {
+			search = window.location.search.substr(1);
+		}
+
+		var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+		var r = search.match(reg);
+		if(r != null) return decodeURIComponent(r[2]);
+		return otherValue !== undefined ? otherValue : null;
+	}
 
 	//用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
 	xsloader._resUrlBuilder = function(groupName) {
