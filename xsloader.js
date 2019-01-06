@@ -1058,13 +1058,13 @@ var queryString2ParamsMap;
 			var m = deps[i];
 			var jsFilePath = _isJsFile(m);
 
-			if(jsFilePath) {
-				var absolute = _dealAbsolute(m);
-				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
-					m = config.baseUrl + m;
-					deps[i] = m;
-				}
-			}
+//			if(jsFilePath) {
+//				var absolute = _dealAbsolute(m);
+//				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
+//					m = config.baseUrl + m;
+//					deps[i] = m;
+//				}
+//			}
 			if(module.aurl) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
 					m = _getPathWithRelative(module.aurl, jsFilePath) + _getPluginParam(m);
