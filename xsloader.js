@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-01-06 18:55
+ * latest:2019-01-12 13:06
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -4179,7 +4179,8 @@ var queryString2ParamsMap;
 				connected: null,
 				conndata: null,
 				connectingSource: function(source, origin, conndata, callback) {
-					callback(true, "default");
+					var mine=location.protocol+"//"+location.host;
+					callback(mine==origin, "default");
 				},
 				onfailed:function(errtype){
 					if(errtype=="timeout"){
@@ -4305,7 +4306,7 @@ var queryString2ParamsMap;
 		 * option参数
 		 *********************
 		 * option.cmd:
-		 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))
+		 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))默认只选择同源
 		 * option.listener: function(data,sender)
 		 * option.connected:function(sender,conndata)
 		 * option.onfailed:function(errtype):errtype,timeout,canceled
