@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-01-12 13:06
+ * latest:2019-02-20 11:35
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1058,13 +1058,13 @@ var queryString2ParamsMap;
 			var m = deps[i];
 			var jsFilePath = _isJsFile(m);
 
-//			if(jsFilePath) {
-//				var absolute = _dealAbsolute(m);
-//				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
-//					m = config.baseUrl + m;
-//					deps[i] = m;
-//				}
-//			}
+			//			if(jsFilePath) {
+			//				var absolute = _dealAbsolute(m);
+			//				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
+			//					m = config.baseUrl + m;
+			//					deps[i] = m;
+			//				}
+			//			}
 			if(module.aurl) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
 					m = _getPathWithRelative(module.aurl, jsFilePath) + _getPluginParam(m);
@@ -1462,7 +1462,7 @@ var queryString2ParamsMap;
 					};
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
-						
+
 						if(that._isPluginSingle && that.module._pluginSingleResult[pluginArgs]) {
 							var last = that.module._pluginSingleResult[pluginArgs];
 							onload(last.result, last.ignoreAspect);
@@ -1475,8 +1475,8 @@ var queryString2ParamsMap;
 					}
 					if(!hasFinished) {
 						setTimeout(function() {
-							if(!hasFinished){
-								console.warn("invoke plugin may failed:page="+location.href+",plugin="+module.name+"!"+pluginArgs);
+							if(!hasFinished) {
+								console.warn("invoke plugin may failed:page=" + location.href + ",plugin=" + module.name + "!" + pluginArgs);
 							}
 						}, xsloader.config().waitSeconds * 1000);
 					}
@@ -2964,7 +2964,9 @@ var queryString2ParamsMap;
 		var _url = prop(option, "url", ""),
 			_method = prop(option, "method", "GET"),
 			_params = {},
-			_headers = {},
+			_headers = {
+				"X-Requested-With": "XMLHttpRequest"
+			},
 			_async = prop(option, "async", true),
 			_multiPart = prop(option, "multiPart", false),
 			_handleType = prop(option, "handleType", "json");
@@ -3281,6 +3283,73 @@ var queryString2ParamsMap;
 
 	define("xshttp", [], function() {
 		return httpRequest;
+	});
+})();
+
+(function() {
+	define("xsrequest", ["xshttp"], function(http) {
+		/**
+		 * 参数列表:
+		 * callback:function(rs)
+		 * async:始终为true
+		 * 其他参数同xshttp
+		 * 不断返回then(function()).then,当返回false时取消调用后面的回调。
+		 * @param {Object} option
+		 */
+		var xsRequest = function(option) {
+			option = xsloader.extend({
+				params: undefined,
+				headers: undefined,
+				method: undefined,
+				url: undefined,
+				callback: undefined
+			}, option);
+			var isResponsed = false;
+			var callbacksQueue = [function(rs) {
+				return rs;
+			}];
+			if(option.callback) {
+				callbacksQueue.push(option.callback);
+			}
+			callbacksQueue.callback = function(rs) {
+				isResponsed = true;
+				for(var i = 0; i < this.length; i++) {
+					var callback = this[i];
+					rs = callback(rs);
+					if(rs === false) {
+						return;
+					}
+				}
+			};
+
+			option.ok = function(rs) {
+				callbacksQueue.callback(rs);
+			};
+			option.fail = function(err) {
+				callbacksQueue.callback({
+					code: -1,
+					desc: err
+				});
+			};
+			option.async = true;
+
+			function newHandle() {
+				var handle = {
+					then: function(callback) {
+						if(isResponsed) {
+							throw new Error("already responsed!");
+						}
+						callbacksQueue.push(callback);
+						return newHandle();
+					}
+				};
+				return handle;
+			}
+			http(option).done();
+			return newHandle();
+		};
+
+		return xsRequest;
 	});
 })();
 
@@ -4064,7 +4133,7 @@ var queryString2ParamsMap;
 			return handle;
 		})();
 
-		function CommunicationUnit(cmd, source, connectingSource,onfailed, isActive, conndata) {
+		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata) {
 			var msgQueue = new LinkedList();
 
 			var MAX_TRY = 100,
@@ -4139,7 +4208,7 @@ var queryString2ParamsMap;
 
 			function init() {
 				if(isConnected || connectCount > MAX_TRY || isCanceled) {
-					if(!isConnected&&!isCanceled){
+					if(!isConnected && !isCanceled) {
 						onfailed("timeout");
 					}
 					return;
@@ -4179,12 +4248,12 @@ var queryString2ParamsMap;
 				connected: null,
 				conndata: null,
 				connectingSource: function(source, origin, conndata, callback) {
-					var mine=location.protocol+"//"+location.host;
-					callback(mine==origin, "default");
+					var mine = location.protocol + "//" + location.host;
+					callback(mine == origin, "default");
 				},
-				onfailed:function(errtype){
-					if(errtype=="timeout"){
-						console.warn("connect may timeout:cmd="+option.cmd+",my page="+location.href);
+				onfailed: function(errtype) {
+					if(errtype == "timeout") {
+						console.warn("connect may timeout:cmd=" + option.cmd + ",my page=" + location.href);
 					}
 				}
 			}, option);
@@ -4193,16 +4262,16 @@ var queryString2ParamsMap;
 			var connectedCallback = option.connected;
 			var receiveCallback = option.listener;
 			var conndata = option.conndata;
-			var onfailed=option.onfailed;
+			var onfailed = option.onfailed;
 
 			var isActive = !notActive;
 			var connectingSource = option.connectingSource;
 
 			var unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, connectingSource,onfailed, isActive, conndata);
+				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource,onfailed, isActive, conndata);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
