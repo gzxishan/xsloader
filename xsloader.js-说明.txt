@@ -157,8 +157,8 @@
 	properties:{},
 	main:{
 		name:"main",//入口模块名，默认"main",
-		getPath:function(){//获取主模块的路径，默认为"./main/当前网页名.js"
-			return dataMain || "./main/当前网页名.js";
+		getPath:function(){//获取主模块的路径，默认为"./main/{name}.js",其中{name}会被替换成"当前网页名"
+			...
 		},
 		localConfigVar:"lconfig",//应用配置的window变量名称
 		globalConfigVar:"gconfig",//服务端配置的window变量名称,

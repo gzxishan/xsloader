@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-02-20 11:35
+ * latest:2019-04-02 15:28
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -4432,7 +4432,9 @@ var queryString2ParamsMap;
 					if(endsWith(name, ".html")) {
 						name = name.substring(0, name.length - 5);
 					}
-					return dataMain || "./main/" + name + ".js";
+					var url= dataMain || "./main/{name}.js";
+					url = url.replace("{name}",name);
+					return url;
 				},
 				name: "main",
 				localConfigVar: "lconfig",
