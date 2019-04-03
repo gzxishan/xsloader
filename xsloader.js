@@ -3072,6 +3072,7 @@ var queryString2ParamsMap;
 						option.url += "?";
 					}
 					option.url += body;
+					option.url=option.url.replace("?&","?");
 					body = null;
 				}
 			}
