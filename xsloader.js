@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-04-02 15:28
+ * latest:2019-04-25 12:20
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -2500,6 +2500,35 @@ var queryString2ParamsMap;
 		return rs;
 	};
 
+	xsloader.hasDefine = function(name) {
+		var has = false;
+		var module = getModule(name);
+		if(!module) {
+			if(globalDefineQueue) {
+				for(var i = 0; i < globalDefineQueue.length; i++) {
+					var cache = globalDefineQueue[i];
+					if(cache.name === name) {
+						has = true;
+						break;
+					}
+				}
+			}
+			if(!has && theContext) {
+				var defQueue = theContext.defQueue;
+				for(var i = 0; i < defQueue.length; i++) {
+					var cache = defQueue[i];
+					if(cache.name === name) {
+						has = true;
+						break;
+					}
+				}
+			}
+		} else {
+			has = true;
+		}
+		return has;
+	}
+
 	xsloader.isDOM = (typeof HTMLElement === 'object') ?
 		function(obj) {
 			return obj && (obj instanceof HTMLElement);
@@ -3072,7 +3101,7 @@ var queryString2ParamsMap;
 						option.url += "?";
 					}
 					option.url += body;
-					option.url=option.url.replace("?&","?");
+					option.url = option.url.replace("?&", "?");
 					body = null;
 				}
 			}
@@ -4433,8 +4462,8 @@ var queryString2ParamsMap;
 					if(endsWith(name, ".html")) {
 						name = name.substring(0, name.length - 5);
 					}
-					var url= dataMain || "./main/{name}.js";
-					url = url.replace("{name}",name);
+					var url = dataMain || "./main/{name}.js";
+					url = url.replace("{name}", name);
 					return url;
 				},
 				name: "main",
@@ -4579,19 +4608,22 @@ var queryString2ParamsMap;
 
 		loader.defineFunction = loader.defineFunction || {};
 		loader.depsPaths = loader.depsPaths || {};
-		loader.depsPaths[mainName] = mainPath;
+		if(!xsloader.hasDefine(mainName)) {
+			loader.depsPaths[mainName] = mainPath;
+			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
+				if(xsloader.isFunction(conf.main.before)) {
+					conf.main.before.call(conf, mainName);
+				}
+				var rt = originCallback.apply(originThis, originArgs);
 
-		loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
-			if(xsloader.isFunction(conf.main.before)) {
-				conf.main.before.call(conf, mainName);
-			}
-			var rt = originCallback.apply(originThis, originArgs);
+				if(xsloader.isFunction(conf.main.after)) {
+					conf.main.after.call(conf, mainName);
+				}
+				return rt;
+			};
 
-			if(xsloader.isFunction(conf.main.after)) {
-				conf.main.after.call(conf, mainName);
-			}
-			return rt;
-		};
+		}
+
 		loader.ignoreProperties = true;
 		xsloader(loader);
 		require([mainName], function(main) {}).then({
