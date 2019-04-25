@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-04-25 12:20
+ * latest:2019-04-25 15:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1055,6 +1055,7 @@ var queryString2ParamsMap;
 		_dealEmbedDeps(deps); //处理嵌套依赖
 
 		for(var i = 0; i < deps.length; i++) {
+			//console.log(module.name+("("+thenOption.defined_module_for_deps+")"), ":", deps);
 			var m = deps[i];
 			var jsFilePath = _isJsFile(m);
 
@@ -1071,7 +1072,7 @@ var queryString2ParamsMap;
 					deps[i] = m;
 				}
 			}
-			var paths = graphPath.tryAddEdge(module.name, m);
+			var paths = graphPath.tryAddEdge(thenOption.defined_module_for_deps || module.name, m);
 			if(paths.length > 0) {
 				var moduleLoop = getModule(m); //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
@@ -1135,7 +1136,7 @@ var queryString2ParamsMap;
 
 					var willDelay = false;
 					var urls;
-					var _deps = config.getDeps(dep);
+					var _deps = config.getDeps(dep); //未加载模块前，获取其依赖
 
 					if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
 						var i1 = dep.indexOf(":");
@@ -1563,12 +1564,29 @@ var queryString2ParamsMap;
 			state: "init", //init,loading,loaded,defined,error,
 			errinfo: null,
 			_callback: function(fun) {
-				var _state = this.state;
-				if(_state == 'defined' || this.loopObject) {
-					if(fun) {
-						var depModule = _newDepModule(this, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
-						depModule.init();
+				var thiz = this;
+				var _state = thiz.state;
+				if(_state == 'defined' || thiz.loopObject) {
+					var theCallback = function() {
+						if(fun) {
+							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+							depModule.init();
+						}
+					};
+					//已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
+					var deps = !thiz.loopObject && theConfig.getDeps(thiz.name);
+					//console.log(this.name,":",deps);
+					//deps=null;
+					if(deps && deps.length > 0) {
+						xsloader.require(deps, function() {
+							theCallback();
+						}).then({
+							defined_module_for_deps:thiz.name
+						});
+					} else {
+						theCallback();
 					}
+
 					return false;
 				} else if(_state == "timeout" || _state == "error") {
 					if(fun) {
@@ -1923,7 +1941,8 @@ var queryString2ParamsMap;
 			deps: deps,
 			callback: callback,
 			thenOption: {
-				onError: onError
+				onError: onError,
+				defined_module_for_deps: null
 			},
 			src: src
 		};
@@ -2131,7 +2150,9 @@ var queryString2ParamsMap;
 				customOnError = thenOption.onError;
 				thenOption.onError = undefined;
 				_thenOption = xsloader.extend(_thenOption, thenOption);
-			}
+				_thenOption.defined_module_for_deps = thenOption.defined_module_for_deps;
+			},
+			defined_module_for_deps: null,
 		};
 		var moduleName = _randId("_require");
 		var src = _getCurrentScriptSrc();
@@ -2154,7 +2175,8 @@ var queryString2ParamsMap;
 					_thenOption.onError(isError);
 				},
 				orderDep: _thenOption.orderDep,
-				thatInvoker: thatInvoker
+				thatInvoker: thatInvoker,
+				defined_module_for_deps: _thenOption.defined_module_for_deps
 			});
 		});
 
@@ -2228,17 +2250,25 @@ var queryString2ParamsMap;
 			},
 			getDeps: function(m) {
 				var as = this.dealtDeps[m] || [];
-				var _deps = [];
-				var deps = _deps;
+				var deps = [];
+				var hasOrderDep = undefined;
+
 				if(as.length > 0 && (as[0] === true || as[0] === false)) {
 					if(as[0]) {
-						deps = [_deps];
+						deps = [
+							[]
+						];
+						hasOrderDep = true;
 					} else {
 						as.splice(0, 1);
 					}
 				}
 				for(var i = 0; i < as.length; i++) {
-					_deps.push(as[i]);
+					if(hasOrderDep === true) {
+						deps[0].push(as[i]);
+					} else {
+						deps.push(as[i]);
+					}
 				}
 				return deps;
 			},
@@ -2647,7 +2677,7 @@ var queryString2ParamsMap;
 	xsloader.asyncCall = asyncCall;
 
 	(function() { //TODO STRONG 内部依赖加载插件
-		define(INNER_DEPS_PLUGIN, {
+		xsloader.define(INNER_DEPS_PLUGIN, {
 			pluginMain: function(depId, onload, onerror, config, http) {
 				var depsObj = innerDepsMap[depId];
 				var deps = depsObj.deps;
@@ -2669,7 +2699,7 @@ var queryString2ParamsMap;
 	 * 格式:name!moduleName=>>modulePath
 	 */
 	(function() { //TODO STRONG name插件
-		define("name", {
+		xsloader.define("name", {
 			isSingle: false,
 			pluginMain: function(arg, onload, onerror, config, http) {
 				var index = arg.indexOf("=>>");
@@ -2755,7 +2785,7 @@ var queryString2ParamsMap;
 	 * Guy Bedford 2014
 	 * MIT
 	 */
-	define("css", function() {
+	xsloader.define("css", function() {
 		if(typeof window == 'undefined')
 			return {
 				load: function(n, r, load) {
@@ -2859,7 +2889,7 @@ var queryString2ParamsMap;
 })();
 
 (function() { //TODO STRONG text插件
-	define("text", ["xshttp"], {
+	xsloader.define("text", ["xshttp"], {
 		isSingle: false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
@@ -2881,7 +2911,7 @@ var queryString2ParamsMap;
  * 格式：window!varNameInWindow=>>modulePath
  */
 (function() { //TODO STRONG window插件,用于添加模块到window对象中
-	define("window", {
+	xsloader.define("window", {
 		isSingle: false,
 		pluginMain: function(arg, onload, onerror, config, http) {
 			var index = arg.indexOf("=>>");
@@ -2904,7 +2934,7 @@ var queryString2ParamsMap;
  * 格式:withdeps!modulePath=>>[deps]
  */
 (function() { //TODO STRONG withdeps插件,用于设置依赖
-	define("withdeps", {
+	xsloader.define("withdeps", {
 		pluginMain: function(arg, onload, onerror, config, http) {
 			var index = arg.indexOf("=>>");
 			if(index == -1) {
@@ -2940,7 +2970,7 @@ var queryString2ParamsMap;
 	/**
 	 * 加载json对象
 	 */
-	define("json", ["xshttp"], {
+	xsloader.define("json", ["xshttp"], {
 		isSingle: false,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
@@ -3311,13 +3341,13 @@ var queryString2ParamsMap;
 
 	window._xshttp_request_ = httpRequest;
 
-	define("xshttp", [], function() {
+	xsloader.define("xshttp", [], function() {
 		return httpRequest;
 	});
 })();
 
 (function() {
-	define("xsrequest", ["xshttp"], function(http) {
+	xsloader.define("xsrequest", ["xshttp"], function(http) {
 		/**
 		 * 参数列表:
 		 * callback:function(rs)
@@ -4415,8 +4445,8 @@ var queryString2ParamsMap;
 		 **************
 		 * originStr:对方页面的地址
 		 */
-		define("xsmsg", handleApi); //TODO STRONG xsmsg
-		define("XsLinkedList", function() {
+		xsloader.define("xsmsg", handleApi); //TODO STRONG xsmsg
+		xsloader.define("XsLinkedList", function() {
 			return LinkedList;
 		});
 	} catch(e) {
@@ -4626,7 +4656,7 @@ var queryString2ParamsMap;
 
 		loader.ignoreProperties = true;
 		xsloader(loader);
-		require([mainName], function(main) {}).then({
+		xsloader.require([mainName], function(main) {}).then({
 			onError: function(err) {
 				console.error("invoke main err:" + err);
 			}
