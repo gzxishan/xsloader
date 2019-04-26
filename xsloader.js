@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-04-25 15:50
+ * latest:2019-04-26 9:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1377,7 +1377,10 @@ var queryString2ParamsMap;
 			}
 		};
 		invoker.require = function() {
-			return require.apply(invoker, arguments);
+			return xsloader.require.apply(invoker, arguments);
+		};
+		invoker.define = function() {
+			return xsloader.define.apply(invoker, arguments);
 		};
 	};
 
@@ -1581,7 +1584,7 @@ var queryString2ParamsMap;
 						xsloader.require(deps, function() {
 							theCallback();
 						}).then({
-							defined_module_for_deps:thiz.name
+							defined_module_for_deps: thiz.name
 						});
 					} else {
 						theCallback();
@@ -1942,7 +1945,8 @@ var queryString2ParamsMap;
 			callback: callback,
 			thenOption: {
 				onError: onError,
-				defined_module_for_deps: null
+				defined_module_for_deps: null,
+				thatInvoker: getThatInvokerForDef_Req(this)
 			},
 			src: src
 		};
@@ -2105,13 +2109,20 @@ var queryString2ParamsMap;
 	define.amd = true;
 	define("exports", function() {});
 
+	function getThatInvokerForDef_Req(thiz) {
+		var invoker = thiz && isFunction(thiz.invoker) &&
+			isFunction(thiz.getName) && isFunction(thiz.getUrl) &&
+			isFunction(thiz.getAbsoluteUrl) ? thiz : null;
+		return invoker;
+	}
+
 	require = function(deps, callback) {
 		var context = theContext;
 		if(!context) { //require必须是在config之后
 			throwError(-1, "not init,see 'xsloader({})'");
 		}
-		var thatInvoker = this && isFunction(this.invoker) && isFunction(this.getName) && isFunction(this.getUrl) && isFunction(this.getAbsoluteUrl) ? this : null;
-		if(isString(deps)) {
+		var thatInvoker = getThatInvokerForDef_Req(this);
+		if(isString(deps)) { //获取已经加载的模块
 			var module = getModule(deps);
 			if(!module) {
 				throwError(-12, "the module '" + deps + "' is not load!");
