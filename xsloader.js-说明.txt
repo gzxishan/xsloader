@@ -47,13 +47,15 @@
   	===（4）define(moduleName,content)
   	===（5）define.then({onError:function(err),orderDep:false,instance:"single",}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
  5、1）回调函数(包括pluginMain函数)的this对象、模块对象(为define(...Object))的_invoker_
-        ===（1）require(...)与define(...),同require与define,但具有当前js文件的路径信息、从而可以使用相对路径
-        ===（2）getUrl(relativeUrl,appendArgs)：appendArgs表示是否加上urlArgs参数,默认为true。
+        ===（1）require(...)与define(...)、defineAsync(...),同require与define,但具有当前js文件的路径信息、从而可以使用相对路径
+        ===（2）getUrl(relativeUrl,appendArgs,optionalAbsUrl)：appendArgs表示是否加上urlArgs参数,默认为true。
         								1.当没有提供了relativeUrl时，获取当前模块的url路径；
-        							  2.提供了relativeUrl时，获取相对于当前模块的url路径、获取path映射路径或绝对路径。
+        							  2.提供了relativeUrl时，获取相对于absUrl()的url路径、获取path映射路径或绝对路径。
+        							  3.optionalAbsUrl:可选的绝对参考地址
         ===（3）getAbsoluteUrl(),获取当前模块的绝对路径
         ===（4）getName(),当前模块或插件的名称
         ===（5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
+        （6）absUrl(),获取其他模块绝对路径的参考地址,默认等于getAbsoluteUrl(),可通过define或require的then({absoluteUrl:url})进行指定
     2）模块对象有属性_module_,_module_.setToAll(attrName,attrValue)或_module_.setToAll(obj)给所有模块实例设置属性
     3）xsloader.clear_module_(modules)：删除_module_,_modules_
  6、plugin定义：
