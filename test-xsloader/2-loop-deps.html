@@ -68,11 +68,7 @@
 			};
 		});
 
-		define("E", function() {
-			return {
-				"name":"E"
-			};
-		});
+		
 		xsloader({
 			properties: {
 
@@ -93,6 +89,7 @@
 				"E": "D"
 			}
 		});
+		
 
 		require(["C","D","E"], function(C,D,E) {
 			divLog(C);
@@ -102,6 +99,12 @@
 			onError: function(err) {
 				divLog(err);
 			}
+		});
+		
+		define("E", function() {
+			return {
+				"name":"E"
+			};
 		});
 	</script>
 

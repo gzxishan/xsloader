@@ -862,6 +862,12 @@ var queryString2ParamsMap;
 		}
 	}
 
+	var randModuleIndex = 0;
+
+	function getModuleId() {
+		return "_xs_req_2018_" + randModuleIndex++;
+	}
+
 	function __getScriptData(evt, callbackObj) {
 
 		var node = evt.currentTarget || evt.srcElement;
@@ -879,7 +885,7 @@ var queryString2ParamsMap;
 			var dep = deps[i];
 			if(isArray(dep)) {
 				//内部的模块顺序加载
-				var modName = "inner_order_" + randId();
+				var modName = "inner_order_" + getModuleId();
 				var isOrderDep = !(dep.length > 0 && dep[0] === false);
 				if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
 					dep = dep.slice(1);
@@ -1170,6 +1176,7 @@ var queryString2ParamsMap;
 						urls = [dep];
 					} else {
 						willDelay = true; //延迟加载
+						urls = [];
 					}
 
 					var module2 = _newModule(dep, _deps, null);
@@ -1209,6 +1216,9 @@ var queryString2ParamsMap;
 					};
 
 					function loadScript() {
+						if(!urls.length) {
+							return;
+						}
 						var callbackObj = {
 							module: module2
 						};
@@ -1408,7 +1418,7 @@ var queryString2ParamsMap;
 				throwError(-1, "expected module name from the first argument");
 			}
 			xsloader.asyncCall(function() {
-				var h = xsloader.define.apply(invoker, args);
+				var h = xsloader.define.apply(new _Async_Object_(invoker, true), args);
 				if(thenOption) {
 					h.then(thenOption);
 				}
@@ -1416,6 +1426,15 @@ var queryString2ParamsMap;
 			return handle;
 		};
 	};
+
+	function _Async_Object_(invoker, asyncDefine) {
+		this.getInvoker = function() {
+			return invoker;
+		}
+		this.isAsyncDefine = function() {
+			return asyncDefine;
+		}
+	}
 
 	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs, absoluteUrl) {
 		var depModule = {
@@ -1647,7 +1666,7 @@ var queryString2ParamsMap;
 							theCallback();
 						}).then({
 							defined_module_for_deps: thiz.name,
-							absoluteUrl: fun.absoluteUrl
+							absoluteUrl: fun ? fun.absoluteUrl : null
 						});
 					} else {
 						theCallback();
@@ -1723,7 +1742,7 @@ var queryString2ParamsMap;
 					if(opId !== undefined && opId == this.opId) {
 						return; //防止循环
 					}
-					opId = opId || randId();
+					opId = opId || getModuleId();
 					this.opId = opId;
 
 					var obj = {};
@@ -1811,21 +1830,23 @@ var queryString2ParamsMap;
 				if(leaf.module.state == "defined") {
 					errModule = leaf.parent.module;
 				}
-				var as = [];
-				for(var i = 0; i < errModule.deps.length; i++) {
-					var dep = errModule.deps[i];
-					var index = dep.lastIndexOf("!");
-					if(index != -1) {
-						dep = dep.substring(0, index);
+				if(errModule) {
+					var as = [];
+					for(var i = 0; i < errModule.deps.length; i++) {
+						var dep = errModule.deps[i];
+						var index = dep.lastIndexOf("!");
+						if(index != -1) {
+							dep = dep.substring(0, index);
+						}
+						var depMod = theDefinedMap[dep];
+						if(depMod) {
+							as.push(dep + ":" + depMod.state);
+						} else {
+							as.push(dep + ":null");
+						}
 					}
-					var depMod = theDefinedMap[dep];
-					if(depMod) {
-						as.push(dep + ":" + depMod.state);
-					} else {
-						as.push(dep + ":null");
-					}
+					console.info("failed module '" + errModule.name + "' deps state infos [" + as.join(",") + "]");
 				}
-				console.info("failed module '" + errModule.name + "' deps state infos [" + as.join(",") + "]");
 			});
 
 		};
@@ -2052,7 +2073,18 @@ var queryString2ParamsMap;
 
 			}
 
-			if(data.isRequire || data.isNow) {
+			if(!data.isRequire && !data.asyncDefine && !data.isGlobal &&
+				xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
+				!theConfig.isInUrls(name)) {
+				setTimeout(function() {
+					var module = getModule(name);
+					if(!module || module.state == "init") {//后定义的模块、且不在js第一次解析时定义的模块
+						_onScriptComplete(name, cache, cache.src, false);
+					}
+				},50);//需要延迟，否则在js里调用define会执行此部分
+			}
+
+			if(data.isRequire || data.asyncDefine) {
 				isAsync = true;
 				asyncCall(function() {
 					_onScriptComplete(name, cache, cache.src, data.isRequire);
@@ -2179,7 +2211,8 @@ var queryString2ParamsMap;
 
 	define = function(name, deps, callback) {
 		var data = {
-			parentDefine: currentDefineModuleQueue.peek()
+			parentDefine: currentDefineModuleQueue.peek(),
+			asyncDefine: (this instanceof _Async_Object_) && this.isAsyncDefine()
 		};
 		return _define(data, name, deps, callback);
 	};
@@ -2187,6 +2220,9 @@ var queryString2ParamsMap;
 	define("exports", function() {});
 
 	function getThatInvokerForDef_Req(thiz) {
+		if(thiz instanceof _Async_Object_) {
+			return thiz.getInvoker();
+		}
 		var invoker = thiz && isFunction(thiz.invoker) &&
 			isFunction(thiz.getName) && isFunction(thiz.getUrl) &&
 			isFunction(thiz.getAbsoluteUrl) ? thiz : null;
@@ -2200,6 +2236,12 @@ var queryString2ParamsMap;
 		}
 		var thatInvoker = getThatInvokerForDef_Req(this);
 		if(isString(deps)) { //获取已经加载的模块
+			var pluginArgs=undefined;
+			var pluginIndex=deps.indexOf("!");
+			if(pluginIndex>0){
+				pluginArgs=deps.substring(pluginIndex+1);
+				deps=deps.substring(0,pluginIndex);
+			}
 			var module = getModule(deps);
 			if(!module) {
 				throwError(-12, "the module '" + deps + "' is not load!");
@@ -2209,7 +2251,7 @@ var queryString2ParamsMap;
 			var theMod;
 			_newDepModule(module, thatInvoker, function(depModule) {
 				theMod = depModule.moduleObject();
-			}).init();
+			},pluginArgs,thatInvoker?thatInvoker.absUrl():null).init();
 			return theMod;
 		}
 
@@ -2242,7 +2284,7 @@ var queryString2ParamsMap;
 				_thenOption.defined_module_for_deps = thenOption.defined_module_for_deps || _thenOption.defined_module_for_deps;
 				return this;
 			},
-			defined_module_for_deps: null,
+			defined_module_for_deps: null
 		};
 		var moduleName = _randId("_require");
 		var src = _getCurrentScriptSrc();
@@ -2281,7 +2323,7 @@ var queryString2ParamsMap;
 						mod && mod.printOnNotDefined();
 					});
 				}
-				console.error("require timeout:'" + deps + "'," + callback);
+				console.error("require timeout:[" + (deps?deps.join(","):"") + "]," + callback);
 				console.log(theDefinedMap);
 			}
 		};
@@ -3514,6 +3556,7 @@ var queryString2ParamsMap;
 	//  NOT CONTROL.
 	var JSON = {};
 	window.xsJSON = JSON;
+	window.JSON=window.JSON||JSON;
 
 	(function() {
 		"use strict";
