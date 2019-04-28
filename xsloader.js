@@ -5,14 +5,14 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-04-28 14:50
+ * latest:2019-04-28 22:50
  * version:1.0.0
  * date:2018-1-25
  * 
  * @param {Object} window
  * @param {Object} undefined
  */
-var define, require, xsloader;
+var define, defineAsync, require, xsloader;
 /////////////
 var startsWith, endsWith, xsParseJson, xsJson2String;
 var randId;
@@ -102,6 +102,7 @@ var queryString2ParamsMap;
 				for(var i = 0; i < arr.length; i++) {
 					thiz.push(arr[i]);
 				}
+				return thiz;
 			};
 		}
 	} catch(e) {
@@ -979,6 +980,10 @@ var queryString2ParamsMap;
 
 	function _replaceModulePrefix(config, deps) {
 
+		if(!deps) {
+			return;
+		}
+
 		for(var i = 0; i < deps.length; i++) {
 			var m = deps[i];
 			var index = m.indexOf("!");
@@ -1072,9 +1077,9 @@ var queryString2ParamsMap;
 			//					deps[i] = m;
 			//				}
 			//			}
-			if(module.absUrl()) { //替换相对路径为绝对路径
+			if(module.thiz.rurl()) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
-					m = _getPathWithRelative(module.absUrl(), jsFilePath) + _getPluginParam(m);
+					m = _getPathWithRelative(module.thiz.rurl(), jsFilePath) + _getPluginParam(m);
 					deps[i] = m;
 				}
 			}
@@ -1133,7 +1138,7 @@ var queryString2ParamsMap;
 						isError = err;
 					}
 					checkFinish(index, depModule.name, depModule, syncHandle);
-				}, pluginArgs, thenOption.absoluteUrl);
+				}, pluginArgs);
 			};
 
 			if(!getModule(dep)) {
@@ -1311,11 +1316,11 @@ var queryString2ParamsMap;
 						module2.setState("loading");
 						each(urls, function(url, index) {
 							if(_startsWith(url, ".") || _startsWith(url, "/")) {
-								if(!module2.absUrl()) {
+								if(!module2.rurl()) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
-								url = _getPathWithRelative(module2.absUrl(), url);
+								url = _getPathWithRelative(module2.rurl(), url);
 							} else {
 								var absolute = _dealAbsolute(url);
 								if(absolute.absolute) {
@@ -1364,7 +1369,7 @@ var queryString2ParamsMap;
 		//throw new Error("Unable to clone obj[" + (typeof obj) + "]:" + obj);
 	}
 
-	function _buildInvoker(obj, absoluteUrl) {
+	function _buildInvoker(obj) {
 		var invoker = obj["thiz"];
 		var module = obj.module || obj;
 		invoker.getUrl = function(relativeUrl, appendArgs, optionalAbsUrl) {
@@ -1376,9 +1381,9 @@ var queryString2ParamsMap;
 			}
 			var url;
 			if(relativeUrl === undefined) {
-				url = this.absUrl();
+				url = this.getAbsoluteUrl();
 			} else if(_startsWith(relativeUrl, ".") || _dealAbsolute(relativeUrl).absolute) {
-				url = _getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
+				url = _getPathWithRelative(optionalAbsUrl || this.rurl(), relativeUrl);
 			} else {
 				url = theConfig.baseUrl + relativeUrl;
 			}
@@ -1390,23 +1395,18 @@ var queryString2ParamsMap;
 		};
 		invoker.require = function() {
 			var h = xsloader.require.apply(invoker, arguments);
-			if(absoluteUrl && arguments.length > 0 && !xsloader.isString(arguments[0])) {
-				h.then({
-					absoluteUrl: absoluteUrl
-				});
-			}
 			return h;
 		};
 		invoker.define = function() {
 			var h = xsloader.define.apply(invoker, arguments);
-			absoluteUrl && h.then({
-				absoluteUrl: absoluteUrl
-			});
 			return h;
+		};
+		invoker.rurl = function() {
+			return this.absUrl() || this.getAbsoluteUrl();
 		};
 		invoker.defineAsync = function() {
 			var thenOption = {
-				absoluteUrl: absoluteUrl
+
 			};
 			var handle = {
 				then: function(option) {
@@ -1545,39 +1545,17 @@ var queryString2ParamsMap;
 					return module.thiz.getAbsoluteUrl();
 				},
 				absUrl: function() {
-					return absoluteUrl || module.thiz.absUrl();
+					return absoluteUrl;
 				},
 				getName: function() {
 					return module.thiz.getName();
 				},
 				invoker: function() {
-					if(absoluteUrl) { //可改变参考地址
-						var that = this;
-						var newInvoker = {
-							absUrl: function() {
-								return absoluteUrl;
-							},
-							getUrl: function(relativeUrl, appendArgs, optionalAbsUrl) {
-								optionalAbsUrl = optionalAbsUrl || absoluteUrl;
-								return depModule._invoker.getUrl(relativeUrl, appendArgs, optionalAbsUrl);
-							}
-						};
-						for(var x in depModule._invoker) {
-							if(newInvoker[x] === undefined) {
-								newInvoker[x] = (function(member) {
-									return function() {
-										return depModule._invoker[member].apply(depModule._invoker, arguments)
-									};
-								})(x);
-							}
-						}
-						return newInvoker;
-					}
 					return depModule._invoker;
 				}
 			}
 		};
-		_buildInvoker(depModule, absoluteUrl);
+		_buildInvoker(depModule);
 		return depModule;
 	}
 
@@ -1592,10 +1570,6 @@ var queryString2ParamsMap;
 			ignoreAspect: false,
 			depModules: null,
 			aurl: null, //绝对路径,可能等于当前页面路径
-			absoluteUrl: absoluteUrl,
-			absUrl: function() { //用于获取其他模块地址的参考路径
-				return this.absoluteUrl || this.aurl;
-			},
 			callback: callback,
 			moduleObject: undefined, //依赖模块对应的对象
 			loopObject: undefined, //循环依赖对象
@@ -1653,7 +1627,7 @@ var queryString2ParamsMap;
 				if(_state == 'defined' || thiz.loopObject) {
 					var theCallback = function() {
 						if(fun) {
-							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.absoluteUrl || (fun.thatInvoker && fun.thatInvoker.absUrl()));
+							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, absoluteUrl);
 							depModule.init();
 						}
 					};
@@ -1665,8 +1639,7 @@ var queryString2ParamsMap;
 						xsloader.require(deps, function() {
 							theCallback();
 						}).then({
-							defined_module_for_deps: thiz.name,
-							absoluteUrl: fun ? fun.absoluteUrl : null
+							defined_module_for_deps: thiz.name
 						});
 					} else {
 						theCallback();
@@ -1697,7 +1670,7 @@ var queryString2ParamsMap;
 				relys = [];
 				while(theRelys.length) {
 					var fun = theRelys.shift();
-					otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.absoluteUrl);
+					otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
 				}
 			},
 			/**
@@ -1706,12 +1679,11 @@ var queryString2ParamsMap;
 			 * @param {Object} callbackFun function(depModule,err)
 			 * @param {Object} pluginArgs
 			 */
-			relyIt: function(thatInvoker, callbackFun, pluginArgs, absoluteUrl) {
+			relyIt: function(thatInvoker, callbackFun, pluginArgs) {
 				var fun = {
 					thatInvoker: thatInvoker,
 					relyCallback: callbackFun,
-					pluginArgs: pluginArgs,
-					absoluteUrl: absoluteUrl
+					pluginArgs: pluginArgs
 				};
 				if(this._callback(fun)) {
 					relys.push(fun);
@@ -1727,8 +1699,8 @@ var queryString2ParamsMap;
 				invoker: function() {
 					return moduleMap.invoker;
 				},
-				absUrl: function() {
-					return moduleMap.absUrl();
+				absUrl: function() { //用于获取其他模块地址的参考路径
+					return absoluteUrl;
 				}
 			}
 		};
@@ -2078,10 +2050,10 @@ var queryString2ParamsMap;
 				!theConfig.isInUrls(name)) {
 				setTimeout(function() {
 					var module = getModule(name);
-					if(!module || module.state == "init") {//后定义的模块、且不在js第一次解析时定义的模块
+					if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
 						_onScriptComplete(name, cache, cache.src, false);
 					}
-				},50);//需要延迟，否则在js里调用define会执行此部分
+				}, 20); //需要延迟，否则在js里调用define会执行此部分
 			}
 
 			if(data.isRequire || data.asyncDefine) {
@@ -2216,6 +2188,29 @@ var queryString2ParamsMap;
 		};
 		return _define(data, name, deps, callback);
 	};
+
+	defineAsync = function() {
+		var thenOption = {
+
+		};
+		var handle = {
+			then: function(option) {
+				thenOption = xsloader.extend(thenOption, option);
+			}
+		}
+		var args = arguments;
+		if(args.length < 0 || !xsloader.isString(args[0])) {
+			throwError(-1, "expected module name from the first argument");
+		}
+		xsloader.asyncCall(function() {
+			var h = xsloader.define.apply(new _Async_Object_(null, true), args);
+			if(thenOption) {
+				h.then(thenOption);
+			}
+		})
+		return handle;
+	};
+
 	define.amd = true;
 	define("exports", function() {});
 
@@ -2236,11 +2231,11 @@ var queryString2ParamsMap;
 		}
 		var thatInvoker = getThatInvokerForDef_Req(this);
 		if(isString(deps)) { //获取已经加载的模块
-			var pluginArgs=undefined;
-			var pluginIndex=deps.indexOf("!");
-			if(pluginIndex>0){
-				pluginArgs=deps.substring(pluginIndex+1);
-				deps=deps.substring(0,pluginIndex);
+			var pluginArgs = undefined;
+			var pluginIndex = deps.indexOf("!");
+			if(pluginIndex > 0) {
+				pluginArgs = deps.substring(pluginIndex + 1);
+				deps = deps.substring(0, pluginIndex);
 			}
 			var module = getModule(deps);
 			if(!module) {
@@ -2251,7 +2246,7 @@ var queryString2ParamsMap;
 			var theMod;
 			_newDepModule(module, thatInvoker, function(depModule) {
 				theMod = depModule.moduleObject();
-			},pluginArgs,thatInvoker?thatInvoker.absUrl():null).init();
+			}, pluginArgs, thatInvoker ? thatInvoker.absUrl() : null).init();
 			return theMod;
 		}
 
@@ -2323,7 +2318,7 @@ var queryString2ParamsMap;
 						mod && mod.printOnNotDefined();
 					});
 				}
-				console.error("require timeout:[" + (deps?deps.join(","):"") + "]," + callback);
+				console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]," + callback);
 				console.log(theDefinedMap);
 			}
 		};
@@ -2644,8 +2639,10 @@ var queryString2ParamsMap;
 			elem.data.isGlobal = true;
 			_define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
 		});
+		return theConfig;
 	};
 	xsloader.define = define;
+	xsloader.defineAsync = defineAsync;
 	xsloader.require = require;
 	xsloader.randId = randId;
 	xsloader.tryCall = function(fun, defaultReturn, thiz) {
@@ -3556,7 +3553,7 @@ var queryString2ParamsMap;
 	//  NOT CONTROL.
 	var JSON = {};
 	window.xsJSON = JSON;
-	window.JSON=window.JSON||JSON;
+	window.JSON = window.JSON || JSON;
 
 	(function() {
 		"use strict";
@@ -4589,13 +4586,15 @@ var queryString2ParamsMap;
 
 (function() { //TODO STRONG 静态资源服务
 	var http = window._xshttp_request_;
-	var DATA_CONF = "data-xsloader-conf";
-	var DATA_CONF2 = "data-xsloader-conf2";
-	var DATA_MAIN = "data-xsloader-main";
+	var DATA_CONF = "data-conf",
+		DATA_CONFX = "data-xsloader-conf";
+	var DATA_CONF2 = "data-conf2",
+		DATA_CONF2X = "data-xsloader-conf2";
+	var DATA_MAIN = "data-main";
 	var DATA_CONF_TYPE = "data-conf-type";
 
 	var url;
-	var dataConf = xsloader.script().getAttribute(DATA_CONF);
+	var dataConf = xsloader.script().getAttribute(DATA_CONF) || xsloader.script().getAttribute(DATA_CONFX);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN);
 	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
 	if(dataConfType !== "json" && dataConfType != "js") {
@@ -4604,7 +4603,7 @@ var queryString2ParamsMap;
 
 	if(dataConf) {
 		url = getPathWithRelative(location.href, dataConf);
-	} else if((dataConf = xsloader.script().getAttribute(DATA_CONF2))) {
+	} else if((dataConf = (xsloader.script().getAttribute(DATA_CONF2) || xsloader.script().getAttribute(DATA_CONF2X)))) {
 		url = getPathWithRelative(xsloader.script().src, dataConf);
 	} else {
 		return;
@@ -4741,7 +4740,9 @@ var queryString2ParamsMap;
 				href = href.substring(0, index);
 			}
 
-			var mainPath = getPathWithRelative(href, localConfig.main.getPath.call(localConfig));
+			var mainPath = localConfig.main.getPath.call(localConfig);
+
+			mainPath = mainPath.indexOf("!") == -1 ? getPathWithRelative(href, mainPath) : mainPath;
 			var loaderName = localConfig.chooseLoader.call(localConfig, null);
 
 			var loader = localConfig.loader[loaderName];
@@ -4749,11 +4750,11 @@ var queryString2ParamsMap;
 				console.error("unknown local loader:" + loaderName);
 				return;
 			}
-			initXsloader(mainName, mainPath, loader, localConfig, localConfig);
+			initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
 		}, true);
 	}
 
-	function initXsloader(mainName, mainPath, loader, conf, localConfig) {
+	function initXsloader(pageHref, mainName, mainPath, loader, conf, localConfig) {
 		var resUrls = [];
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
 		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
@@ -4768,10 +4769,28 @@ var queryString2ParamsMap;
 			});
 			return as;
 		};
-
+		loader.ignoreProperties = true;
 		loader.defineFunction = loader.defineFunction || {};
 		loader.depsPaths = loader.depsPaths || {};
-		if(!xsloader.hasDefine(mainName)) {
+		if(mainPath.indexOf("!") != -1) { //插件调用
+			var theConfig = xsloader(loader);
+
+			mainName = "_plugin_main_";
+			var deps = [mainPath];
+			if(theConfig.deps) { //手动添加依赖
+				if(theConfig.deps["*"]) {
+					Array.pushAll(deps, theConfig.deps["*"]);
+				}
+				if(theConfig.deps[mainName]) {
+					Array.pushAll(deps, theConfig.deps[mainName]);
+				}
+			}
+			xsloader.defineAsync(mainName, deps, function() {
+
+			}).then({
+				absoluteUrl: pageHref
+			});
+		} else if(!xsloader.hasDefine(mainName)) {
 			loader.depsPaths[mainName] = mainPath;
 			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
 				if(xsloader.isFunction(conf.main.before)) {
@@ -4784,11 +4803,9 @@ var queryString2ParamsMap;
 				}
 				return rt;
 			};
-
+			xsloader(loader);
 		}
 
-		loader.ignoreProperties = true;
-		xsloader(loader);
 		xsloader.require([mainName], function(main) {}).then({
 			onError: function(err) {
 				console.error("invoke main err:" + err);
