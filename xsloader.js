@@ -1354,8 +1354,8 @@ var queryString2ParamsMap;
 		//throw new Error("Unable to clone obj[" + (typeof obj) + "]:" + obj);
 	}
 
-	function _buildInvoker(obj, name, absoluteUrl) {
-		var invoker = obj[name || "thiz"];
+	function _buildInvoker(obj, absoluteUrl) {
+		var invoker = obj["thiz"];
 		var module = obj.module || obj;
 		invoker.getUrl = function(relativeUrl, appendArgs, optionalAbsUrl) {
 			if(optionalAbsUrl && !_dealAbsolute(optionalAbsUrl).absolute) {
@@ -1634,7 +1634,7 @@ var queryString2ParamsMap;
 				if(_state == 'defined' || thiz.loopObject) {
 					var theCallback = function() {
 						if(fun) {
-							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.absoluteUrl);
+							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.absoluteUrl || (fun.thatInvoker && fun.thatInvoker.absUrl()));
 							depModule.init();
 						}
 					};
