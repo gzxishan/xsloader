@@ -1428,6 +1428,28 @@ var queryString2ParamsMap;
 			})
 			return handle;
 		};
+		invoker.withAbsUrl = function(absoluteUrl) {
+			var newObj = {
+				module: module,
+				thiz: {
+					getAbsoluteUrl: function() {
+						return invoker.getAbsoluteUrl();
+					},
+					absUrl: function() {
+						return absoluteUrl;
+					},
+					getName: function() {
+						return invoker.getName();
+					},
+					invoker: function() {
+						return invoker.invoker();
+					}
+				}
+			};
+
+			_buildInvoker(newObj);
+			return newObj.thiz;
+		};
 	};
 
 	function _Async_Object_(invoker, asyncDefine) {
@@ -1970,7 +1992,7 @@ var queryString2ParamsMap;
 			deps = [];
 		}
 
-		if(!data||!data.isRequire){
+		if(!data || !data.isRequire) {
 			_appendInnerDeps(deps, callback);
 		}
 
@@ -2278,7 +2300,8 @@ var queryString2ParamsMap;
 		}
 		var _thenOption = {
 			onError: onError,
-			absoluteUrl: undefined
+			absoluteUrl: undefined,
+			before: undefined
 		};
 		var handle = {
 			then: function(thenOption) {
@@ -2295,6 +2318,9 @@ var queryString2ParamsMap;
 
 		var timeid;
 		asyncCall(function() {
+			if(_thenOption.before) {
+				_thenOption.before(deps);
+			}
 			if(thatInvoker) {
 				src = thatInvoker.getUrl();
 			}
