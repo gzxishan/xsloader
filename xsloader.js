@@ -923,6 +923,9 @@ var queryString2ParamsMap;
 		var deps = cache.deps;
 		var callback = cache.callback;
 		var thenOption = cache.thenOption;
+		thenOption.absUrl = thenOption.absUrl || function() {
+			return this.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
+		}
 		cache.name = moduleName || cache.name;
 
 		var module = getModule(moduleName);
@@ -1077,9 +1080,9 @@ var queryString2ParamsMap;
 			//					deps[i] = m;
 			//				}
 			//			}
-			if(module.thiz.rurl()) { //替换相对路径为绝对路径
+			if(module.thiz.rurl(thenOption)) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
-					m = _getPathWithRelative(module.thiz.rurl(), jsFilePath) + _getPluginParam(m);
+					m = _getPathWithRelative(module.thiz.rurl(thenOption), jsFilePath) + _getPluginParam(m);
 					deps[i] = m;
 				}
 			}
@@ -1316,11 +1319,11 @@ var queryString2ParamsMap;
 						module2.setState("loading");
 						each(urls, function(url, index) {
 							if(_startsWith(url, ".") || _startsWith(url, "/")) {
-								if(!module2.rurl()) {
+								if(!module2.rurl(thenOption)) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
-								url = _getPathWithRelative(module2.rurl(), url);
+								url = _getPathWithRelative(module2.rurl(thenOption), url);
 							} else {
 								var absolute = _dealAbsolute(url);
 								if(absolute.absolute) {
@@ -1401,8 +1404,8 @@ var queryString2ParamsMap;
 			var h = xsloader.define.apply(invoker, arguments);
 			return h;
 		};
-		invoker.rurl = function() {
-			return this.absUrl() || this.getAbsoluteUrl();
+		invoker.rurl = function(thenOption) {
+			return thenOption && thenOption.absUrl() || this.absUrl() || this.getAbsoluteUrl();
 		};
 		invoker.defineAsync = function() {
 			var thenOption = {
@@ -1436,7 +1439,8 @@ var queryString2ParamsMap;
 		}
 	}
 
-	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs, absoluteUrl) {
+	//relyCallback(depModuleThis)
+	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs) {
 		var depModule = {
 			relyCallback: relyCallback,
 			_invoker: thatInvoker,
@@ -1486,13 +1490,16 @@ var queryString2ParamsMap;
 				this._setDepModuleObjectGen({});
 				return this._object;
 			},
-			init: function() {
+			init: function(justForSingle) {
 				var relyCallback = this.relyCallback;
 				this._module_ = module.dealInstance(this);
 				this._setDepModuleObjectGen(module.loopObject || module.moduleObject);
 				if(pluginArgs !== undefined) {
 					if(this._object.isSingle === false) {
 						this._isPluginSingle = false; //同样的参数也需要重新调用
+					}
+					if(justForSingle && !this._isPluginSingle) {
+						throwError(-1, "just for single plugin")
 					}
 					if(this._isPluginSingle) {
 						this.module._pluginSingleResult = this.module._pluginSingleResult || [];
@@ -1545,7 +1552,7 @@ var queryString2ParamsMap;
 					return module.thiz.getAbsoluteUrl();
 				},
 				absUrl: function() {
-					return absoluteUrl;
+					return module.thiz.absUrl();
 				},
 				getName: function() {
 					return module.thiz.getName();
@@ -1627,7 +1634,7 @@ var queryString2ParamsMap;
 				if(_state == 'defined' || thiz.loopObject) {
 					var theCallback = function() {
 						if(fun) {
-							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, absoluteUrl);
+							var depModule = _newDepModule(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
 							depModule.init();
 						}
 					};
@@ -1799,7 +1806,7 @@ var queryString2ParamsMap;
 					console.info(as.join("--->"));
 				}
 				var errModule = leaf.module;
-				if(leaf.module.state == "defined") {
+				if(leaf.module && leaf.module.state == "defined") {
 					errModule = leaf.parent.module;
 				}
 				if(errModule) {
@@ -1963,7 +1970,9 @@ var queryString2ParamsMap;
 			deps = [];
 		}
 
-		_appendInnerDeps(deps, callback);
+		if(!data||!data.isRequire){
+			_appendInnerDeps(deps, callback);
+		}
 
 		var context = theContext;
 
@@ -2246,7 +2255,7 @@ var queryString2ParamsMap;
 			var theMod;
 			_newDepModule(module, thatInvoker, function(depModule) {
 				theMod = depModule.moduleObject();
-			}, pluginArgs, thatInvoker ? thatInvoker.absUrl() : null).init();
+			}, pluginArgs).init(true);
 			return theMod;
 		}
 
