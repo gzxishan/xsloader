@@ -1433,7 +1433,7 @@ var queryString2ParamsMap;
 				module: module,
 				thiz: {
 					getAbsoluteUrl: function() {
-						return invoker.getAbsoluteUrl();
+						return absoluteUrl;
 					},
 					absUrl: function() {
 						return absoluteUrl;
@@ -1446,7 +1446,6 @@ var queryString2ParamsMap;
 					}
 				}
 			};
-
 			_buildInvoker(newObj);
 			return newObj.thiz;
 		};
