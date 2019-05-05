@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-04-28 22:50
+ * latest:2019-05-05 13:40
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1104,7 +1104,7 @@ var queryString2ParamsMap;
 		//module.jsScriptCount = 0;
 		var depModules = new Array(depCount);
 
-		function checkFinish(index, dep, depModule, syncHandle) {
+		function checkFinish(index, dep_name, depModule, syncHandle) {
 			depModules[index] = depModule;
 
 			if( /*(depCount == 0 || depCount - module.jsScriptCount == 0)*/ depCount <= 0 && !isError) {
@@ -1113,12 +1113,17 @@ var queryString2ParamsMap;
 				module.setState('error', isError);
 				if(!hasCallErr) {
 					hasCallErr = true;
-					errCallback(isError);
+					errCallback({
+						err: isError,
+						index: index,
+						dep_name: dep_name
+					});
 				}
 			}!isError && syncHandle && syncHandle();
 		}
 
 		each(deps, function(dep, index, ary, syncHandle) {
+			var originDep = dep;
 			var pluginArgs = undefined;
 			var pluginIndex = dep.indexOf("!");
 			if(pluginIndex > 0) {
@@ -1140,7 +1145,7 @@ var queryString2ParamsMap;
 					} else {
 						isError = err;
 					}
-					checkFinish(index, depModule.name, depModule, syncHandle);
+					checkFinish(index, originDep, depModule, syncHandle);
 				}, pluginArgs);
 			};
 
@@ -1231,7 +1236,7 @@ var queryString2ParamsMap;
 							module: module2
 						};
 						callbackObj.okCallbackForLastScript = function(depModule) {
-								checkFinish(index, depModule.name, depModule, syncHandle);
+								checkFinish(index, originDep, depModule, syncHandle);
 							},
 							callbackObj.onScriptLoad = function(evt) {
 								if(callbackObj.removed) {
@@ -1542,7 +1547,7 @@ var queryString2ParamsMap;
 					};
 					var onerror = function(err) {
 						hasFinished = true;
-						relyCallback(that, err || false);
+						relyCallback(that, new xsloader.PluginError(err || false));
 					};
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
@@ -2049,9 +2054,15 @@ var queryString2ParamsMap;
 				if(!isAsync && !data.isGlobal) {
 					throwError(-1, "not support then for in define or require")
 				}
-				customOnError = thenOption.onError || customOnError;
+				this.error(thenOption.onError);
 				thenOption.onError = undefined;
 				cache.thenOption = xsloader.extend(cache.thenOption, thenOption);
+				return this;
+			},
+			error: function(onError) {
+				if(onError !== undefined) {
+					customOnError = onError || customOnError;
+				}
 				return this;
 			}
 		};
@@ -2291,10 +2302,14 @@ var queryString2ParamsMap;
 			isRequire: true,
 			isError: undefined
 		};
-		var onError = function(isErr) {
-			data.isError = isErr;
+		var onError = function(err) {
+			data.isError = !!err;
 			if(customOnError) {
-				customOnError(isErr);
+				customOnError(err);
+			} else if(xsloader.onError) {
+				xsloader.onError(-17, err);
+			} else {
+				console.error(err);
 			}
 		}
 		var _thenOption = {
@@ -2304,13 +2319,19 @@ var queryString2ParamsMap;
 		};
 		var handle = {
 			then: function(thenOption) {
-				customOnError = thenOption.onError || customOnError;
+				this.error(thenOption.onError);
 				thenOption.onError = undefined;
 				_thenOption = xsloader.extend(_thenOption, thenOption);
 				_thenOption.defined_module_for_deps = thenOption.defined_module_for_deps || _thenOption.defined_module_for_deps;
 				return this;
 			},
-			defined_module_for_deps: null
+			defined_module_for_deps: null,
+			error: function(onError) {
+				if(onError !== undefined) {
+					customOnError = onError || customOnError;
+				}
+				return this;
+			}
 		};
 		var moduleName = _randId("_require");
 		var src = _getCurrentScriptSrc();
@@ -2331,8 +2352,8 @@ var queryString2ParamsMap;
 					callback.apply(this, arguments);
 				}
 			}, src).then({
-				onError: function(isError) {
-					_thenOption.onError(isError);
+				onError: function(err) {
+					_thenOption.onError(err);
 				},
 				absoluteUrl: _thenOption.absoluteUrl,
 				orderDep: _thenOption.orderDep,
@@ -2691,6 +2712,10 @@ var queryString2ParamsMap;
 			rs = defaultReturn;
 		}
 		return rs;
+	};
+
+	xsloader.PluginError = function(_err) {
+		this.err = _err;
 	};
 
 	xsloader.hasDefine = function(name) {
