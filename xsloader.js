@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-05 13:40
+ * latest:2019-05-06 9:58
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1380,6 +1380,10 @@ var queryString2ParamsMap;
 	function _buildInvoker(obj) {
 		var invoker = obj["thiz"];
 		var module = obj.module || obj;
+		var id = randId();
+		invoker.getId = function() {
+			return id;
+		};
 		invoker.getUrl = function(relativeUrl, appendArgs, optionalAbsUrl) {
 			if(optionalAbsUrl && !_dealAbsolute(optionalAbsUrl).absolute) {
 				throwError(-1, "expected absolute url:" + optionalAbsUrl)
@@ -1527,19 +1531,16 @@ var queryString2ParamsMap;
 					if(justForSingle && !this._isPluginSingle) {
 						throwError(-1, "just for single plugin")
 					}
-					if(this._isPluginSingle) {
-						this.module._pluginSingleResult = this.module._pluginSingleResult || [];
-					}
 
 					var that = this;
 					var hasFinished = false;
 					var onload = function(result, ignoreAspect) {
 						hasFinished = true;
-						if(that._isPluginSingle && !that.module._pluginSingleResult[pluginArgs]) {
-							that.module._pluginSingleResult[pluginArgs] = {
+						if(that._isPluginSingle) {
+							that.module.setSinglePluginResult(that._invoker, pluginArgs, {
 								result: result,
 								ignoreAspect: ignoreAspect
-							};
+							});
 						}
 						module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
 						that._setDepModuleObjectGen(result);
@@ -1552,8 +1553,8 @@ var queryString2ParamsMap;
 					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
 					try {
 
-						if(that._isPluginSingle && that.module._pluginSingleResult[pluginArgs]) {
-							var last = that.module._pluginSingleResult[pluginArgs];
+						if(that._isPluginSingle && that.module.lastSinglePluginResult(that._invoker, pluginArgs)) {
+							var last = that.module.lastSinglePluginResult(that._invoker, pluginArgs);
 							onload(last.result, last.ignoreAspect);
 						} else {
 							that._object.pluginMain.apply(this.thiz, args);
@@ -1608,6 +1609,20 @@ var queryString2ParamsMap;
 			loopObject: undefined, //循环依赖对象
 			invoker: thatInvoker,
 			instanceType: "single",
+			_singlePluginResult: {},
+			lastSinglePluginResult: function(invoker, pluginArgs) {
+				var id = invoker ? invoker.getUrl() : "default";
+				if(this._singlePluginResult[id]) {
+					return this._singlePluginResult[id][pluginArgs];
+				}
+			},
+			setSinglePluginResult: function(invoker, pluginArgs, obj) {
+				var id = invoker ? invoker.getUrl() : "default";
+				if(!this._singlePluginResult[id]) {
+					this._singlePluginResult[id] = {};
+				}
+				this._singlePluginResult[id][pluginArgs] = obj;
+			},
 			setInstanceType: function(instanceType) {
 				this.instanceType = instanceType;
 			},
