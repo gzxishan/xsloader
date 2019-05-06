@@ -38,7 +38,7 @@
   	===（1）require("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常。
   	===（2）require.has(...)是否含有指定的所有模块，如var exists = require.has("a","b","c");
   	===（3）require([deps],function(dep1,dep2,...){})
-  	===（4）require.then({onError:function(err),orderDep:false,absoluteUrl:url,before:function(deps)})
+  	===（4）require.then({onError:function(err),orderDep:false,absoluteUrl:url,before:function(deps),depBefore:function(index,dep,depDeps)})
   	===（5）require.error(function(err){})同then的onError
  4、define基础方法：
   	content可以是任何类型。
@@ -46,9 +46,9 @@
   	===（2）define(callback)
   	===（3）define(moduleName,[deps],content),defineAsync(moduleName,[deps],content)
   	===（4）define(moduleName,content),defineAsync(moduleName,content)
-  	===（5）define.then({onError:function(err),orderDep:false,instance:"single",absoluteUrl:url}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
+  	===（5）define.then({onError:function(err),orderDep:false,instance:"single",absoluteUrl:url},before:function(deps),depBefore:function(index,dep,depDeps)}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
   	===（6）define.error(function(err){})同then的onError
- 5、1）回调函数(包括pluginMain函数)的this对象、模块对象(为define(...Object))的_invoker_
+ 5、1）回调函数(包括plugin函数)的this对象、模块对象(为define(...Object))的_invoker_
         ===（1）require(...)与define(...)、defineAsync(...),同require与define,但具有当前js文件的路径信息、从而可以使用相对路径
         ===（2）getUrl(relativeUrl,appendArgs,optionalAbsUrl)：appendArgs表示是否加上urlArgs参数,默认为true。
         								1.当没有提供了relativeUrl时，获取当前模块的url路径；
@@ -66,7 +66,9 @@
   	pluginObject格式:
   	{
   		===pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...),
-  		isSingle:true//当pluginArgs相同时，使用之前的
+  		===isSingle:true,//当pluginArgs相同时，使用之前的
+  		===getCacheKey:function(pluginArgs),//isSingle时有效，获取缓存的key
+  		===willCache:function(pluginArgs,cacheResult)//isSingle时有效，是否进行缓存，默认true
   	}
   	===（1）define([pluginName],[deps],pluginObject)
   	===（2）onload(result，ignoreAspect=true),onerror(err)

@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-06 9:58
+ * latest:2019-05-06 13:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -137,8 +137,12 @@ var queryString2ParamsMap;
 	}
 
 	xsEval = function(scriptString) {
-		var rs = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
-		return rs;
+		try {
+			var rs = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
+			return rs;
+		} catch(e) {
+			throw e;
+		}
 	}
 
 	xsParseJson = function(str, option) {
@@ -902,7 +906,7 @@ var queryString2ParamsMap;
 		}
 	}
 
-	function _onScriptComplete(moduleName, cache, aurl, isRequire) {
+	function _onScriptComplete(moduleName, cache, aurl, isRequire, lastThenOptionObj) {
 		var ifmodule = getModule(moduleName);
 		if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
 			var lastModule = ifmodule;
@@ -923,6 +927,7 @@ var queryString2ParamsMap;
 		var deps = cache.deps;
 		var callback = cache.callback;
 		var thenOption = cache.thenOption;
+
 		thenOption.absUrl = thenOption.absUrl || function() {
 			return this.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
 		}
@@ -934,6 +939,12 @@ var queryString2ParamsMap;
 		}
 
 		deps = cache.deps = module.mayAddDeps(deps);
+		if(thenOption.before) {
+			thenOption.before(deps);
+		}
+		if(lastThenOptionObj && lastThenOptionObj.thenOption.depBefore) {
+			lastThenOptionObj.thenOption.depBefore(lastThenOptionObj.index, cache.name, deps, 2);
+		}
 
 		if(cache.name && xsloader._ignoreAspect_[cache.name] || cache.selfname && xsloader._ignoreAspect_[cache.selfname]) {
 			module.ignoreAspect = true;
@@ -1156,6 +1167,9 @@ var queryString2ParamsMap;
 					var willDelay = false;
 					var urls;
 					var _deps = config.getDeps(dep); //未加载模块前，获取其依赖
+					if(thenOption.depBefore) {
+						thenOption.depBefore(index, dep, _deps, 1);
+					}
 
 					if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
 						var i1 = dep.indexOf(":");
@@ -1299,7 +1313,11 @@ var queryString2ParamsMap;
 										}
 
 										//TODO STRONG 对应的脚本应该是先执行
-										_onScriptComplete(cache.name, cache, aurl);
+										_onScriptComplete(cache.name, cache, aurl, undefined, {
+											thenOption: thenOption,
+											index: index,
+											dep: originDep
+										});
 									}
 
 									if(defineCount == 0) { //用于支持没有define的js库
@@ -1507,7 +1525,6 @@ var queryString2ParamsMap;
 
 			},
 			_object: null,
-			_isPluginSingle: true,
 			_setDepModuleObjectGen: function(obj) {
 				this._object = obj;
 				this.initInvoker();
@@ -1520,15 +1537,40 @@ var queryString2ParamsMap;
 				this._setDepModuleObjectGen({});
 				return this._object;
 			},
+			_getCacheKey: function(pluginArgs) {
+				if(this._object.getCacheKey) {
+					return this._object.getCacheKey.call(this.thiz, pluginArgs);
+				}
+				var id = this._invoker.getUrl();
+				return id;
+			},
+			_willCache: function(pluginArgs, cacheResult) {
+				if(this._object.willCache) {
+					return this._object.willCache.call(this.thiz, pluginArgs, cacheResult);
+				}
+				return true;
+			},
+			lastSinglePluginResult: function(pluginArgs) {
+				var id = this._getCacheKey(pluginArgs);
+				return this.module.lastSinglePluginResult(id, pluginArgs);
+			},
+			setSinglePluginResult: function(pluginArgs, obj) {
+				var id = this._getCacheKey(pluginArgs);
+				var willCache = this._willCache(pluginArgs, obj);
+				return this.module.setSinglePluginResult(willCache, id, pluginArgs, obj);
+			},
 			init: function(justForSingle) {
 				var relyCallback = this.relyCallback;
-				this._module_ = module.dealInstance(this);
-				this._setDepModuleObjectGen(module.loopObject || module.moduleObject);
+				this._module_ = this.module.dealInstance(this);
+				this._setDepModuleObjectGen(this.module.loopObject || this.module.moduleObject);
 				if(pluginArgs !== undefined) {
-					if(this._object.isSingle === false) {
-						this._isPluginSingle = false; //同样的参数也需要重新调用
+					if(!this._object) {
+						throwError(-1, "pulgin error:" + this.module.name);
 					}
-					if(justForSingle && !this._isPluginSingle) {
+					if(this._object.isSingle === undefined) {
+						this._object.isSingle = true; //同样的参数也需要重新调用
+					}
+					if(justForSingle && !this._object.isSingle) {
 						throwError(-1, "just for single plugin")
 					}
 
@@ -1536,13 +1578,13 @@ var queryString2ParamsMap;
 					var hasFinished = false;
 					var onload = function(result, ignoreAspect) {
 						hasFinished = true;
-						if(that._isPluginSingle) {
-							that.module.setSinglePluginResult(that._invoker, pluginArgs, {
+						if(that._object.isSingle) {
+							that.setSinglePluginResult(pluginArgs, {
 								result: result,
 								ignoreAspect: ignoreAspect
 							});
 						}
-						module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
+						that.module.ignoreAspect = ignoreAspect === undefined || ignoreAspect;
 						that._setDepModuleObjectGen(result);
 						relyCallback(that);
 					};
@@ -1550,11 +1592,11 @@ var queryString2ParamsMap;
 						hasFinished = true;
 						relyCallback(that, new xsloader.PluginError(err || false));
 					};
-					var args = [pluginArgs, onload, onerror, theConfig].concat(module.depModules);
+					var args = [pluginArgs, onload, onerror, theConfig].concat(that.module.depModules);
 					try {
-
-						if(that._isPluginSingle && that.module.lastSinglePluginResult(that._invoker, pluginArgs)) {
-							var last = that.module.lastSinglePluginResult(that._invoker, pluginArgs);
+						var cacheResult;
+						if(that._object.isSingle && (cacheResult = that.lastSinglePluginResult(pluginArgs)) !== undefined) {
+							var last = cacheResult;
 							onload(last.result, last.ignoreAspect);
 						} else {
 							that._object.pluginMain.apply(this.thiz, args);
@@ -1609,22 +1651,26 @@ var queryString2ParamsMap;
 			loopObject: undefined, //循环依赖对象
 			invoker: thatInvoker,
 			instanceType: "single",
+			setInstanceType: function(instanceType) {
+				this.instanceType = instanceType;
+			},
 			_singlePluginResult: {},
-			lastSinglePluginResult: function(invoker, pluginArgs) {
-				var id = invoker ? invoker.getUrl() : "default";
+			lastSinglePluginResult: function(id, pluginArgs) {
 				if(this._singlePluginResult[id]) {
 					return this._singlePluginResult[id][pluginArgs];
 				}
 			},
-			setSinglePluginResult: function(invoker, pluginArgs, obj) {
-				var id = invoker ? invoker.getUrl() : "default";
-				if(!this._singlePluginResult[id]) {
-					this._singlePluginResult[id] = {};
+			setSinglePluginResult: function(willCache, id, pluginArgs, obj) {
+				if(willCache) {
+					if(!this._singlePluginResult[id]) {
+						this._singlePluginResult[id] = {};
+					}
+					this._singlePluginResult[id][pluginArgs] = obj;
+				} else {
+					if(this._singlePluginResult[id]) {
+						delete this._singlePluginResult[id][pluginArgs];
+					}
 				}
-				this._singlePluginResult[id][pluginArgs] = obj;
-			},
-			setInstanceType: function(instanceType) {
-				this.instanceType = instanceType;
 			},
 			finish: function(args) {
 				if(this.directDefineIndex != 0) {
@@ -2059,7 +2105,9 @@ var queryString2ParamsMap;
 				onError: onError,
 				defined_module_for_deps: null,
 				absoluteUrl: null,
-				thatInvoker: getThatInvokerForDef_Req(this)
+				thatInvoker: getThatInvokerForDef_Req(this),
+				before: undefined,
+				depBefore: undefined
 			},
 			src: src
 		};
@@ -2303,6 +2351,9 @@ var queryString2ParamsMap;
 			_newDepModule(module, thatInvoker, function(depModule) {
 				theMod = depModule.moduleObject();
 			}, pluginArgs).init(true);
+			if(theMod === undefined) {
+				throwError(-12, "the module '" + deps + "' is not load!");
+			}
 			return theMod;
 		}
 
@@ -2353,9 +2404,6 @@ var queryString2ParamsMap;
 
 		var timeid;
 		asyncCall(function() {
-			if(_thenOption.before) {
-				_thenOption.before(deps);
-			}
 			if(thatInvoker) {
 				src = thatInvoker.getUrl();
 			}
@@ -2373,7 +2421,9 @@ var queryString2ParamsMap;
 				absoluteUrl: _thenOption.absoluteUrl,
 				orderDep: _thenOption.orderDep,
 				thatInvoker: thatInvoker,
-				defined_module_for_deps: _thenOption.defined_module_for_deps
+				defined_module_for_deps: _thenOption.defined_module_for_deps,
+				before: _thenOption.before,
+				depBefore: _thenOption.depBefore
 			});
 		});
 
@@ -2884,7 +2934,7 @@ var queryString2ParamsMap;
 			pluginMain: function(depId, onload, onerror, config, http) {
 				var depsObj = innerDepsMap[depId];
 				var deps = depsObj.deps;
-				delete innerDepsMap[depId];
+				//delete innerDepsMap[depId];
 				this.invoker().require(deps, function() {
 					var args = [];
 					for(var k = 0; k < arguments.length; k++) {
@@ -2894,6 +2944,9 @@ var queryString2ParamsMap;
 				}).then({
 					orderDep: depsObj.orderDep
 				});
+			},
+			getCacheKey: function(depId) {
+				return depId;
 			}
 		});
 	})();
@@ -3085,7 +3138,12 @@ var queryString2ParamsMap;
 				cssId += ".css";
 			}
 			(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
-
+		};
+		cssAPI.getCacheKey = function(cssId) {
+			if(cssId.indexOf(".css") != cssId.length - 4) {
+				cssId += ".css";
+			}
+			return this.invoker().getUrl(cssId, true);
 		};
 		return cssAPI;
 	});
@@ -4363,8 +4421,13 @@ var queryString2ParamsMap;
 					console.log("receive from:" + event.origin + ",my page:" + location.href);
 					console.log(event.data);
 				}
-				var data = xsParseJson(event.data);
-				if(!data) {
+				var data;
+				try {
+					data = xsParseJson(event.data);
+				} catch(e) {
+
+				}
+				if(!data || !(data.cmd && data.type)) {
 					return;
 				}
 
