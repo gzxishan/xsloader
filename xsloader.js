@@ -387,7 +387,7 @@ var queryString2ParamsMap;
 		}
 
 		var isRelativeDir = false;
-		if(_endsWith(relative, "/")) {
+		if(relative=="."||_endsWith(relative, "/")) {
 			relative = relative.substring(0, relative.length - 1);
 			isRelativeDir = true;
 		} else if(relative == "." || relative == ".." || _endsWith("/.") || _endsWith("/..")) {
@@ -432,7 +432,7 @@ var queryString2ParamsMap;
 		if(isRelativeDir && !_endsWith(result, "/")) {
 			result += "/";
 		}
-		result += pathQuery;
+//		result += pathQuery;
 		result = _appendArgs2Url(result, relativeQuery);
 		return result;
 	};
