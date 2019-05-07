@@ -4914,7 +4914,7 @@ var queryString2ParamsMap;
 
 			mainName = "_plugin_main_";
 			var deps = [mainPath];
-			if(theConfig.deps) { //手动添加依赖
+			if(theConfig.deps) { //手动添加*依赖
 				if(theConfig.deps["*"]) {
 					Array.pushAll(deps, theConfig.deps["*"]);
 				}
@@ -4928,7 +4928,7 @@ var queryString2ParamsMap;
 				absoluteUrl: pageHref
 			});
 		} else if(!xsloader.hasDefine(mainName)) {
-			loader.depsPaths[mainName] = mainPath;
+			loader.depsPaths[mainName] = mainPath;//让其依赖*中的所有依赖
 			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
 				if(xsloader.isFunction(conf.main.before)) {
 					conf.main.before.call(conf, mainName);
