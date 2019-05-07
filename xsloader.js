@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-06 13:50
+ * latest:2019-05-07 15:18
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -51,7 +51,8 @@ var queryString2ParamsMap;
 		try {
 			window.console = {
 				log: function() {},
-				error: function() {}
+				error: function() {},
+				warn: function() {}
 			};
 		} catch(e) {}
 	}
@@ -387,7 +388,7 @@ var queryString2ParamsMap;
 		}
 
 		var isRelativeDir = false;
-		if(relative=="."||_endsWith(relative, "/")) {
+		if(relative == "." || _endsWith(relative, "/")) {
 			relative = relative.substring(0, relative.length - 1);
 			isRelativeDir = true;
 		} else if(relative == "." || relative == ".." || _endsWith("/.") || _endsWith("/..")) {
@@ -432,7 +433,7 @@ var queryString2ParamsMap;
 		if(isRelativeDir && !_endsWith(result, "/")) {
 			result += "/";
 		}
-//		result += pathQuery;
+		//		result += pathQuery;
 		result = _appendArgs2Url(result, relativeQuery);
 		return result;
 	};
@@ -1424,11 +1425,11 @@ var queryString2ParamsMap;
 			}
 		};
 		invoker.require = function() {
-			var h = xsloader.require.apply(invoker, arguments);
+			var h = xsloader.require.apply(new _Async_Object_(invoker, false), arguments);
 			return h;
 		};
 		invoker.define = function() {
-			var h = xsloader.define.apply(invoker, arguments);
+			var h = xsloader.define.apply(new _Async_Object_(invoker, false), arguments);
 			return h;
 		};
 		invoker.rurl = function(thenOption) {
@@ -1689,7 +1690,8 @@ var queryString2ParamsMap;
 						currentDefineModuleQueue.pop();
 					} catch(e) {
 						currentDefineModuleQueue.pop();
-						console.log(e);
+						console.error("error occured,invoker.url=", this.invoker ? this.invoker.getUrl() : "");
+						console.error(e);
 						this.setState("error", e);
 						return;
 					}
@@ -2131,7 +2133,7 @@ var queryString2ParamsMap;
 		};
 		if(context) {
 			cache.src = src || _getCurrentScriptSrc(cache) || null;
-			if(cache.src == thePageUrl && data.parentDefine && data.parentDefine.aurl) {
+			if( /*cache.src == thePageUrl &&*/ data.parentDefine && data.parentDefine.aurl) {//解决部分浏览器（如ie）无法正确获取脚本地址的情况
 				cache.src = data.parentDefine.aurl;
 			}
 
@@ -2290,7 +2292,7 @@ var queryString2ParamsMap;
 			parentDefine: currentDefineModuleQueue.peek(),
 			asyncDefine: (this instanceof _Async_Object_) && this.isAsyncDefine()
 		};
-		return _define(data, name, deps, callback);
+		return _define.call(this, data, name, deps, callback);
 	};
 
 	defineAsync = function() {
@@ -2438,7 +2440,7 @@ var queryString2ParamsMap;
 						mod && mod.printOnNotDefined();
 					});
 				}
-				console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]," + callback);
+				console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]");
 				console.log(theDefinedMap);
 			}
 		};
@@ -4928,7 +4930,7 @@ var queryString2ParamsMap;
 				absoluteUrl: pageHref
 			});
 		} else if(!xsloader.hasDefine(mainName)) {
-			loader.depsPaths[mainName] = mainPath;//让其依赖*中的所有依赖
+			loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
 			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
 				if(xsloader.isFunction(conf.main.before)) {
 					conf.main.before.call(conf, mainName);
