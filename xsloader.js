@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-07 15:18
+ * latest:2019-05-08 9:18
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -740,11 +740,11 @@ var queryString2ParamsMap;
 		}
 	};
 
-	function throwError(code, info) {
+	function throwError(code, info, invoker) {
 		if(xsloader.onError) {
-			xsloader.onError(code, info);
+			xsloader.onError(info, invoker);
 		}
-		throw info + ":" + code;
+		throw code + ":" + info;
 	}
 
 	//Could match something like ')//comment', do not lose the prefix to comment.
@@ -986,8 +986,8 @@ var queryString2ParamsMap;
 				});
 				args.push(depModuleArgs);
 				module.finish(args);
-			}, function(isError) {
-				thenOption.onError(isError);
+			}, function(err, invoker) {
+				thenOption.onError(err, invoker);
 			});
 		}
 
@@ -1067,7 +1067,7 @@ var queryString2ParamsMap;
 		}
 	}
 
-	//everyOkCallback(depModules,module)
+	//everyOkCallback(depModules,module),errCallback(err,invoker)
 	function _everyRequired(data, thenOption, module, deps, everyOkCallback, errCallback) {
 
 		if(data.isError) {
@@ -1085,13 +1085,6 @@ var queryString2ParamsMap;
 			var m = deps[i];
 			var jsFilePath = _isJsFile(m);
 
-			//			if(jsFilePath) {
-			//				var absolute = _dealAbsolute(m);
-			//				if(!absolute.absolute && !startsWith(m, ".")) { //处理baseUrl下的地址
-			//					m = config.baseUrl + m;
-			//					deps[i] = m;
-			//				}
-			//			}
 			if(module.thiz.rurl(thenOption)) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
 					m = _getPathWithRelative(module.thiz.rurl(thenOption), jsFilePath) + _getPluginParam(m);
@@ -1102,10 +1095,6 @@ var queryString2ParamsMap;
 			if(paths.length > 0) {
 				var moduleLoop = getModule(m); //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
-				//				var errinfo = "loop dependency:" + paths.join(" --> ");
-				//				errCallback(errinfo);
-				//				return;
-				//throwError(-6, errinfo);
 			}
 		}
 
@@ -1115,6 +1104,8 @@ var queryString2ParamsMap;
 		var depCount = deps.length;
 		//module.jsScriptCount = 0;
 		var depModules = new Array(depCount);
+
+		var thatInvoker = thenOption.thatInvoker || module.thiz;
 
 		function checkFinish(index, dep_name, depModule, syncHandle) {
 			depModules[index] = depModule;
@@ -1129,7 +1120,7 @@ var queryString2ParamsMap;
 						err: isError,
 						index: index,
 						dep_name: dep_name
-					});
+					}, thatInvoker);
 				}
 			}!isError && syncHandle && syncHandle();
 		}
@@ -1143,7 +1134,7 @@ var queryString2ParamsMap;
 				dep = dep.substring(0, pluginIndex);
 			}
 			var relyItFun = function() {
-				getModule(dep).relyIt(thenOption.thatInvoker || module.thiz, function(depModule, err) {
+				getModule(dep).relyIt(thatInvoker, function(depModule, err) {
 
 					if(!err) {
 						depCount--;
@@ -1178,7 +1169,7 @@ var queryString2ParamsMap;
 						var i3 = i2 > 0 ? dep.indexOf(":", i2 + 1) : -1;
 						if(i2 == -1) {
 							isError = "illegal module:" + dep;
-							errCallback(isError);
+							errCallback(isError, thatInvoker);
 							break;
 						}
 						var version;
@@ -1192,7 +1183,7 @@ var queryString2ParamsMap;
 						}
 						if(version === undefined) {
 							isError = "unknown version for:" + dep;
-							errCallback(isError);
+							errCallback(isError, thatInvoker);
 							break;
 						}
 						var _url = xsloader._resUrlBuilder(groupModule);
@@ -1224,9 +1215,9 @@ var queryString2ParamsMap;
 									args.push(depModule && depModule.moduleObject());
 								});
 								mayAsyncCallLoadScript();
-							}, function(err) {
+							}, function(err, invoker) {
 								isError = err;
-								errCallback(err);
+								errCallback(err, invoker);
 							});
 						} else {
 							mayAsyncCallLoadScript();
@@ -1338,7 +1329,7 @@ var queryString2ParamsMap;
 							callbackObj.removed = true;
 							var errinfo = "load module '" + scriptData.name + "' error:" + xsJson2String(evt);
 							isError = errinfo;
-							errCallback(errinfo);
+							errCallback(errinfo, thatInvoker);
 						};
 						module2.setState("loading");
 						each(urls, function(url, index) {
@@ -2088,14 +2079,17 @@ var queryString2ParamsMap;
 		}
 
 		var customOnError;
-		var onError = function(isErr) {
-			data.isError = isErr;
+		var onError = function(err, invoker) {
+			data.isError = !!err;
 			if(customOnError) {
-				customOnError(isErr);
+				customOnError(err, invoker);
 			} else if(xsloader.onError) {
-				xsloader.onError(-17, isErr);
+				xsloader.onError(err, invoker);
 			} else {
-				console.error(isErr);
+				if(invoker) {
+					console.error("error occured:invoker.url=", invoker.getUrl());
+				}
+				console.error(err);
 			}
 		}
 		var cache = {
@@ -2133,7 +2127,7 @@ var queryString2ParamsMap;
 		};
 		if(context) {
 			cache.src = src || _getCurrentScriptSrc(cache) || null;
-			if( /*cache.src == thePageUrl &&*/ data.parentDefine && data.parentDefine.aurl) {//解决部分浏览器（如ie）无法正确获取脚本地址的情况
+			if( /*cache.src == thePageUrl &&*/ data.parentDefine && data.parentDefine.aurl) { //解决部分浏览器（如ie）无法正确获取脚本地址的情况
 				cache.src = data.parentDefine.aurl;
 			}
 
@@ -2370,13 +2364,16 @@ var queryString2ParamsMap;
 			isRequire: true,
 			isError: undefined
 		};
-		var onError = function(err) {
+		var onError = function(err, invoker) {
 			data.isError = !!err;
 			if(customOnError) {
-				customOnError(err);
+				customOnError(err, invoker);
 			} else if(xsloader.onError) {
-				xsloader.onError(-17, err);
+				xsloader.onError(err, invoker);
 			} else {
+				if(invoker) {
+					console.error("error occured:invoker.url=", invoker.getUrl());
+				}
 				console.error(err);
 			}
 		}
@@ -2417,8 +2414,8 @@ var queryString2ParamsMap;
 					callback.apply(this, arguments);
 				}
 			}, src).then({
-				onError: function(err) {
-					_thenOption.onError(err);
+				onError: function(err, invoker) {
+					_thenOption.onError(err, invoker);
 				},
 				absoluteUrl: _thenOption.absoluteUrl,
 				orderDep: _thenOption.orderDep,
@@ -2958,7 +2955,7 @@ var queryString2ParamsMap;
 	 */
 	(function() { //TODO STRONG name插件
 		xsloader.define("name", {
-			isSingle: false,
+			isSingle: true,
 			pluginMain: function(arg, onload, onerror, config, http) {
 				var index = arg.indexOf("=>>");
 				if(index == -1) {
@@ -3153,7 +3150,7 @@ var queryString2ParamsMap;
 
 (function() { //TODO STRONG text插件
 	xsloader.define("text", ["xshttp"], {
-		isSingle: false,
+		isSingle: true,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)
@@ -3175,7 +3172,7 @@ var queryString2ParamsMap;
  */
 (function() { //TODO STRONG window插件,用于添加模块到window对象中
 	xsloader.define("window", {
-		isSingle: false,
+		isSingle: true,
 		pluginMain: function(arg, onload, onerror, config, http) {
 			var index = arg.indexOf("=>>");
 			if(index == -1) {
@@ -3234,7 +3231,7 @@ var queryString2ParamsMap;
 	 * 加载json对象
 	 */
 	xsloader.define("json", ["xshttp"], {
-		isSingle: false,
+		isSingle: true,
 		pluginMain: function(name, onload, onerror, config, http) {
 			var url = this.invoker().getUrl(name, true);
 			http().url(url)
@@ -4943,10 +4940,15 @@ var queryString2ParamsMap;
 				return rt;
 			};
 			xsloader(loader);
+		} else {
+			xsloader(loader);
 		}
 
 		xsloader.require([mainName], function(main) {}).then({
-			onError: function(err) {
+			onError: function(err, invoker) {
+				if(invoker) {
+					console.error("error occured:invoker.url=", invoker.getUrl());
+				}
 				console.error("invoke main err:" + err);
 			}
 		});
