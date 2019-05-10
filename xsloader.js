@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-08 9:18
+ * latest:2019-05-10 15:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -553,7 +553,7 @@ var queryString2ParamsMap;
 		ostring = op.toString,
 		isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]',
 		commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg,
-		cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g,
+		cjsRequireRegExp = /[^.]require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g,
 		readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 	var IE_VERSION = getIEVersion();
 	///////
@@ -1569,6 +1569,11 @@ var queryString2ParamsMap;
 					var that = this;
 					var hasFinished = false;
 					var onload = function(result, ignoreAspect) {
+						if(result == undefined) {
+							result = {
+								__default: true
+							};
+						}
 						hasFinished = true;
 						if(that._object.isSingle) {
 							that.setSinglePluginResult(pluginArgs, {
@@ -1691,6 +1696,11 @@ var queryString2ParamsMap;
 					if(this.moduleObject !== undefined) {
 						console.log("ignore moudule named '" + moduleMap.name + "':" + obj);
 					}
+				}
+				if(obj === undefined) {
+					obj = {
+						__default: true
+					};
 				}
 				if(this.loopObject) {
 					if(!isObject(obj)) {
@@ -2331,6 +2341,7 @@ var queryString2ParamsMap;
 		}
 		var thatInvoker = getThatInvokerForDef_Req(this);
 		if(isString(deps)) { //获取已经加载的模块
+			var originDeps = deps;
 			var pluginArgs = undefined;
 			var pluginIndex = deps.indexOf("!");
 			if(pluginIndex > 0) {
@@ -2339,16 +2350,16 @@ var queryString2ParamsMap;
 			}
 			var module = getModule(deps);
 			if(!module) {
-				throwError(-12, "the module '" + deps + "' is not load!");
+				throwError(-12, "the module '" + originDeps + "' is not load!");
 			} else if(module.state != "defined") {
-				throwError(-12, "the module '" + deps + "' is not defined:" + module.state);
+				throwError(-12, "the module '" + originDeps + "' is not defined:" + module.state);
 			}
 			var theMod;
 			_newDepModule(module, thatInvoker, function(depModule) {
 				theMod = depModule.moduleObject();
 			}, pluginArgs).init(true);
 			if(theMod === undefined) {
-				throwError(-12, "the module '" + deps + "' is not load!");
+				throwError(-12, "the module '" + originDeps + "' is not load!");
 			}
 			return theMod;
 		}
@@ -3142,7 +3153,8 @@ var queryString2ParamsMap;
 			if(cssId.indexOf(".css") != cssId.length - 4) {
 				cssId += ".css";
 			}
-			return this.invoker().getUrl(cssId, true);
+			var invoker = this.invoker();
+			return invoker ? invoker.getUrl(cssId, true) : cssId;
 		};
 		return cssAPI;
 	});
