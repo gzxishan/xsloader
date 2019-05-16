@@ -2974,13 +2974,22 @@ var queryString2ParamsMap;
 					return;
 				}
 				var moduleName = arg.substring(0, index);
+				moduleName = moduleName.replace(/，/g, ',')
+				var names = moduleName.split(",");
 				var dep = arg.substring(index + 3);
 				this.invoker().require([dep], function(mod, depModuleArgs) {
-					if(getModule(moduleName)) {
-						onerror("already define:" + moduleName);
-						return;
+					var existsMods = [];
+					for(var i = 0; i < names.length; i++) {
+						var newName = names[i];
+						if(getModule(newName)) {
+							existsMods.push(newName);
+							return;
+						}
+						setModule(newName, depModuleArgs[0].module)
 					}
-					setModule(moduleName, depModuleArgs[0].module)
+					if(existsMods.length) {
+						console.warn("already exists:", existsMods.join(','));
+					}
 					onload(mod);
 				});
 			}
