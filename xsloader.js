@@ -609,7 +609,7 @@ var queryString2ParamsMap;
 		return url;
 	})();
 
-	function AsyncCall() {
+	function AsyncCall(useTimer) {
 		var thiz = this;
 		var count = 0;
 		var ctrlCallbackMap = {};
@@ -643,7 +643,7 @@ var queryString2ParamsMap;
 					}
 				};
 				ctrlCallbackMap[mineCount] = [];
-				if(global.Promise && global.Promise.resolve) {
+				if(!useTimer && global.Promise && global.Promise.resolve) {
 					global.Promise.resolve().then(ctrlCallback);
 				} else {
 					setTimeout(ctrlCallback, 0);
@@ -679,9 +679,14 @@ var queryString2ParamsMap;
 
 	var graphPath = new GraphPath(); //用于检测循环依赖
 	var theAsyncCall = new AsyncCall();
+	var theAsyncCallOfTimer = new AsyncCall(true);
 
-	var asyncCall = function(callback) {
-		return theAsyncCall.pushTask(callback);
+	var asyncCall = function(callback, useTimer) {
+		if(useTimer) {
+			return theAsyncCallOfTimer.pushTask(callback);
+		} else {
+			return theAsyncCall.pushTask(callback);
+		}
 	};
 	///////////
 
@@ -984,6 +989,8 @@ var queryString2ParamsMap;
 					//TODO handle the exception
 				}
 				return;
+			} else if(lastModule.cacheId == cache.id) {
+				return;
 			} else {
 				throwError(-2, "already define '" + moduleName + "'");
 			}
@@ -1005,6 +1012,10 @@ var queryString2ParamsMap;
 			module = _newModule(moduleName, null, callback, thenOption.thatInvoker, thenOption.absoluteUrl);
 		}
 
+		if(!module.cacheId) {
+			module.cacheId = cache.id;
+		}
+
 		deps = cache.deps = module.mayAddDeps(deps);
 		if(thenOption.before) {
 			thenOption.before(deps);
@@ -1023,6 +1034,8 @@ var queryString2ParamsMap;
 				if(moduleSelf.state == "init") {
 					setModule(cache.selfname, module);
 					moduleSelf.toOtherModule(module);
+				} else if(moduleSelf.cacheId == cache.id) {
+					return;
 				} else {
 					throwError(-2, "already define '" + cache.selfname + "'");
 				}
@@ -1510,7 +1523,7 @@ var queryString2ParamsMap;
 				if(thenOption) {
 					h.then(thenOption);
 				}
-			})
+			});
 			return handle;
 		};
 		invoker.withAbsUrl = function(absoluteUrl) {
@@ -2109,7 +2122,7 @@ var queryString2ParamsMap;
 
 	//then.{}.thatInvoker用于修改模块的invoker对象
 	//src:提供的可选地址
-	var _define = function(data, name, deps, callback, src) {
+	var __define = function(data, name, deps, callback, src) {
 
 		if(typeof name !== 'string') {
 			callback = deps;
@@ -2169,6 +2182,7 @@ var queryString2ParamsMap;
 			}
 		}
 		var cache = {
+			id: randId(),
 			data: data,
 			name: name,
 			deps: deps,
@@ -2230,9 +2244,9 @@ var queryString2ParamsMap;
 						_onScriptComplete(name, cache, cache.src, false);
 					}
 				};
-				//需要延迟、且在下下次循环中触发，否则在js里调用define会执行此部分
-				asyncCall().next(callback);
-				return handle;
+				//需要延迟、且在timer循环中触发，否则在js里调用define会执行此部分
+				asyncCall(callback,true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
+				//return handle;
 				//setTimeout(callback, 20);
 			}
 
@@ -2366,7 +2380,7 @@ var queryString2ParamsMap;
 			parentDefine: currentDefineModuleQueue.peek(),
 			asyncDefine: (this instanceof _Async_Object_) && this.isAsyncDefine()
 		};
-		return _define.call(this, data, name, deps, callback);
+		return __define.call(this, data, name, deps, callback);
 	};
 
 	defineAsync = function() {
@@ -2487,7 +2501,7 @@ var queryString2ParamsMap;
 			if(thatInvoker) {
 				src = thatInvoker.getUrl();
 			}
-			_define(data, moduleName, deps, function() {
+			__define(data, moduleName, deps, function() {
 				if(timeid !== undefined) {
 					clearTimeout(timeid);
 				}
@@ -2837,7 +2851,7 @@ var queryString2ParamsMap;
 		//定义config之前的模块
 		each(arr, function(elem) {
 			elem.data.isGlobal = true;
-			_define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
+			__define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
 		});
 		return theConfig;
 	};
@@ -3002,20 +3016,28 @@ var queryString2ParamsMap;
 	};
 
 	(function() {
+		var isGlobalReady = false;
+		var bindReadyQueue = [];
+
 		function BindReady(callback) {
+			if(isGlobalReady) {
+				callback();
+				return;
+			}
 			var isReady = false;
 
 			function ready() {
 				if(isReady) return;
 				isReady = true;
+				isGlobalReady = true;
 				callback();
 			}
 			// Mozilla, Opera and webkit nightlies currently support this event
 			if(document.addEventListener) {
 				document.addEventListener("DOMContentLoaded", function() {
-					document.removeEventListener("DOMContentLoaded", arguments.callee, false);
+					document.removeEventListener("DOMContentLoaded", arguments.callee);
 					ready();
-				}, false);
+				});
 
 			} else if(document.attachEvent) {
 				// ensure firing before onload,
@@ -3042,14 +3064,49 @@ var queryString2ParamsMap;
 					ready();
 				})();
 			} else {
-				xsloader.asyncCall().next(function() {
+				xsloader.asyncCall(null,true).next(function() {
 					ready();
 				});
 			}
+			this.readyCall = ready;
 		}
 		xsloader.onReady = function(callback) {
-			new BindReady(callback);
+			var br = new BindReady(callback);
+			if(!isGlobalReady) {
+				bindReadyQueue.push(br);
+			}
 		};
+		xsloader.onReady(function() {
+			isGlobalReady = true;
+		});
+
+		if(document.readyState === "complete") {
+			isGlobalReady = true;
+		} else {
+			var addEventHandle;
+			if(window.addEventListener) {
+				addEventHandle = function(type, callback) {
+					window.addEventListener(type, callback, false);
+				};
+			} else if(window.attachEvent) {
+				addEventHandle = function(type, callback) {
+					window.attachEvent("on" + type, callback);
+				}
+			} else {
+				addEventHandle = function(type, callback) {
+					xsloader.asyncCall(null,true).next(function() {
+						callback();
+					});
+				}
+			}
+			addEventHandle("load", function() {
+				isGlobalReady = true;
+				while(bindReadyQueue.length) {
+					bindReadyQueue.shift().readyCall();
+				}
+			});
+		}
+
 	})();
 
 	define("ready", {
@@ -4601,7 +4658,7 @@ var queryString2ParamsMap;
 					handleBinded(cmd, event.source, event.origin, rdata);
 				}
 
-			}, false);
+			});
 
 			handle.runAfter = function(time, callback) {
 				setTimeout(callback, time);
