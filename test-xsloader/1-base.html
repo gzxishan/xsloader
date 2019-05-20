@@ -84,7 +84,7 @@
 			divLog("***************************");
 		});
 
-		require(["moduleC"], function(C) {
+		require(["moduleC","ready!"], function(C) {
 			divLog("reqC:")
 			//divLog(this);
 			divLog("thisUrl:" + this.getUrl());
@@ -96,6 +96,10 @@
 			divLog("has:A,AB=" + require.has("A", "AB"));
 			divLog("***************************");
 
+		});
+		
+		xsloader.onReady(function(){
+			divLog("onReady!")
 		});
 	</script>
 

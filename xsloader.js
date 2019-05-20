@@ -3000,6 +3000,66 @@ var queryString2ParamsMap;
 	xsloader.script = function() {
 		return theLoaderScript;
 	};
+
+	(function() {
+		function BindReady(callback) {
+			var isReady = false;
+
+			function ready() {
+				if(isReady) return;
+				isReady = true;
+				callback();
+			}
+			// Mozilla, Opera and webkit nightlies currently support this event
+			if(document.addEventListener) {
+				document.addEventListener("DOMContentLoaded", function() {
+					document.removeEventListener("DOMContentLoaded", arguments.callee, false);
+					ready();
+				}, false);
+
+			} else if(document.attachEvent) {
+				// ensure firing before onload,
+				// maybe late but safe also for iframes
+				document.attachEvent("onreadystatechange", function() {
+					if(document.readyState === "complete") {
+						document.detachEvent("onreadystatechange", arguments.callee);
+						ready();
+					}
+				});
+				// If IE and not an iframe
+				// continually check to see if the document is ready
+				if(document.documentElement.doScroll && typeof window.frameElement === "undefined")(function() {
+					if(isReady) return;
+					try {
+						// If IE is used, use the trick by Diego Perini
+						// http://javascript.nwbox.com/IEContentLoaded/
+						document.documentElement.doScroll("left");
+					} catch(error) {
+						setTimeout(arguments.callee, 0);
+						return;
+					}
+					// and execute any waiting functions
+					ready();
+				})();
+			} else {
+				xsloader.asyncCall().next(function() {
+					ready();
+				});
+			}
+		}
+		xsloader.onReady = function(callback) {
+			new BindReady(callback);
+		};
+	})();
+
+	define("ready", {
+		pluginMain: function(depId, onload, onerror, config) {
+			xsloader.onReady(function() {
+				onload();
+			})
+		}
+	});
+
 	xsloader.clone = _clone;
 	xsloader.isArray = isArray;
 	xsloader.isString = isString;
@@ -5044,63 +5104,5 @@ var queryString2ParamsMap;
 			}
 		});
 	}
-
-	(function() {
-
-		function BindReady(callback) {
-			var isReady = false;
-
-			function ready() {
-				if(isReady) return;
-				isReady = true;
-				callback();
-			}
-			// Mozilla, Opera and webkit nightlies currently support this event
-			if(document.addEventListener) {
-				document.addEventListener("DOMContentLoaded", function() {
-					document.removeEventListener("DOMContentLoaded", arguments.callee, false);
-					ready();
-				}, false);
-
-			} else if(document.attachEvent) {
-				// ensure firing before onload,
-				// maybe late but safe also for iframes
-				document.attachEvent("onreadystatechange", function() {
-					if(document.readyState === "complete") {
-						document.detachEvent("onreadystatechange", arguments.callee);
-						ready();
-					}
-				});
-				// If IE and not an iframe
-				// continually check to see if the document is ready
-				if(document.documentElement.doScroll && typeof window.frameElement === "undefined")(function() {
-					if(isReady) return;
-					try {
-						// If IE is used, use the trick by Diego Perini
-						// http://javascript.nwbox.com/IEContentLoaded/
-						document.documentElement.doScroll("left");
-					} catch(error) {
-						setTimeout(arguments.callee, 0);
-						return;
-					}
-					// and execute any waiting functions
-					ready();
-				})();
-			} else {
-				xsloader.asyncCall().next(function() {
-					ready();
-				});
-			}
-
-		}
-		
-		xsloader.onReady=function(callback){
-			new BindReady(callback);
-		};
-
-		new BindReady(function() {
-			startLoad();
-		});
-	})();
-
+	xsloader.onReady(startLoad);
 })();
