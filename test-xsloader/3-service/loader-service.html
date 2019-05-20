@@ -4,17 +4,17 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
-		
+
 		<title>service loader 测试</title>
 		<script type="text/javascript">
-//			window.console={
-//				log:function(info){
-//					alert(JSON.stringify(info));
-//				},
-//				error:function(){
-//					this.log.apply(this,arguments);
-//				}
-//			};
+			//			window.console={
+			//				log:function(info){
+			//					alert(JSON.stringify(info));
+			//				},
+			//				error:function(){
+			//					this.log.apply(this,arguments);
+			//				}
+			//			};
 		</script>
 		<script src="../../xsloader.js" type="text/javascript" data-main='./loader-service.js' data-conf="./config.js" charset="utf-8"></script>
 	</head>
@@ -27,7 +27,6 @@
 		</pre>
 	</body>
 	<script type="text/javascript">
-		
 		window.divLog = function(obj) {
 			var div = document.getElementById("logDiv");
 			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
@@ -41,13 +40,19 @@
 			divLog(errinfo);
 		}
 		divLog("2...");
-		xsloader.asyncCall(function(last,id){
-			divLog("asyncCall-----1:"+id);
-		}).next(function(last,id){
-			divLog("asyncCall-----2:"+id);
-		}).next(function(last,id){
-			divLog("asyncCall-----3:"+id);
+		xsloader.asyncCall(function(last, id) {
+			divLog("asyncCall-----1:" + id);
+		}).next(function(last, id) {
+			divLog("asyncCall-----2:" + id);
+		}).next(function(last, id) {
+			divLog("asyncCall-----3:" + id);
 		});
+	</script>
+
+	<script>
+//		define('main',[], function() {
+//			divLog("main invoked======================================");
+//		});
 	</script>
 
 </html>

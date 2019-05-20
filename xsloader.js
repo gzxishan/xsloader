@@ -2245,7 +2245,7 @@ var queryString2ParamsMap;
 					}
 				};
 				//需要延迟、且在timer循环中触发，否则在js里调用define会执行此部分
-				asyncCall(callback,true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
+				asyncCall(callback, true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
 				//return handle;
 				//setTimeout(callback, 20);
 			}
@@ -3064,13 +3064,16 @@ var queryString2ParamsMap;
 					ready();
 				})();
 			} else {
-				xsloader.asyncCall(null,true).next(function() {
+				xsloader.asyncCall(null, true).next(function() {
 					ready();
 				});
 			}
 			this.readyCall = ready;
 		}
 		xsloader.onReady = function(callback) {
+			if(document.readyState === "complete") {
+				isGlobalReady = true;
+			}
 			var br = new BindReady(callback);
 			if(!isGlobalReady) {
 				bindReadyQueue.push(br);
@@ -3094,7 +3097,7 @@ var queryString2ParamsMap;
 				}
 			} else {
 				addEventHandle = function(type, callback) {
-					xsloader.asyncCall(null,true).next(function() {
+					xsloader.asyncCall(null, true).next(function() {
 						callback();
 					});
 				}
@@ -5161,5 +5164,5 @@ var queryString2ParamsMap;
 			}
 		});
 	}
-	xsloader.onReady(startLoad);
+	xsloader.asyncCall(startLoad,true);
 })();
