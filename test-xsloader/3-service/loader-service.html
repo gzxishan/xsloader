@@ -41,6 +41,13 @@
 			divLog(errinfo);
 		}
 		divLog("2...");
+		xsloader.asyncCall(function(last,id){
+			divLog("asyncCall-----1:"+id);
+		}).next(function(last,id){
+			divLog("asyncCall-----2:"+id);
+		}).next(function(last,id){
+			divLog("asyncCall-----3:"+id);
+		});
 	</script>
 
 </html>

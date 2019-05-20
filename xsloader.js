@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-10 15:50
+ * latest:2019-05-20 14:20
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -609,13 +609,79 @@ var queryString2ParamsMap;
 		return url;
 	})();
 
-	var graphPath = new GraphPath(); //用于检测循环依赖
-	var asyncCall = function(callback) {
-		if(global.Promise && global.Promise.resolve) {
-			global.Promise.resolve().then(callback);
-		} else {
-			setTimeout(callback, 0);
+	function AsyncCall() {
+		var thiz = this;
+		var count = 0;
+		var ctrlCallbackMap = {};
+
+		function initCtrlCallback(callbackObj) {
+			var mineCount = count + "";
+			if(!ctrlCallbackMap[mineCount]) {
+				var ctrlCallback = function() {
+					count++;
+					var asyncCallQueue = ctrlCallbackMap[mineCount];
+					delete ctrlCallbackMap[mineCount];
+					while(asyncCallQueue.length) {
+						var callbackObj = asyncCallQueue.shift();
+						var lastReturn = undefined;
+						try {
+							if(callbackObj.callback) {
+								lastReturn = callbackObj.callback.call(callbackObj.handle, callbackObj.obj, mineCount);
+							}
+						} catch(e) {
+							console.error(e);
+						}
+						var handle;
+						while(callbackObj.nextCallback.length) {
+							var nextObj = callbackObj.nextCallback.shift();
+							if(!handle) {
+								handle = thiz.pushTask(nextObj.callback, lastReturn);
+							} else {
+								handle.next(nextObj.callback);
+							}
+						}
+					}
+				};
+				ctrlCallbackMap[mineCount] = [];
+				if(global.Promise && global.Promise.resolve) {
+					global.Promise.resolve().then(ctrlCallback);
+				} else {
+					setTimeout(ctrlCallback, 0);
+				}
+			}
+			var queue = ctrlCallbackMap[mineCount];
+			queue.push(callbackObj);
 		}
+
+		this.pushTask = function(callback, obj) {
+			var callbackObj;
+			var handle = {
+				next: function(nextCallback, lastReturn) {
+					callbackObj.nextCallback.push({
+						callback: nextCallback,
+						lastReturn: lastReturn
+					});
+					return this;
+				}
+			};
+			callbackObj = {
+				callback: callback,
+				obj: obj,
+				nextCallback: [],
+				handle: handle
+			};
+
+			initCtrlCallback(callbackObj);
+
+			return handle;
+		};
+	}
+
+	var graphPath = new GraphPath(); //用于检测循环依赖
+	var theAsyncCall = new AsyncCall();
+
+	var asyncCall = function(callback) {
+		return theAsyncCall.pushTask(callback);
 	};
 	///////////
 
@@ -2155,15 +2221,19 @@ var queryString2ParamsMap;
 
 			}
 
-			if(!data.isRequire && !data.asyncDefine && !data.isGlobal &&
+			if(!data.isRequire && !data.asyncDefine && !data.isGlobal && !data.parentDefine &&
 				xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
 				!theConfig.isInUrls(name)) {
-				setTimeout(function() {
+				var callback = function() {
 					var module = getModule(name);
 					if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
 						_onScriptComplete(name, cache, cache.src, false);
 					}
-				}, 20); //需要延迟，否则在js里调用define会执行此部分
+				};
+				//需要延迟、且在下下次循环中触发，否则在js里调用define会执行此部分
+				asyncCall().next(callback);
+				return handle;
+				//setTimeout(callback, 20);
 			}
 
 			if(data.isRequire || data.asyncDefine) {
@@ -2796,7 +2866,7 @@ var queryString2ParamsMap;
 	xsloader.hasDefine = function(name) {
 		var has = false;
 		var module = getModule(name);
-		if(!module) {
+		if(!module || module.state == "init") {
 			if(globalDefineQueue) {
 				for(var i = 0; i < globalDefineQueue.length; i++) {
 					var cache = globalDefineQueue[i];
@@ -4974,5 +5044,27 @@ var queryString2ParamsMap;
 			}
 		});
 	}
-	startLoad();
+
+	(function() {
+		var addEventHandle;
+		if(window.addEventListener) {
+			addEventHandle = function(type, callback) {
+				window.addEventListener(type, callback, false);
+			};
+		} else if(window.attachEvent) {
+			addEventHandle = function(type, callback) {
+				window.attachEvent("on" + type, callback);
+			}
+		} else {
+			addEventHandle = function(type, callback) {
+				xsloader.asyncCall().next(function() {
+					callback();
+				});
+			}
+		}
+		addEventHandle("load", function() {
+			startLoad();
+		});
+	})();
+	
 })();
