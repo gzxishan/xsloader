@@ -142,6 +142,7 @@
     xsloader.appendHeadDom(dom):往head里添加dom，先调用的在前面（会从xsloader.js后面开始添加）。
     xsloader.isDOM(mayDom):判断mayDom是否为dom对象。
     xsloader.queryParam:function(name, otherValue, optionUrl)
+    xsloader.onReady(callback):
   2）startsWith()
     endsWith()
     xsParseJson(str,option):注意key需要用引号包裹

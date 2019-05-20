@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-20 14:20
+ * latest:2019-05-20 18:20
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -5046,25 +5046,61 @@ var queryString2ParamsMap;
 	}
 
 	(function() {
-		var addEventHandle;
-		if(window.addEventListener) {
-			addEventHandle = function(type, callback) {
-				window.addEventListener(type, callback, false);
-			};
-		} else if(window.attachEvent) {
-			addEventHandle = function(type, callback) {
-				window.attachEvent("on" + type, callback);
+
+		function BindReady(callback) {
+			var isReady = false;
+
+			function ready() {
+				if(isReady) return;
+				isReady = true;
+				callback();
 			}
-		} else {
-			addEventHandle = function(type, callback) {
+			// Mozilla, Opera and webkit nightlies currently support this event
+			if(document.addEventListener) {
+				document.addEventListener("DOMContentLoaded", function() {
+					document.removeEventListener("DOMContentLoaded", arguments.callee, false);
+					ready();
+				}, false);
+
+			} else if(document.attachEvent) {
+				// ensure firing before onload,
+				// maybe late but safe also for iframes
+				document.attachEvent("onreadystatechange", function() {
+					if(document.readyState === "complete") {
+						document.detachEvent("onreadystatechange", arguments.callee);
+						ready();
+					}
+				});
+				// If IE and not an iframe
+				// continually check to see if the document is ready
+				if(document.documentElement.doScroll && typeof window.frameElement === "undefined")(function() {
+					if(isReady) return;
+					try {
+						// If IE is used, use the trick by Diego Perini
+						// http://javascript.nwbox.com/IEContentLoaded/
+						document.documentElement.doScroll("left");
+					} catch(error) {
+						setTimeout(arguments.callee, 0);
+						return;
+					}
+					// and execute any waiting functions
+					ready();
+				})();
+			} else {
 				xsloader.asyncCall().next(function() {
-					callback();
+					ready();
 				});
 			}
+
 		}
-		addEventHandle("load", function() {
+		
+		xsloader.onReady=function(callback){
+			new BindReady(callback);
+		};
+
+		new BindReady(function() {
 			startLoad();
 		});
 	})();
-	
+
 })();
