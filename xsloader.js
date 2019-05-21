@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-20 18:20
+ * latest:2019-05-21 10:20
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -2235,21 +2235,6 @@ var queryString2ParamsMap;
 
 			}
 
-			if(!data.isRequire && !data.asyncDefine && !data.isGlobal && !data.parentDefine &&
-				xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
-				!theConfig.isInUrls(name)) {
-				var callback = function() {
-					var module = getModule(name);
-					if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
-						_onScriptComplete(name, cache, cache.src, false);
-					}
-				};
-				//需要延迟、且在timer循环中触发，否则在js里调用define会执行此部分
-				asyncCall(callback, true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
-				//return handle;
-				//setTimeout(callback, 20);
-			}
-
 			if(data.isRequire || data.asyncDefine) {
 				isAsync = true;
 				asyncCall(function() {
@@ -2259,7 +2244,23 @@ var queryString2ParamsMap;
 				_onScriptComplete(name, cache, cache.src);
 			} else {
 				isAsync = true;
-				context.defQueue.push(cache);
+				if(!data.isRequire && !data.asyncDefine && !data.isGlobal && !data.parentDefine &&
+					xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
+					!theConfig.isInUrls(name)) {
+					var callback = function() {
+						var module = getModule(name);
+						if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
+							_onScriptComplete(name, cache, cache.src, false);
+						}
+					};
+					//需要延迟、且在timer循环中触发，否则在js里调用define会执行此部分
+					asyncCall(callback, true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
+					//return handle;
+					//setTimeout(callback, 20);
+				}
+				if(cache.src != thePageUrl) {
+					context.defQueue.push(cache);//可能在script的load中触发
+				}
 			}
 
 		} else {
@@ -5164,5 +5165,5 @@ var queryString2ParamsMap;
 			}
 		});
 	}
-	xsloader.asyncCall(startLoad,true);
+	xsloader.asyncCall(startLoad, true);
 })();
