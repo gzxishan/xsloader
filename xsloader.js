@@ -4958,7 +4958,7 @@ var queryString2ParamsMap;
 	}
 
 	function getMainPath(config) {
-		var mainPath = config.main.getPath.call(config,dataMain);
+		var mainPath = config.main.getPath.call(config, dataMain);
 		var path = location.pathname;
 
 		var index = path.lastIndexOf("/");
@@ -5144,21 +5144,22 @@ var queryString2ParamsMap;
 			});
 		} else if(!xsloader.hasDefine(mainName)) {
 			loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
-			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
-				if(xsloader.isFunction(conf.main.before)) {
-					conf.main.before.call(conf, mainName);
-				}
-				var rt = originCallback.apply(originThis, originArgs);
-
-				if(xsloader.isFunction(conf.main.after)) {
-					conf.main.after.call(conf, mainName);
-				}
-				return rt;
-			};
 			xsloader(loader);
 		} else {
 			xsloader(loader);
 		}
+
+		loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
+			if(xsloader.isFunction(conf.main.before)) {
+				conf.main.before.call(conf, mainName);
+			}
+			var rt = originCallback.apply(originThis, originArgs);
+
+			if(xsloader.isFunction(conf.main.after)) {
+				conf.main.after.call(conf, mainName);
+			}
+			return rt;
+		};
 
 		xsloader.require([mainName], function(main) {}).then({
 			onError: function(err, invoker) {
