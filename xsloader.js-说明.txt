@@ -143,6 +143,7 @@
     xsloader.isDOM(mayDom):判断mayDom是否为dom对象。
     xsloader.queryParam:function(name, otherValue, optionUrl)
     xsloader.onReady(callback):
+    xsloader.getUrl(relativeUrl,appendArgs,optionalAbsUrl):获取相对地址，相对于当前页面
   2）startsWith()
     endsWith()
     xsParseJson(str,option):注意key需要用引号包裹

@@ -1560,6 +1560,31 @@ var queryString2ParamsMap;
 
 	//relyCallback(depModuleThis)
 	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs) {
+
+		if(!thatInvoker) {
+			var newObj = {
+				module: {
+					name: ""
+				},
+				thiz: {
+					getAbsoluteUrl: function() {
+						return thePageUrl;
+					},
+					absUrl: function() {
+						return thePageUrl;
+					},
+					getName: function() {
+						return "__root__";
+					},
+					invoker: function() {
+						return this;
+					}
+				}
+			};
+			_buildInvoker(newObj);
+			thatInvoker = newObj.thiz;
+		}
+
 		var depModule = {
 			relyCallback: relyCallback,
 			_invoker: thatInvoker,
@@ -2878,6 +2903,28 @@ var queryString2ParamsMap;
 		this.err = _err;
 	};
 
+	xsloader.getUrl = function(relativeUrl, appendArgs, optionalAbsUrl) {
+		if(optionalAbsUrl && !_dealAbsolute(optionalAbsUrl).absolute) {
+			throwError(-1, "expected absolute url:" + optionalAbsUrl)
+		}
+		if(appendArgs === undefined) {
+			appendArgs = true;
+		}
+		var url;
+		if(relativeUrl === undefined) {
+			url = thePageUrl;
+		} else if(_startsWith(relativeUrl, ".") || _dealAbsolute(relativeUrl).absolute) {
+			url = _getPathWithRelative(optionalAbsUrl || thePageUrl, relativeUrl);
+		} else {
+			url = theConfig.baseUrl + relativeUrl;
+		}
+		if(appendArgs) {
+			return theConfig.dealUrl({}, url);
+		} else {
+			return url;
+		}
+	};
+
 	xsloader.hasDefine = function(name) {
 		var has = false;
 		var module = getModule(name);
@@ -3245,1074 +3292,1113 @@ var queryString2ParamsMap;
 })();
 
 (function() { //TODO STRONG css插件
-	/*
-	 * Require-CSS RequireJS css! loader plugin
-	 * 0.1.8
-	 * Guy Bedford 2014
-	 * MIT
-	 */
-	xsloader.define("css", function() {
-		if(typeof window == 'undefined')
-			return {
-				load: function(n, r, load) {
-					load()
-				}
-			};
-		var engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
-		var useImportLoad = false;
-		var useOnload = true;
-		if(engine[1] || engine[7])
-			useImportLoad = parseInt(engine[1]) < 6 || parseInt(engine[7]) <= 9;
-		else if(engine[2] || engine[8] || 'WebkitAppearance' in document.documentElement.style)
-			useOnload = false;
-		else if(engine[4])
-			useImportLoad = parseInt(engine[4]) < 18;
-		var cssAPI = {};
-		var curStyle, curSheet;
-		var createStyle = function() {
-			curStyle = document.createElement('style');
-			xsloader.appendHeadDom(curStyle);
-			curSheet = curStyle.styleSheet || curStyle.sheet;
-		}
-		var ieCnt = 0;
-		var ieLoads = [];
-		var ieCurCallback;
-		var createIeLoad = function(url) {
-			curSheet.addImport(url);
-			curStyle.onload = function() {
-				processIeLoad()
-			};
-
-			ieCnt++;
-			if(ieCnt == 31) {
-				createStyle();
-				ieCnt = 0;
-			}
-		}
-		var processIeLoad = function() {
-			ieCurCallback();
-			var nextLoad = ieLoads.shift();
-			if(!nextLoad) {
-				ieCurCallback = null;
-				return;
-			}
-			ieCurCallback = nextLoad[1];
-			createIeLoad(nextLoad[0]);
-		}
-		var importLoad = function(url, callback) {
-			if(!curSheet || !curSheet.addImport)
-				createStyle();
-
-			if(curSheet && curSheet.addImport) {
-				if(ieCurCallback) {
-					ieLoads.push([url, callback]);
-				} else {
-					createIeLoad(url);
-					ieCurCallback = callback;
-				}
-			} else {
-				curStyle.textContent = '@import "' + url + '";';
-				var loadInterval = setInterval(function() {
-					try {
-						curStyle.sheet.cssRules;
-						clearInterval(loadInterval);
-						callback();
-					} catch(e) {}
-				}, 10);
-			}
-		}
-		var linkLoad = function(url, callback) {
-			var link = document.createElement('link');
-			link.type = 'text/css';
-			link.rel = 'stylesheet';
-			if(useOnload)
-				link.onload = function() {
-					link.onload = function() {};
-					setTimeout(callback, 7);
-				}
-			else
-				var loadInterval = setInterval(function() {
-					for(var i = 0; i < document.styleSheets.length; i++) {
-						var sheet = document.styleSheets[i];
-						if(sheet.href == link.href) {
-							clearInterval(loadInterval);
-							return callback();
+		/*
+		 * Require-CSS RequireJS css! loader plugin
+		 * 0.1.8
+		 * Guy Bedford 2014
+		 * MIT
+		 */
+		xsloader.define("css", function() {
+				if(typeof window == 'undefined')
+					return {
+						load: function(n, r, load) {
+							load()
 						}
-					}
-				}, 10);
-			link.href = url;
-			xsloader.appendHeadDom(link);
-		}
-		cssAPI.pluginMain = function(cssId, onload, onerror, config) {
-			if(cssId.indexOf(".css") != cssId.length - 4) {
-				cssId += ".css";
-			}
-			(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
-		};
-		cssAPI.getCacheKey = function(cssId) {
-			if(cssId.indexOf(".css") != cssId.length - 4) {
-				cssId += ".css";
-			}
-			var invoker = this.invoker();
-			return invoker ? invoker.getUrl(cssId, true) : cssId;
-		};
-		return cssAPI;
-	});
-})();
-
-(function() { //TODO STRONG text插件
-	xsloader.define("text", ["xshttp"], {
-		isSingle: true,
-		pluginMain: function(name, onload, onerror, config, http) {
-			var url = this.invoker().getUrl(name, true);
-			http().url(url)
-				.handleAs("text")
-				.ok(function(text) {
-					onload(text);
-				})
-				.fail(function(err) {
-					onerror(err);
-				})
-				.done();
-		}
-	});
-
-})();
-
-/**
- * 格式：window!varNameInWindow=>>modulePath
- */
-(function() { //TODO STRONG window插件,用于添加模块到window对象中
-	xsloader.define("window", {
-		isSingle: true,
-		pluginMain: function(arg, onload, onerror, config, http) {
-			var index = arg.indexOf("=>>");
-			if(index == -1) {
-				onerror("expected:=>>");
-				return;
-			}
-			var moduleName = arg.substring(0, index);
-			var dep = arg.substring(index + 3);
-			this.invoker().require([dep], function(mod, depModuleArgs) {
-				window[moduleName] = mod;
-				onload(mod);
-			});
-		}
-	});
-
-})();
-
-/**
- * 格式:withdeps!modulePath=>>[deps]
- */
-(function() { //TODO STRONG withdeps插件,用于设置依赖
-	xsloader.define("withdeps", {
-		pluginMain: function(arg, onload, onerror, config, http) {
-			var index = arg.indexOf("=>>");
-			if(index == -1) {
-				onerror("expected:=>>");
-				return;
-			}
-			var moduleName = arg.substring(0, index);
-			var depsStr = arg.substring(index + 3);
-			var deps;
-			try {
-				deps = xsParseJson(depsStr);
-				if(!xsloader.isArray(deps)) {
-					onerror("deps is not Array:" + depStr);
-					return;
+					};
+				var engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
+				var useImportLoad = false;
+				var useOnload = true;
+				if(engine[1] || engine[7])
+					useImportLoad = parseInt(engine[1]) < 6 || parseInt(engine[7]) <= 9;
+				else if(engine[2] || engine[8] || 'WebkitAppearance' in document.documentElement.style)
+					useOnload = false;
+				else if(engine[4])
+					useImportLoad = parseInt(engine[4]) < 18;
+				var cssAPI = {};
+				var curStyle, curSheet;
+				var createStyle = function() {
+					curStyle = document.createElement('style');
+					xsloader.appendHeadDom(curStyle);
+					curSheet = curStyle.styleSheet || curStyle.sheet;
 				}
-			} catch(e) {
-				onerror("deps error:" + depStr);
-				return;
-			}
-			this.invoker().require([
-				[false].concat(deps), moduleName
-			], function(_deps, mod, depModuleArgs) {
-				onload(mod);
-			}).then({
-				orderDep: true
-			});
-		}
-	});
+				var ieCnt = 0;
+				var ieLoads = [];
+				var ieCurCallback;
+				var createIeLoad = function(url) {
+					curSheet.addImport(url);
+					curStyle.onload = function() {
+						processIeLoad()
+					};
 
-})();
-
-(function() {
-	/**
-	 * 加载json对象
-	 */
-	xsloader.define("json", ["xshttp"], {
-		isSingle: true,
-		pluginMain: function(name, onload, onerror, config, http) {
-			var url = this.invoker().getUrl(name, true);
-			http().url(url)
-				.handleAs("json")
-				.ok(function(json) {
-					onload(json);
-				})
-				.fail(function(err) {
-					onerror(err);
-				})
-				.done();
-		}
-	});
-})();
-
-(function() { //TODO STRONG xshttp
-	var progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
-	/**
-	 * option._beforeOpenHook
-	 * option._onOkResponseHook
-	 * option._onFailResponseHook
-	 * 
-	 * @param {Object} option
-	 */
-	function httpRequest(option) {
-		if(!option) {
-			option = {};
-		}
-
-		function prop(obj, varName, defaultVal) {
-			if(obj[varName] === undefined) {
-				return defaultVal;
-			} else {
-				return obj[varName];
-			}
-		}
-
-		function putProp(obj, varName, toObj) {
-			if(obj[varName]) {
-				for(var x in obj[varName]) {
-					var value = obj[varName][x];
-					if(value === null || value === undefined) {
-						continue;
-					}
-					toObj[x] = value;
-				}
-			}
-		}
-		var _url = prop(option, "url", ""),
-			_method = prop(option, "method", "GET"),
-			_params = {},
-			_headers = {
-				"X-Requested-With": "XMLHttpRequest"
-			},
-			_async = prop(option, "async", true),
-			_multiPart = prop(option, "multiPart", false),
-			_handleType = prop(option, "handleType", "json");
-		_timeout = option.timeout;
-		putProp(option, "params", _params);
-		putProp(option, "headers", _headers);
-
-		var okCallback = option.ok;
-		var failCallback = option.fail;
-		var uploadStartCallback = option.uploadStart;
-		var uploadProgressCallback = option.uploadProgress;
-		var uploadOkCallback = option.uploadOk;
-		var uploadErrorCallback = option.uploadError;
-		var uploadEndCallback = option.uploadEnd;
-
-		var _beforeOpenHook = option._beforeOpenHook || httpRequest._beforeOpenHook;
-		var _onOkResponseHook = option._onOkResponseHook || httpRequest._onOkResponseHook;
-		var _onFailResponseHook = option._onFailResponseHook || httpRequest._onFailResponseHook;
-
-		function createXhr() {
-			var xhr, i, progId;
-			if(typeof XMLHttpRequest !== "undefined") {
-				return new XMLHttpRequest();
-			} else if(typeof ActiveXObject !== "undefined") {
-				for(i = 0; i < 3; i += 1) {
-					progId = progIds[i];
-					try {
-						xhr = new ActiveXObject(progId);
-					} catch(e) {}
-
-					if(xhr) {
-						progIds = [progId];
-						break;
+					ieCnt++;
+					if(ieCnt == 31) {
+						createStyle();
+						ieCnt = 0;
 					}
 				}
-			}
-			return xhr;
-		};
-
-		function conn() {
-			_conn(createXhr());
-		}
-
-		function _conn(xhr) {
-			var option = {
-				url: _url,
-				method: _method.toUpperCase(),
-				params: _params,
-				headers: _headers,
-				handleType: _handleType,
-				async: _async,
-				multiPart: _multiPart,
-				timeout: _timeout
-			};
-			_beforeOpenHook(option, function() {
-				_connAfterOpenHook(option, xhr);
-			}, xhr);
-		};
-
-		function _doOnFailResponseHook(option, xhr, err, extraErr) {
-			_onFailResponseHook(option, function(result) {
-				if(result !== false && result !== undefined) {
-					if(typeof okCallback == "function") {
-						okCallback(result, xhr);
+				var processIeLoad = function() {
+					ieCurCallback();
+					var nextLoad = ieLoads.shift();
+					if(!nextLoad) {
+						ieCurCallback = null;
+						return;
 					}
-					return;
-				} else if(typeof failCallback == "function") {
-					failCallback(err);
-				} else {
-					console.error(err);
+					ieCurCallback = nextLoad[1];
+					createIeLoad(nextLoad[0]);
 				}
-			}, xhr, extraErr);
-		};
+				var importLoad = function(url, callback) {
+					callback = callback || function() {};
+					if(!curSheet || !curSheet.addImport)
+						createStyle();
 
-		function _connAfterOpenHook(option, xhr) {
-			var body;
-			if(option.multiPart) {
-				var formData = new FormData();
-				for(var x in option.params) {
-					var value = option.params[x];
-					if(xsloader.isArray(value)) {
-						formData.append(x, xsJson2String(value));
+					if(curSheet && curSheet.addImport) {
+						if(ieCurCallback) {
+							ieLoads.push([url, callback]);
+						} else {
+							createIeLoad(url);
+							ieCurCallback = callback;
+						}
 					} else {
-						formData.append(x, value);
-					}
-
-				}
-				body = formData;
-			} else {
-				body = "";
-				for(var x in option.params) {
-					var value = option.params[x];
-					if(value === null || value === undefined) {
-						continue;
-					}
-					if(typeof value == "object") {
-						value = xsJson2String(value);
-					}
-					body += "&" + encodeURIComponent(x) + "=" + encodeURIComponent(value);
-				}
-				if(!(option.method == "POST" || option.method == "PUT")) {
-					if(option.url.lastIndexOf("?") < 0 && body.length > 0) {
-						option.url += "?";
-					}
-					option.url += body;
-					option.url = option.url.replace("?&", "?");
-					body = null;
-				}
-			}
-
-			xhr.open(option.method, option.url, option.async);
-			if((option.method == "POST" || option.method == "PUT") && !option.multiPart && !option.headers.hasOwnProperty("Content-Type")) {
-
-				xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
-			}
-			for(var header in option.headers) {
-				xhr.setRequestHeader(header, option.headers[header]);
-			}
-
-			if(typeof uploadStartCallback == "function") {
-				xhr.upload.onloadstart = uploadStartCallback;
-			}
-
-			if(typeof uploadProgressCallback == "function") {
-				xhr.upload.onprogress = uploadProgressCallback;
-			}
-
-			if(typeof uploadOkCallback == "function") {
-				xhr.upload.onload = uploadOkCallback;
-			}
-
-			if(typeof uploadErrorCallback == "function") {
-				xhr.upload.onerror = uploadErrorCallback;
-			}
-
-			if(typeof uploadEndCallback == "function") {
-				xhr.upload.onloadend = uploadEndCallback;
-			}
-
-			var timeoutTimer;
-			var isTimeout = false;
-			if(option.timeout) {
-				timeoutTimer = setTimeout(function() {
-					isTimeout = true;
-					xhr.abort();
-					clearTimeout(timeoutTimer);
-				}, option.timeout);
-			}
-
-			xhr.onreadystatechange = function(evt) {
-				var status, err;
-				if(xhr.readyState === 4) {
-					status = xhr.status || 0;
-					if(status > 399 && status < 600 || !status) {
-						var err = new Error(option.url + ' HTTP status: ' + status);
-						err.xhr = xhr;
-						_doOnFailResponseHook(option, xhr, err);
-					} else {
-						var result;
-						if(option.handleType === "json") {
+						curStyle.textContent = '@import "' + url + '";';
+						var loadInterval = setInterval(function() {
 							try {
-								result = xsParseJson(xhr.responseText);
-							} catch(e) {
-								_doOnFailResponseHook(option, xhr, new Error("parse-json-error:" + e), "parse-json-error");
-								return;
-							}
-						} else if(option.handleType === "text") {
-							result = xhr.responseText;
-						}
-						_onOkResponseHook(result, option, function(result) {
-							if(typeof okCallback == "function") {
-								okCallback(result, xhr);
-							}
-						}, xhr);
-					}
-
-				} else {
-					if(timeoutTimer && isTimeout) {
-						var err = new Error(option.url + ' timeout status: ' + status);
-						err.xhr = xhr;
-						_doOnFailResponseHook(option, xhr, err);
+								curStyle.sheet.cssRules;
+								clearInterval(loadInterval);
+								callback();
+							} catch(e) {}
+						}, 10);
 					}
 				}
-			};
-			xhr.send(body);
+				var linkLoad = function(url, callback) {
+					callback = callback || function() {};
+					var link = document.createElement('link');
+					link.type = 'text/css';
+					link.rel = 'stylesheet';
+					if(useOnload)
+						link.onload = function() {
+							link.onload = function() {};
+							setTimeout(callback, 7);
+						}
+					else
+						var loadInterval = setInterval(function() {
+							for(var i = 0; i < document.styleSheets.length; i++) {
+								var sheet = document.styleSheets[i];
+								if(sheet.href == link.href) {
+									clearInterval(loadInterval);
+									return callback();
+								}
+							}
+						}, 10);
+					link.href = url;
+					xsloader.appendHeadDom(link);
+				}
+				cssAPI.pluginMain = function(cssId, onload, onerror, config) {
+					if(cssId.indexOf(".css") != cssId.length - 4) {
+						cssId += ".css";
+					}
+					(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
+				};
+				cssAPI.getCacheKey = function(cssId) {
+					if(cssId.indexOf(".css") != cssId.length - 4) {
+						cssId += ".css";
+					}
+					var invoker = this.invoker();
+					return invoker ? invoker.getUrl(cssId, true) : cssId;
+				};
+				cssAPI.loadCss = function(cssPath, callback) {
+					(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(cssPath), callback);
+				}
 
-		};
+				cssAPI.loadCsses = function() {
+					var args = arguments;
+					for(var i = 0; i < args.length; i++) {
+						(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(args[i]), null);
+						}
+					}
+					return cssAPI;
+				});
+		})();
 
-		var requestObj = {
-			multiPart: function(multiPart) {
-				_multiPart = multiPart;
-				return this;
-			},
-			uploadStart: function(uploadStart) {
-				uploadStartCallback = uploadStart;
-				return this;
-			},
-			uploadProgress: function(uploadProgress) {
-				uploadProgressCallback = uploadProgress;
-				return this;
-			},
-			uploadOk: function(callback) {
-				uploadOkCallback = callback;
-				return this;
-			},
-			uploadError: function(callback) {
-				uploadErrorCallback = callback;
-				return this;
-			},
-			uploadEnd: function(uploadEnd) {
-				uploadEndCallback = uploadEnd;
-				return this;
-			},
-			url: function(urlStr) {
-				_url = urlStr;
-				return this;
-			},
-			method: function(methodStr) {
-				_method = methodStr;
-				return this;
-			},
-			timeout: function(timeout) {
-				_timeout = timeout;
-				return this;
-			},
-			async: function(isAsync) {
-				_async = isAsync;
-				return this;
-			},
-			params: function(paramsObj) {
-				if(paramsObj) {
-					for(var x in paramsObj) {
-						var value = paramsObj[x];
+	(function() { //TODO STRONG text插件
+		xsloader.define("text", ["xshttp"], {
+			isSingle: true,
+			pluginMain: function(name, onload, onerror, config, http) {
+				var url = this.invoker().getUrl(name, true);
+				http().url(url)
+					.handleAs("text")
+					.ok(function(text) {
+						onload(text);
+					})
+					.fail(function(err) {
+						onerror(err);
+					})
+					.done();
+			}
+		});
+
+	})();
+
+	/**
+	 * 格式：window!varNameInWindow=>>modulePath
+	 */
+	(function() { //TODO STRONG window插件,用于添加模块到window对象中
+		xsloader.define("window", {
+			isSingle: true,
+			pluginMain: function(arg, onload, onerror, config, http) {
+				var index = arg.indexOf("=>>");
+				if(index == -1) {
+					onerror("expected:=>>");
+					return;
+				}
+				var moduleName = arg.substring(0, index);
+				var dep = arg.substring(index + 3);
+				this.invoker().require([dep], function(mod, depModuleArgs) {
+					window[moduleName] = mod;
+					onload(mod);
+				});
+			}
+		});
+
+	})();
+
+	/**
+	 * 格式:withdeps!modulePath=>>[deps]
+	 */
+	(function() { //TODO STRONG withdeps插件,用于设置依赖
+		xsloader.define("withdeps", {
+			pluginMain: function(arg, onload, onerror, config, http) {
+				var index = arg.indexOf("=>>");
+				if(index == -1) {
+					onerror("expected:=>>");
+					return;
+				}
+				var moduleName = arg.substring(0, index);
+				var depsStr = arg.substring(index + 3);
+				var deps;
+				try {
+					deps = xsParseJson(depsStr);
+					if(!xsloader.isArray(deps)) {
+						onerror("deps is not Array:" + depStr);
+						return;
+					}
+				} catch(e) {
+					onerror("deps error:" + depStr);
+					return;
+				}
+				this.invoker().require([
+					[false].concat(deps), moduleName
+				], function(_deps, mod, depModuleArgs) {
+					onload(mod);
+				}).then({
+					orderDep: true
+				});
+			}
+		});
+
+	})();
+
+	(function() {
+		/**
+		 * 加载json对象
+		 */
+		xsloader.define("json", ["xshttp"], {
+			isSingle: true,
+			pluginMain: function(name, onload, onerror, config, http) {
+				var url = this.invoker().getUrl(name, true);
+				http().url(url)
+					.handleAs("json")
+					.ok(function(json) {
+						onload(json);
+					})
+					.fail(function(err) {
+						onerror(err);
+					})
+					.done();
+			}
+		});
+	})();
+
+	(function() { //TODO STRONG xshttp
+		var progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
+		/**
+		 * option._beforeOpenHook
+		 * option._onOkResponseHook
+		 * option._onFailResponseHook
+		 * 
+		 * @param {Object} option
+		 */
+		function httpRequest(option) {
+			if(!option) {
+				option = {};
+			}
+
+			function prop(obj, varName, defaultVal) {
+				if(obj[varName] === undefined) {
+					return defaultVal;
+				} else {
+					return obj[varName];
+				}
+			}
+
+			function putProp(obj, varName, toObj) {
+				if(obj[varName]) {
+					for(var x in obj[varName]) {
+						var value = obj[varName][x];
 						if(value === null || value === undefined) {
 							continue;
 						}
-						_params[x] = value;
-					}
-				}
-				return this;
-			},
-			headers: function(headersObj) {
-				if(headersObj) {
-					for(var x in headersObj) {
-						_headers[x] = headersObj[x];
-					}
-				}
-				return this;
-			},
-			handleType: function(_handleType) {
-				return this.handleAs(_handleType);
-			},
-			handleAs: function(handleType) {
-				if(handleType !== "json" && handleType !== "text") {
-					throw "unknown handleType:" + handleType;
-				}
-				_handleType = handleType;
-				return this;
-			},
-			ok: function(callback) {
-				okCallback = callback;
-				return this;
-			},
-			fail: function(callback) {
-				failCallback = callback;
-				return this;
-			},
-			_beforeOpenHook: function(callback) {
-				_beforeOpenHook = callback;
-				return this;
-			},
-			_onOkResponseHook: function(callback) {
-				_onOkResponseHook = callback;
-				return this;
-			},
-			_onFailResponseHook: function(callback) {
-				_onFailResponseHook = callback;
-				return this;
-			},
-			done: function() {
-				try {
-					conn();
-				} catch(e) {
-					if(typeof failCallback == "function") {
-						failCallback(e);
-					} else {
-						console.error(e);
+						toObj[x] = value;
 					}
 				}
 			}
-		};
-		return requestObj;
-	};
-	/**
-	 */
-	httpRequest._beforeOpenHook = function(option, callback, xhr) {
-		callback();
-	};
+			var _url = prop(option, "url", ""),
+				_method = prop(option, "method", "GET"),
+				_params = {},
+				_headers = {
+					"X-Requested-With": "XMLHttpRequest"
+				},
+				_async = prop(option, "async", true),
+				_multiPart = prop(option, "multiPart", false),
+				_handleType = prop(option, "handleType", "json");
+			_timeout = option.timeout;
+			putProp(option, "params", _params);
+			putProp(option, "headers", _headers);
 
-	/**
-	 * function(result,option,xhr,callback),callback(result)的result为最终的结果
-	 */
-	httpRequest._onOkResponseHook = function(result, option, callback, xhr) {
-		callback(result);
-	};
-	/**
-	 * function(option,xhr,callback,extraErrorType),callback(result)的result为false则不会处理后面的,如果为非undefined则作为成功的结果。
-	 * extraErrorType=="parse-json-error"表示转换成json时出错
-	 */
-	httpRequest._onFailResponseHook = function(option, callback, xhr, extraErrorType) {
-		callback(undefined);
-	};
+			var okCallback = option.ok;
+			var failCallback = option.fail;
+			var uploadStartCallback = option.uploadStart;
+			var uploadProgressCallback = option.uploadProgress;
+			var uploadOkCallback = option.uploadOk;
+			var uploadErrorCallback = option.uploadError;
+			var uploadEndCallback = option.uploadEnd;
 
-	window._xshttp_request_ = httpRequest;
+			var _beforeOpenHook = option._beforeOpenHook || httpRequest._beforeOpenHook;
+			var _onOkResponseHook = option._onOkResponseHook || httpRequest._onOkResponseHook;
+			var _onFailResponseHook = option._onFailResponseHook || httpRequest._onFailResponseHook;
 
-	xsloader.define("xshttp", [], function() {
-		return httpRequest;
-	});
-})();
+			function createXhr() {
+				var xhr, i, progId;
+				if(typeof XMLHttpRequest !== "undefined") {
+					return new XMLHttpRequest();
+				} else if(typeof ActiveXObject !== "undefined") {
+					for(i = 0; i < 3; i += 1) {
+						progId = progIds[i];
+						try {
+							xhr = new ActiveXObject(progId);
+						} catch(e) {}
 
-(function() {
-	xsloader.define("xsrequest", ["xshttp"], function(http) {
-		/**
-		 * 参数列表:
-		 * callback:function(rs)
-		 * async:始终为true
-		 * 其他参数同xshttp
-		 * 不断返回then(function()).then,当返回false时取消调用后面的回调。
-		 * @param {Object} option
-		 */
-		var xsRequest = function(option) {
-			option = xsloader.extend({
-				params: undefined,
-				headers: undefined,
-				method: undefined,
-				url: undefined,
-				callback: undefined
-			}, option);
-			var isResponsed = false;
-			var callbacksQueue = [function(rs) {
-				return rs;
-			}];
-			if(option.callback) {
-				callbacksQueue.push(option.callback);
-			}
-			callbacksQueue.callback = function(rs) {
-				isResponsed = true;
-				for(var i = 0; i < this.length; i++) {
-					var callback = this[i];
-					rs = callback(rs);
-					if(rs === false) {
-						return;
-					}
-				}
-			};
-
-			option.ok = function(rs) {
-				callbacksQueue.callback(rs);
-			};
-			option.fail = function(err) {
-				callbacksQueue.callback({
-					code: -1,
-					desc: err
-				});
-			};
-			option.async = true;
-
-			function newHandle() {
-				var handle = {
-					then: function(callback) {
-						if(isResponsed) {
-							throw new Error("already responsed!");
+						if(xhr) {
+							progIds = [progId];
+							break;
 						}
-						callbacksQueue.push(callback);
-						return newHandle();
+					}
+				}
+				return xhr;
+			};
+
+			function conn() {
+				_conn(createXhr());
+			}
+
+			function _conn(xhr) {
+				var option = {
+					url: _url,
+					method: _method.toUpperCase(),
+					params: _params,
+					headers: _headers,
+					handleType: _handleType,
+					async: _async,
+					multiPart: _multiPart,
+					timeout: _timeout
+				};
+				_beforeOpenHook(option, function() {
+					_connAfterOpenHook(option, xhr);
+				}, xhr);
+			};
+
+			function _doOnFailResponseHook(option, xhr, err, extraErr) {
+				_onFailResponseHook(option, function(result) {
+					if(result !== false && result !== undefined) {
+						if(typeof okCallback == "function") {
+							okCallback(result, xhr);
+						}
+						return;
+					} else if(typeof failCallback == "function") {
+						failCallback(err);
+					} else {
+						console.error(err);
+					}
+				}, xhr, extraErr);
+			};
+
+			function _connAfterOpenHook(option, xhr) {
+				var body;
+				if(option.multiPart) {
+					var formData = new FormData();
+					for(var x in option.params) {
+						var value = option.params[x];
+						if(xsloader.isArray(value)) {
+							formData.append(x, xsJson2String(value));
+						} else {
+							formData.append(x, value);
+						}
+
+					}
+					body = formData;
+				} else {
+					body = "";
+					for(var x in option.params) {
+						var value = option.params[x];
+						if(value === null || value === undefined) {
+							continue;
+						}
+						if(typeof value == "object") {
+							value = xsJson2String(value);
+						}
+						body += "&" + encodeURIComponent(x) + "=" + encodeURIComponent(value);
+					}
+					if(!(option.method == "POST" || option.method == "PUT")) {
+						if(option.url.lastIndexOf("?") < 0 && body.length > 0) {
+							option.url += "?";
+						}
+						option.url += body;
+						option.url = option.url.replace("?&", "?");
+						body = null;
+					}
+				}
+
+				xhr.open(option.method, option.url, option.async);
+				if((option.method == "POST" || option.method == "PUT") && !option.multiPart && !option.headers.hasOwnProperty("Content-Type")) {
+
+					xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
+				}
+				for(var header in option.headers) {
+					xhr.setRequestHeader(header, option.headers[header]);
+				}
+
+				if(typeof uploadStartCallback == "function") {
+					xhr.upload.onloadstart = uploadStartCallback;
+				}
+
+				if(typeof uploadProgressCallback == "function") {
+					xhr.upload.onprogress = uploadProgressCallback;
+				}
+
+				if(typeof uploadOkCallback == "function") {
+					xhr.upload.onload = uploadOkCallback;
+				}
+
+				if(typeof uploadErrorCallback == "function") {
+					xhr.upload.onerror = uploadErrorCallback;
+				}
+
+				if(typeof uploadEndCallback == "function") {
+					xhr.upload.onloadend = uploadEndCallback;
+				}
+
+				var timeoutTimer;
+				var isTimeout = false;
+				if(option.timeout) {
+					timeoutTimer = setTimeout(function() {
+						isTimeout = true;
+						xhr.abort();
+						clearTimeout(timeoutTimer);
+					}, option.timeout);
+				}
+
+				xhr.onreadystatechange = function(evt) {
+					var status, err;
+					if(xhr.readyState === 4) {
+						status = xhr.status || 0;
+						if(status > 399 && status < 600 || !status) {
+							var err = new Error(option.url + ' HTTP status: ' + status);
+							err.xhr = xhr;
+							_doOnFailResponseHook(option, xhr, err);
+						} else {
+							var result;
+							if(option.handleType === "json") {
+								try {
+									result = xsParseJson(xhr.responseText);
+								} catch(e) {
+									_doOnFailResponseHook(option, xhr, new Error("parse-json-error:" + e), "parse-json-error");
+									return;
+								}
+							} else if(option.handleType === "text") {
+								result = xhr.responseText;
+							}
+							_onOkResponseHook(result, option, function(result) {
+								if(typeof okCallback == "function") {
+									okCallback(result, xhr);
+								}
+							}, xhr);
+						}
+
+					} else {
+						if(timeoutTimer && isTimeout) {
+							var err = new Error(option.url + ' timeout status: ' + status);
+							err.xhr = xhr;
+							_doOnFailResponseHook(option, xhr, err);
+						}
 					}
 				};
-				return handle;
-			}
-			http(option).done();
-			return newHandle();
+				xhr.send(body);
+
+			};
+
+			var requestObj = {
+				multiPart: function(multiPart) {
+					_multiPart = multiPart;
+					return this;
+				},
+				uploadStart: function(uploadStart) {
+					uploadStartCallback = uploadStart;
+					return this;
+				},
+				uploadProgress: function(uploadProgress) {
+					uploadProgressCallback = uploadProgress;
+					return this;
+				},
+				uploadOk: function(callback) {
+					uploadOkCallback = callback;
+					return this;
+				},
+				uploadError: function(callback) {
+					uploadErrorCallback = callback;
+					return this;
+				},
+				uploadEnd: function(uploadEnd) {
+					uploadEndCallback = uploadEnd;
+					return this;
+				},
+				url: function(urlStr) {
+					_url = urlStr;
+					return this;
+				},
+				method: function(methodStr) {
+					_method = methodStr;
+					return this;
+				},
+				timeout: function(timeout) {
+					_timeout = timeout;
+					return this;
+				},
+				async: function(isAsync) {
+					_async = isAsync;
+					return this;
+				},
+				params: function(paramsObj) {
+					if(paramsObj) {
+						for(var x in paramsObj) {
+							var value = paramsObj[x];
+							if(value === null || value === undefined) {
+								continue;
+							}
+							_params[x] = value;
+						}
+					}
+					return this;
+				},
+				headers: function(headersObj) {
+					if(headersObj) {
+						for(var x in headersObj) {
+							_headers[x] = headersObj[x];
+						}
+					}
+					return this;
+				},
+				handleType: function(_handleType) {
+					return this.handleAs(_handleType);
+				},
+				handleAs: function(handleType) {
+					if(handleType !== "json" && handleType !== "text") {
+						throw "unknown handleType:" + handleType;
+					}
+					_handleType = handleType;
+					return this;
+				},
+				ok: function(callback) {
+					okCallback = callback;
+					return this;
+				},
+				fail: function(callback) {
+					failCallback = callback;
+					return this;
+				},
+				_beforeOpenHook: function(callback) {
+					_beforeOpenHook = callback;
+					return this;
+				},
+				_onOkResponseHook: function(callback) {
+					_onOkResponseHook = callback;
+					return this;
+				},
+				_onFailResponseHook: function(callback) {
+					_onFailResponseHook = callback;
+					return this;
+				},
+				done: function() {
+					try {
+						conn();
+					} catch(e) {
+						if(typeof failCallback == "function") {
+							failCallback(e);
+						} else {
+							console.error(e);
+						}
+					}
+				}
+			};
+			return requestObj;
+		};
+		/**
+		 */
+		httpRequest._beforeOpenHook = function(option, callback, xhr) {
+			callback();
 		};
 
-		return xsRequest;
-	});
-})();
+		/**
+		 * function(result,option,xhr,callback),callback(result)的result为最终的结果
+		 */
+		httpRequest._onOkResponseHook = function(result, option, callback, xhr) {
+			callback(result);
+		};
+		/**
+		 * function(option,xhr,callback,extraErrorType),callback(result)的result为false则不会处理后面的,如果为非undefined则作为成功的结果。
+		 * extraErrorType=="parse-json-error"表示转换成json时出错
+		 */
+		httpRequest._onFailResponseHook = function(option, callback, xhr, extraErrorType) {
+			callback(undefined);
+		};
 
-(function() { //TODO STRONG JSON对ie等低版本的兼容
-	//https://github.com/douglascrockford/JSON-js
-	//  json2.js
-	//  2017-06-12
-	//  Public Domain.
-	//  NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+		window._xshttp_request_ = httpRequest;
 
-	//  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
-	//  NOT CONTROL.
-	var JSON = {};
-	window.xsJSON = JSON;
-	window.JSON = window.JSON || JSON;
+		xsloader.define("xshttp", [], function() {
+			return httpRequest;
+		});
+	})();
 
 	(function() {
-		"use strict";
+		xsloader.define("xsrequest", ["xshttp"], function(http) {
+			/**
+			 * 参数列表:
+			 * callback:function(rs)
+			 * async:始终为true
+			 * 其他参数同xshttp
+			 * 不断返回then(function()).then,当返回false时取消调用后面的回调。
+			 * @param {Object} option
+			 */
+			var xsRequest = function(option) {
+				option = xsloader.extend({
+					params: undefined,
+					headers: undefined,
+					method: undefined,
+					url: undefined,
+					callback: undefined
+				}, option);
+				var isResponsed = false;
+				var callbacksQueue = [function(rs) {
+					return rs;
+				}];
+				if(option.callback) {
+					callbacksQueue.push(option.callback);
+				}
+				callbacksQueue.callback = function(rs) {
+					isResponsed = true;
+					for(var i = 0; i < this.length; i++) {
+						var callback = this[i];
+						rs = callback(rs);
+						if(rs === false) {
+							return;
+						}
+					}
+				};
 
-		var rx_one = /^[\],:{}\s]*$/;
-		var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
-		var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
-		var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
-		var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-		var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+				option.ok = function(rs) {
+					callbacksQueue.callback(rs);
+				};
+				option.fail = function(err) {
+					callbacksQueue.callback({
+						code: -1,
+						desc: err
+					});
+				};
+				option.async = true;
 
-		function f(n) {
-			// Format integers to have at least two digits.
-			return(n < 10) ?
-				"0" + n :
-				n;
-		}
-
-		function this_value() {
-			return this.valueOf();
-		}
-
-		if(typeof Date.prototype.toJSON !== "function") {
-
-			Date.prototype.toJSON = function() {
-				return isFinite(this.valueOf()) ?
-					(
-						this.getUTCFullYear() +
-						"-" +
-						f(this.getUTCMonth() + 1) +
-						"-" +
-						f(this.getUTCDate()) +
-						"T" +
-						f(this.getUTCHours()) +
-						":" +
-						f(this.getUTCMinutes()) +
-						":" +
-						f(this.getUTCSeconds()) +
-						"Z"
-					) :
-					null;
+				function newHandle() {
+					var handle = {
+						then: function(callback) {
+							if(isResponsed) {
+								throw new Error("already responsed!");
+							}
+							callbacksQueue.push(callback);
+							return newHandle();
+						}
+					};
+					return handle;
+				}
+				http(option).done();
+				return newHandle();
 			};
 
-			Boolean.prototype.toJSON = this_value;
-			Number.prototype.toJSON = this_value;
-			String.prototype.toJSON = this_value;
-		}
+			return xsRequest;
+		});
+	})();
 
-		var gap;
-		var indent;
-		var meta;
-		var rep;
+	(function() { //TODO STRONG JSON对ie等低版本的兼容
+		//https://github.com/douglascrockford/JSON-js
+		//  json2.js
+		//  2017-06-12
+		//  Public Domain.
+		//  NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
 
-		function quote(string) {
+		//  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
+		//  NOT CONTROL.
+		var JSON = {};
+		window.xsJSON = JSON;
+		window.JSON = window.JSON || JSON;
 
-			// If the string contains no control characters, no quote characters, and no
-			// backslash characters, then we can safely slap some quotes around it.
-			// Otherwise we must also replace the offending characters with safe escape
-			// sequences.
+		(function() {
+			"use strict";
 
-			rx_escapable.lastIndex = 0;
-			return rx_escapable.test(string) ?
-				"\"" + string.replace(rx_escapable, function(a) {
-					var c = meta[a];
-					return typeof c === "string" ?
-						c :
-						"\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-				}) + "\"" :
-				"\"" + string + "\"";
-		}
+			var rx_one = /^[\],:{}\s]*$/;
+			var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
+			var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
+			var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
+			var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+			var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
 
-		function str(key, holder) {
-			// Produce a string from holder[key].
-			var i; // The loop counter.
-			var k; // The member key.
-			var v; // The member value.
-			var length;
-			var mind = gap;
-			var partial;
-			var value = holder[key];
-
-			// If the value has a toJSON method, call it to obtain a replacement value.
-			if(
-				value &&
-				typeof value === "object" &&
-				typeof value.toJSON === "function"
-			) {
-				value = value.toJSON(key);
+			function f(n) {
+				// Format integers to have at least two digits.
+				return(n < 10) ?
+					"0" + n :
+					n;
 			}
 
-			// If we were called with a replacer function, then call the replacer to
-			// obtain a replacement value.
-
-			if(typeof rep === "function") {
-				value = rep.call(holder, key, value);
+			function this_value() {
+				return this.valueOf();
 			}
 
-			// What happens next depends on the value's type.
+			if(typeof Date.prototype.toJSON !== "function") {
 
-			switch(typeof value) {
-				case "string":
-					return quote(value);
-				case "number":
-					// JSON numbers must be finite. Encode non-finite numbers as null.
-					return(isFinite(value)) ?
-						String(value) :
-						"null";
+				Date.prototype.toJSON = function() {
+					return isFinite(this.valueOf()) ?
+						(
+							this.getUTCFullYear() +
+							"-" +
+							f(this.getUTCMonth() + 1) +
+							"-" +
+							f(this.getUTCDate()) +
+							"T" +
+							f(this.getUTCHours()) +
+							":" +
+							f(this.getUTCMinutes()) +
+							":" +
+							f(this.getUTCSeconds()) +
+							"Z"
+						) :
+						null;
+				};
 
-				case "boolean":
-				case "null":
-					// If the value is a boolean or null, convert it to a string. Note:
-					// typeof null does not produce "null". The case is included here in
-					// the remote chance that this gets fixed someday.
-					return String(value);
+				Boolean.prototype.toJSON = this_value;
+				Number.prototype.toJSON = this_value;
+				String.prototype.toJSON = this_value;
+			}
 
-					// If the type is "object", we might be dealing with an object or an array or
-					// null.
-				case "object":
-					// Due to a specification blunder in ECMAScript, typeof null is "object",
-					// so watch out for that case.
-					if(!value) {
-						return "null";
-					}
+			var gap;
+			var indent;
+			var meta;
+			var rep;
 
-					// Make an array to hold the partial results of stringifying this object value.
+			function quote(string) {
 
-					gap += indent;
-					partial = [];
-					// Is the value an array?
-					if(Object.prototype.toString.apply(value) === "[object Array]") {
+				// If the string contains no control characters, no quote characters, and no
+				// backslash characters, then we can safely slap some quotes around it.
+				// Otherwise we must also replace the offending characters with safe escape
+				// sequences.
 
-						// The value is an array. Stringify every element. Use null as a placeholder
-						// for non-JSON values.
-						length = value.length;
-						for(i = 0; i < length; i += 1) {
-							partial[i] = str(i, value) || "null";
+				rx_escapable.lastIndex = 0;
+				return rx_escapable.test(string) ?
+					"\"" + string.replace(rx_escapable, function(a) {
+						var c = meta[a];
+						return typeof c === "string" ?
+							c :
+							"\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+					}) + "\"" :
+					"\"" + string + "\"";
+			}
+
+			function str(key, holder) {
+				// Produce a string from holder[key].
+				var i; // The loop counter.
+				var k; // The member key.
+				var v; // The member value.
+				var length;
+				var mind = gap;
+				var partial;
+				var value = holder[key];
+
+				// If the value has a toJSON method, call it to obtain a replacement value.
+				if(
+					value &&
+					typeof value === "object" &&
+					typeof value.toJSON === "function"
+				) {
+					value = value.toJSON(key);
+				}
+
+				// If we were called with a replacer function, then call the replacer to
+				// obtain a replacement value.
+
+				if(typeof rep === "function") {
+					value = rep.call(holder, key, value);
+				}
+
+				// What happens next depends on the value's type.
+
+				switch(typeof value) {
+					case "string":
+						return quote(value);
+					case "number":
+						// JSON numbers must be finite. Encode non-finite numbers as null.
+						return(isFinite(value)) ?
+							String(value) :
+							"null";
+
+					case "boolean":
+					case "null":
+						// If the value is a boolean or null, convert it to a string. Note:
+						// typeof null does not produce "null". The case is included here in
+						// the remote chance that this gets fixed someday.
+						return String(value);
+
+						// If the type is "object", we might be dealing with an object or an array or
+						// null.
+					case "object":
+						// Due to a specification blunder in ECMAScript, typeof null is "object",
+						// so watch out for that case.
+						if(!value) {
+							return "null";
 						}
-						// Join all of the elements together, separated with commas, and wrap them in
-						// brackets.
+
+						// Make an array to hold the partial results of stringifying this object value.
+
+						gap += indent;
+						partial = [];
+						// Is the value an array?
+						if(Object.prototype.toString.apply(value) === "[object Array]") {
+
+							// The value is an array. Stringify every element. Use null as a placeholder
+							// for non-JSON values.
+							length = value.length;
+							for(i = 0; i < length; i += 1) {
+								partial[i] = str(i, value) || "null";
+							}
+							// Join all of the elements together, separated with commas, and wrap them in
+							// brackets.
+
+							v = partial.length === 0 ?
+								"[]" :
+								gap ?
+								(
+									"[\n" +
+									gap +
+									partial.join(",\n" + gap) +
+									"\n" +
+									mind +
+									"]"
+								) :
+								"[" + partial.join(",") + "]";
+							gap = mind;
+							return v;
+						}
+
+						// If the replacer is an array, use it to select the members to be stringified.
+						if(rep && typeof rep === "object") {
+							length = rep.length;
+							for(i = 0; i < length; i += 1) {
+								if(typeof rep[i] === "string") {
+									k = rep[i];
+									v = str(k, value);
+									if(v) {
+										partial.push(quote(k) + (
+											(gap) ?
+											": " : ":"
+										) + v);
+									}
+								}
+							}
+						} else {
+							// Otherwise, iterate through all of the keys in the object.
+							for(k in value) {
+								if(Object.prototype.hasOwnProperty.call(value, k)) {
+									v = str(k, value);
+									if(v) {
+										partial.push(quote(k) + (
+											(gap) ?
+											": " :
+											":"
+										) + v);
+									}
+								}
+							}
+						}
+
+						// Join all of the member texts together, separated with commas,
+						// and wrap them in braces.
 
 						v = partial.length === 0 ?
-							"[]" :
-							gap ?
-							(
-								"[\n" +
-								gap +
-								partial.join(",\n" + gap) +
-								"\n" +
-								mind +
-								"]"
-							) :
-							"[" + partial.join(",") + "]";
+							"{}" : gap ?
+							"{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" :
+							"{" + partial.join(",") + "}";
 						gap = mind;
 						return v;
-					}
-
-					// If the replacer is an array, use it to select the members to be stringified.
-					if(rep && typeof rep === "object") {
-						length = rep.length;
-						for(i = 0; i < length; i += 1) {
-							if(typeof rep[i] === "string") {
-								k = rep[i];
-								v = str(k, value);
-								if(v) {
-									partial.push(quote(k) + (
-										(gap) ?
-										": " : ":"
-									) + v);
-								}
-							}
-						}
-					} else {
-						// Otherwise, iterate through all of the keys in the object.
-						for(k in value) {
-							if(Object.prototype.hasOwnProperty.call(value, k)) {
-								v = str(k, value);
-								if(v) {
-									partial.push(quote(k) + (
-										(gap) ?
-										": " :
-										":"
-									) + v);
-								}
-							}
-						}
-					}
-
-					// Join all of the member texts together, separated with commas,
-					// and wrap them in braces.
-
-					v = partial.length === 0 ?
-						"{}" : gap ?
-						"{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" :
-						"{" + partial.join(",") + "}";
-					gap = mind;
-					return v;
+				}
 			}
-		}
 
-		// If the JSON object does not yet have a stringify method, give it one.
-		if(typeof JSON.stringify !== "function") {
-			meta = { // table of character substitutions
-				"\b": "\\b",
-				"\t": "\\t",
-				"\n": "\\n",
-				"\f": "\\f",
-				"\r": "\\r",
-				"\"": "\\\"",
-				"\\": "\\\\"
-			};
-			JSON.stringify = function(value, replacer, space) {
+			// If the JSON object does not yet have a stringify method, give it one.
+			if(typeof JSON.stringify !== "function") {
+				meta = { // table of character substitutions
+					"\b": "\\b",
+					"\t": "\\t",
+					"\n": "\\n",
+					"\f": "\\f",
+					"\r": "\\r",
+					"\"": "\\\"",
+					"\\": "\\\\"
+				};
+				JSON.stringify = function(value, replacer, space) {
 
-				// The stringify method takes a value and an optional replacer, and an optional
-				// space parameter, and returns a JSON text. The replacer can be a function
-				// that can replace values, or an array of strings that will select the keys.
-				// A default replacer method can be provided. Use of the space parameter can
-				// produce text that is more easily readable.
+					// The stringify method takes a value and an optional replacer, and an optional
+					// space parameter, and returns a JSON text. The replacer can be a function
+					// that can replace values, or an array of strings that will select the keys.
+					// A default replacer method can be provided. Use of the space parameter can
+					// produce text that is more easily readable.
 
-				var i;
-				gap = "";
-				indent = "";
-				// If the space parameter is a number, make an indent string containing that
-				// many spaces.
-				if(typeof space === "number") {
-					for(i = 0; i < space; i += 1) {
-						indent += " ";
+					var i;
+					gap = "";
+					indent = "";
+					// If the space parameter is a number, make an indent string containing that
+					// many spaces.
+					if(typeof space === "number") {
+						for(i = 0; i < space; i += 1) {
+							indent += " ";
+						}
+
+						// If the space parameter is a string, it will be used as the indent string.
+
+					} else if(typeof space === "string") {
+						indent = space;
 					}
 
-					// If the space parameter is a string, it will be used as the indent string.
+					// If there is a replacer, it must be a function or an array.
+					// Otherwise, throw an error.
 
-				} else if(typeof space === "string") {
-					indent = space;
-				}
+					rep = replacer;
+					if(replacer && typeof replacer !== "function" && (
+							typeof replacer !== "object" ||
+							typeof replacer.length !== "number"
+						)) {
+						throw new Error("JSON.stringify");
+					}
 
-				// If there is a replacer, it must be a function or an array.
-				// Otherwise, throw an error.
+					// Make a fake root object containing our value under the key of "".
+					// Return the result of stringifying the value.
 
-				rep = replacer;
-				if(replacer && typeof replacer !== "function" && (
-						typeof replacer !== "object" ||
-						typeof replacer.length !== "number"
-					)) {
-					throw new Error("JSON.stringify");
-				}
+					return str("", {
+						"": value
+					});
+				};
+			}
 
-				// Make a fake root object containing our value under the key of "".
-				// Return the result of stringifying the value.
+			// If the JSON object does not yet have a parse method, give it one.
 
-				return str("", {
-					"": value
-				});
-			};
-		}
+			if(typeof JSON.parse !== "function") {
+				JSON.parse = function(text, reviver) {
+					// The parse method takes a text and an optional reviver function, and returns
+					// a JavaScript value if the text is a valid JSON text.
+					var j;
 
-		// If the JSON object does not yet have a parse method, give it one.
-
-		if(typeof JSON.parse !== "function") {
-			JSON.parse = function(text, reviver) {
-				// The parse method takes a text and an optional reviver function, and returns
-				// a JavaScript value if the text is a valid JSON text.
-				var j;
-
-				function walk(holder, key) {
-					// The walk method is used to recursively walk the resulting structure so
-					// that modifications can be made.
-					var k;
-					var v;
-					var value = holder[key];
-					if(value && typeof value === "object") {
-						for(k in value) {
-							if(Object.prototype.hasOwnProperty.call(value, k)) {
-								v = walk(value, k);
-								if(v !== undefined) {
-									value[k] = v;
-								} else {
-									delete value[k];
+					function walk(holder, key) {
+						// The walk method is used to recursively walk the resulting structure so
+						// that modifications can be made.
+						var k;
+						var v;
+						var value = holder[key];
+						if(value && typeof value === "object") {
+							for(k in value) {
+								if(Object.prototype.hasOwnProperty.call(value, k)) {
+									v = walk(value, k);
+									if(v !== undefined) {
+										value[k] = v;
+									} else {
+										delete value[k];
+									}
 								}
 							}
 						}
+						return reviver.call(holder, key, value);
 					}
-					return reviver.call(holder, key, value);
-				}
 
-				// Parsing happens in four stages. In the first stage, we replace certain
-				// Unicode characters with escape sequences. JavaScript handles many characters
-				// incorrectly, either silently deleting them, or treating them as line endings.
-				text = String(text);
-				rx_dangerous.lastIndex = 0;
-				if(rx_dangerous.test(text)) {
-					text = text.replace(rx_dangerous, function(a) {
-						return(
-							"\\u" +
-							("0000" + a.charCodeAt(0).toString(16)).slice(-4)
-						);
-					});
-				}
+					// Parsing happens in four stages. In the first stage, we replace certain
+					// Unicode characters with escape sequences. JavaScript handles many characters
+					// incorrectly, either silently deleting them, or treating them as line endings.
+					text = String(text);
+					rx_dangerous.lastIndex = 0;
+					if(rx_dangerous.test(text)) {
+						text = text.replace(rx_dangerous, function(a) {
+							return(
+								"\\u" +
+								("0000" + a.charCodeAt(0).toString(16)).slice(-4)
+							);
+						});
+					}
 
-				// In the second stage, we run the text against regular expressions that look
-				// for non-JSON patterns. We are especially concerned with "()" and "new"
-				// because they can cause invocation, and "=" because it can cause mutation.
-				// But just to be safe, we want to reject all unexpected forms.
+					// In the second stage, we run the text against regular expressions that look
+					// for non-JSON patterns. We are especially concerned with "()" and "new"
+					// because they can cause invocation, and "=" because it can cause mutation.
+					// But just to be safe, we want to reject all unexpected forms.
 
-				// We split the second stage into 4 regexp operations in order to work around
-				// crippling inefficiencies in IE's and Safari's regexp engines. First we
-				// replace the JSON backslash pairs with "@" (a non-JSON character). Second, we
-				// replace all simple value tokens with "]" characters. Third, we delete all
-				// open brackets that follow a colon or comma or that begin the text. Finally,
-				// we look to see that the remaining characters are only whitespace or "]" or
-				// "," or ":" or "{" or "}". If that is so, then the text is safe for eval.
+					// We split the second stage into 4 regexp operations in order to work around
+					// crippling inefficiencies in IE's and Safari's regexp engines. First we
+					// replace the JSON backslash pairs with "@" (a non-JSON character). Second, we
+					// replace all simple value tokens with "]" characters. Third, we delete all
+					// open brackets that follow a colon or comma or that begin the text. Finally,
+					// we look to see that the remaining characters are only whitespace or "]" or
+					// "," or ":" or "{" or "}". If that is so, then the text is safe for eval.
 
-				if(
-					rx_one.test(
-						text
-						.replace(rx_two, "@")
-						.replace(rx_three, "]")
-						.replace(rx_four, "")
-					)
-				) {
+					if(
+						rx_one.test(
+							text
+							.replace(rx_two, "@")
+							.replace(rx_three, "]")
+							.replace(rx_four, "")
+						)
+					) {
 
-					// In the third stage we use the eval function to compile the text into a
-					// JavaScript structure. The "{" operator is subject to a syntactic ambiguity
-					// in JavaScript: it can begin a block or an object literal. We wrap the text
-					// in parens to eliminate the ambiguity.
-					j = eval("(" + text + ")");
-					// In the optional fourth stage, we recursively walk the new structure, passing
-					// each name/value pair to a reviver function for possible transformation.
+						// In the third stage we use the eval function to compile the text into a
+						// JavaScript structure. The "{" operator is subject to a syntactic ambiguity
+						// in JavaScript: it can begin a block or an object literal. We wrap the text
+						// in parens to eliminate the ambiguity.
+						j = eval("(" + text + ")");
+						// In the optional fourth stage, we recursively walk the new structure, passing
+						// each name/value pair to a reviver function for possible transformation.
 
-					return(typeof reviver === "function") ?
-						walk({
-							"": j
-						}, "") : j;
-				}
-				// If the text is not JSON parseable, then a SyntaxError is thrown.
-				throw new SyntaxError("JSON.parse");
-			};
-		}
-	}());
-
-})();
-
-(function() {
-	try {
-		var isXsMsgDebug = false;
-		var api = {};
-
-		function isDebug(type) {
-			return isXsMsgDebug;
-		}
-
-		api.linkedList = function() {
-			return new LinkedList();
-		};
-
-		function LinkedList() {
-			function newNode(element) {　　
-				var node = {
-					element: element,
-					next: null,
-					pre: null
+						return(typeof reviver === "function") ?
+							walk({
+								"": j
+							}, "") : j;
+					}
+					// If the text is not JSON parseable, then a SyntaxError is thrown.
+					throw new SyntaxError("JSON.parse");
 				};
-				return node;
+			}
+		}());
+
+	})();
+
+	(function() {
+		try {
+			var isXsMsgDebug = false;
+			var api = {};
+
+			function isDebug(type) {
+				return isXsMsgDebug;
+			}
+
+			api.linkedList = function() {
+				return new LinkedList();
 			};
-			var length = 0;
-			var headNode = newNode(),
-				lastNode = headNode;
 
-			/**
-			 * 在链表末尾添加元素
-			 */
-			this.append = function(element) {　　
-				var current = newNode(element);　　　　
+			function LinkedList() {
+				function newNode(element) {　　
+					var node = {
+						element: element,
+						next: null,
+						pre: null
+					};
+					return node;
+				};
+				var length = 0;
+				var headNode = newNode(),
+					lastNode = headNode;
 
-				lastNode.next = current;
-				current.pre = lastNode;
-				lastNode = current;　　
-				length++;
-			};
+				/**
+				 * 在链表末尾添加元素
+				 */
+				this.append = function(element) {　　
+					var current = newNode(element);　　　　
 
-			//在链表的任意位置插入元素
-			this.insert = function(position, element) {　　
-				if(position >= 0 && position <= length) {
-
-					var node = newNode(element);
-					var pNode = headNode;
-					while(position--) {
-						pNode = pNode.next;
-					}
-
-					if(pNode.next) {
-						pNode.next.pre = node;
-						node.next = pNode.next;
-					}
-					pNode.next = node;
-					node.pre = pNode;　　　　
+					lastNode.next = current;
+					current.pre = lastNode;
+					lastNode = current;　　
 					length++;
-					return true;　　
-				} else {　　　　
-					return false;　　
-				}
-			};
+				};
 
-			this.elementAt = function(position) {
-				return getElement(position);
-			};
+				//在链表的任意位置插入元素
+				this.insert = function(position, element) {　　
+					if(position >= 0 && position <= length) {
 
-			function getElement(position, willRemove) {　　
-				if(position >= 0 && position < length) {
+						var node = newNode(element);
+						var pNode = headNode;
+						while(position--) {
+							pNode = pNode.next;
+						}
 
-					var pNode = headNode;
-					while(position--) {
-						pNode = pNode.next;
+						if(pNode.next) {
+							pNode.next.pre = node;
+							node.next = pNode.next;
+						}
+						pNode.next = node;
+						node.pre = pNode;　　　　
+						length++;
+						return true;　　
+					} else {　　　　
+						return false;　　
 					}
+				};
 
-					if(pNode.next) {
-						var currentNode = pNode.next;
-						if(willRemove) {
+				this.elementAt = function(position) {
+					return getElement(position);
+				};
+
+				function getElement(position, willRemove) {　　
+					if(position >= 0 && position < length) {
+
+						var pNode = headNode;
+						while(position--) {
+							pNode = pNode.next;
+						}
+
+						if(pNode.next) {
+							var currentNode = pNode.next;
+							if(willRemove) {
+								var nextCurrentNode = currentNode.next;
+								if(nextCurrentNode) {
+									nextCurrentNode.pre = pNode;
+									pNode.next = nextCurrentNode;
+								} else {
+									pNode.next = null;
+									lastNode = pNode;
+								}
+								length--;
+							}
+							return currentNode.element;
+						} else {
+							return undefined;
+						}　
+					} else {　　　　
+						return undefined;　　
+					}
+				};
+
+				/**
+				 * @param callback function 返回true表示移除
+				 */
+				this.eachForRemove = function(callback) {
+					var pNode = headNode.next;
+					while(pNode) {
+						var currentNode = pNode;
+						if(callback(currentNode)) {
 							var nextCurrentNode = currentNode.next;
 							if(nextCurrentNode) {
 								nextCurrentNode.pre = pNode;
@@ -4322,853 +4408,826 @@ var queryString2ParamsMap;
 								lastNode = pNode;
 							}
 							length--;
-						}
-						return currentNode.element;
-					} else {
-						return undefined;
-					}　
-				} else {　　　　
-					return undefined;　　
-				}
-			};
-
-			/**
-			 * @param callback function 返回true表示移除
-			 */
-			this.eachForRemove = function(callback) {
-				var pNode = headNode.next;
-				while(pNode) {
-					var currentNode = pNode;
-					if(callback(currentNode)) {
-						var nextCurrentNode = currentNode.next;
-						if(nextCurrentNode) {
-							nextCurrentNode.pre = pNode;
-							pNode.next = nextCurrentNode;
+							pNode = nextCurrentNode;
 						} else {
-							pNode.next = null;
-							lastNode = pNode;
+							pNode = pNode.next;
 						}
-						length--;
-						pNode = nextCurrentNode;
-					} else {
-						pNode = pNode.next;
 					}
-				}
-			};
-
-			//从链表中移除元素
-			this.removeAt = function(position) {　　
-				return getElement(position, true);
-			};
-
-			/**
-			 * 移除并获取第一个元素
-			 * @param callback function(elem,index)
-			 */
-			this.pop = function(callback) {
-				return this.removeAt(0)
-			};
-
-			/**
-			 * 返回元素在链表中的位置
-			 * @param element object|function(elem)
-			 */
-			this.indexOf = function(element) {　　
-				var pNode = headNode.next;
-				var index = 0;
-				while(pNode) {
-					if(typeof element == "function") {
-						if(element(pNode.element)) {
-							return index;
-						}
-					} else if(pNode.element === element) {
-						return index;
-					}
-					index++;
-					pNode = pNode.next;
-				}
-				return -1;
-			};
-
-			this.find = function(element) {
-				var index = this.indexOf(element);
-				return index >= 0 ? this.elementAt(index) : undefined;
-			}
-
-			//移除某个元素
-			this.remove = function(element) {　　
-				var index = this.indexOf(element);　　
-				return this.removeAt(index);
-			};
-
-			//判断链表是否为空
-
-			this.isEmpty = function() {　　
-				return length === 0;
-			};
-
-			//返回链表的长度
-			this.size = function() {
-				return length;
-			};
-
-		};
-
-		if(!window.addEventListener) {
-			return;
-		}
-
-		var postMessageBridge = (function() {
-			var handle = {};
-
-			var instanceMap = {}; //id:listener
-			var cmd2ListenerMap = {}; //cmd:[]
-			var instanceBindMap = {}; //instanceid:true
-			var oinstanceidMap = {}; //已经被绑定的oinstanceid:instanceid
-
-			//isActive为false表示监听者
-			handle.listen = function(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse) {
-
-				var listener = {
-					cmd: cmd,
-					_onConned: _onConned,
-					_onMsg: _onMsg,
-					_onResponse: _onResponse,
-					_onElse: _onElse,
-					conndata: conndata,
-					osource: source,
-					active: isActive,
-					connectingSource: connectingSource,
-					id: randId(),
-					refused: {}
 				};
 
-				if(!cmd2ListenerMap[cmd]) {
-					cmd2ListenerMap[cmd] = [];
-				}
-				cmd2ListenerMap[cmd].push(listener)
+				//从链表中移除元素
+				this.removeAt = function(position) {　　
+					return getElement(position, true);
+				};
 
-				var instanceid = listener.id;
-				instanceMap[instanceid] = listener;
-				return instanceid;
+				/**
+				 * 移除并获取第一个元素
+				 * @param callback function(elem,index)
+				 */
+				this.pop = function(callback) {
+					return this.removeAt(0)
+				};
+
+				/**
+				 * 返回元素在链表中的位置
+				 * @param element object|function(elem)
+				 */
+				this.indexOf = function(element) {　　
+					var pNode = headNode.next;
+					var index = 0;
+					while(pNode) {
+						if(typeof element == "function") {
+							if(element(pNode.element)) {
+								return index;
+							}
+						} else if(pNode.element === element) {
+							return index;
+						}
+						index++;
+						pNode = pNode.next;
+					}
+					return -1;
+				};
+
+				this.find = function(element) {
+					var index = this.indexOf(element);
+					return index >= 0 ? this.elementAt(index) : undefined;
+				}
+
+				//移除某个元素
+				this.remove = function(element) {　　
+					var index = this.indexOf(element);　　
+					return this.removeAt(index);
+				};
+
+				//判断链表是否为空
+
+				this.isEmpty = function() {　　
+					return length === 0;
+				};
+
+				//返回链表的长度
+				this.size = function() {
+					return length;
+				};
+
 			};
 
-			handle.remove = function(instanceid) {
-				//TODO !!!!!!!
-				var listener = listeners[id];
-				delete listeners[id];
-				if(listener.active) {
-					for(var x in activeListenerMyIds) {
-						var as = activeListenerMyIds[x];
-						var found = false;
-						for(var k = 0; k < as.length; k++) {
-							if(as[k] == id) {
-								as.splice(k, 1);
-								found = true;
+			if(!window.addEventListener) {
+				return;
+			}
+
+			var postMessageBridge = (function() {
+				var handle = {};
+
+				var instanceMap = {}; //id:listener
+				var cmd2ListenerMap = {}; //cmd:[]
+				var instanceBindMap = {}; //instanceid:true
+				var oinstanceidMap = {}; //已经被绑定的oinstanceid:instanceid
+
+				//isActive为false表示监听者
+				handle.listen = function(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse) {
+
+					var listener = {
+						cmd: cmd,
+						_onConned: _onConned,
+						_onMsg: _onMsg,
+						_onResponse: _onResponse,
+						_onElse: _onElse,
+						conndata: conndata,
+						osource: source,
+						active: isActive,
+						connectingSource: connectingSource,
+						id: randId(),
+						refused: {}
+					};
+
+					if(!cmd2ListenerMap[cmd]) {
+						cmd2ListenerMap[cmd] = [];
+					}
+					cmd2ListenerMap[cmd].push(listener)
+
+					var instanceid = listener.id;
+					instanceMap[instanceid] = listener;
+					return instanceid;
+				};
+
+				handle.remove = function(instanceid) {
+					//TODO !!!!!!!
+					var listener = listeners[id];
+					delete listeners[id];
+					if(listener.active) {
+						for(var x in activeListenerMyIds) {
+							var as = activeListenerMyIds[x];
+							var found = false;
+							for(var k = 0; k < as.length; k++) {
+								if(as[k] == id) {
+									as.splice(k, 1);
+									found = true;
+									break;
+								}
+							}
+							if(found) {
 								break;
 							}
 						}
-						if(found) {
-							break;
-						}
-					}
-				}
-
-			};
-
-			handle.send = function(data, instanceid, msgid) {
-				var listener = instanceMap[instanceid];
-				_sendData("msg", listener.cmd, listener.osource, data, instanceid, msgid);
-			};
-
-			handle.sendConn = function(instanceid) {
-				var listener = instanceMap[instanceid];
-				_sendData("conn", listener.cmd, listener.osource, listener.conndata, instanceid);
-			};
-
-			handle.sendResponse = function(data, instanceid) {
-				var listener = instanceMap[instanceid];
-				_sendData("response", listener.cmd, listener.osource, data, instanceid);
-			};
-
-			function handleConn(cmd, fromSource, originStr, data, oinstanceid) {
-				if(oinstanceidMap[oinstanceid]) {
-					//console.warn("already bind:" + cmd);
-					return;
-				}
-				var listeners = cmd2ListenerMap[cmd];
-				if(!listeners) {
-					return;
-				}
-
-				function Callback(instanceid) {
-
-					return function(isAccept, msg) {
-						if(!isAccept) {
-							var listener = instanceMap[instanceid];
-							listener.refused[oinstanceid] = true;
-							return;
-						}
-						if(oinstanceidMap[oinstanceid]) {
-							console.warn("already bind other:" + cmd + ",my page:" + location.href);
-						} else if(instanceBindMap[instanceid]) {
-							console.warn("already self bind:" + cmd + ",my page:" + location.href);
-							_sendData("binded", cmd, fromSource, oinstanceid);
-						} else {
-							oinstanceidMap[oinstanceid] = instanceid;
-							instanceBindMap[instanceid] = true;
-							var listener = instanceMap[instanceid];
-							listener.osource = fromSource;
-							listener.origin = originStr;
-							_sendData("accept", cmd, fromSource, listener.conndata, instanceid, oinstanceid);
-						}
 					}
 
-				}
-
-				for(var i = 0; i < listeners.length; i++) {
-					var listener = listeners[i];
-					if(!listener.refused[oinstanceid]) {
-						listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
-					}
-				}
-			}
-
-			function handleAccept(cmd, fromSource, originStr, data, oinstanceid, minstanceid) {
-				var listeners = cmd2ListenerMap[cmd];
-				if(!listeners) {
-					return;
-				}
-
-				function Callback(instanceid) {
-
-					return function(isAccept, msg) {
-						if(!isAccept) {
-							var listener = instanceMap[instanceid];
-							listener.refused[oinstanceid] = true;
-							return;
-						}
-						if(oinstanceidMap[oinstanceid]) {
-							console.warn("already bind:" + cmd + ",my page:" + location.href);
-						} else if(instanceBindMap[instanceid]) {
-							console.warn("already self bind:" + cmd + ",my page:" + location.href);
-							_sendData("binded", cmd, fromSource, oinstanceid);
-						} else {
-							oinstanceidMap[oinstanceid] = instanceid;
-							instanceBindMap[instanceid] = true;
-
-							var listener = instanceMap[instanceid];
-							listener.osource = fromSource;
-							listener.origin = originStr;
-							_sendData("conned", cmd, fromSource, listener.conndata, instanceid);
-							listener._onConned(fromSource, data);
-						}
-					}
-
-				}
-
-				for(var i = 0; i < listeners.length; i++) {
-					var listener = listeners[i];
-					if(listener.id == minstanceid && !listener.refused[oinstanceid]) { //当前为主动发起连接的页面
-						listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
-					}
-				}
-			}
-
-			function handleBinded(cmd, fromSource, originStr, minstanceid) {
-				var listener = instanceMap[minstanceid];
-				listener._onElse("binded");
-			}
-
-			function checkSource(listener, fromSource, originStr) {
-				if(listener.osource != fromSource && listener.origin != originStr) {
-					console.warn("expected:" + listener.origin + ",but:" + originStr);
-					throw new Error("source changed!");
-				}
-			}
-
-			function handleConned(cmd, fromSource, originStr, data, oinstanceid) {
-				var instanceid = oinstanceidMap[oinstanceid];
-				var listener = instanceMap[instanceid];
-				checkSource(listener, fromSource, originStr);
-
-				listener._onConned(listener.osource, data);
-			}
-
-			function handleMsg(cmd, fromSource, originStr, data, oinstanceid, msgid) {
-				var instanceid = oinstanceidMap[oinstanceid];
-				var listener = instanceMap[instanceid];
-				checkSource(listener, fromSource, originStr);
-
-				listener._onMsg(data, msgid);
-			}
-
-			function handleResponse(cmd, fromSource, originStr, data, oinstanceid) {
-				var instanceid = oinstanceidMap[oinstanceid];
-				var listener = instanceMap[instanceid];
-				checkSource(listener, fromSource, originStr);
-
-				listener._onResponse(data);
-			}
-
-			function _sendData(type, cmd, source, data, instanceid, msgid) {
-				var msg = {
-					type: type,
-					data: data,
-					cmd: cmd,
-					id: instanceid,
-					msgid: msgid
 				};
 
-				if(isDebug("postMessageBridge")) {
-					console.log("send from:" + location.href);
-					console.log(msg);
-				}
-				source.postMessage(xsJson2String(msg), "*");
-			}
-
-			window.addEventListener('message', function(event) {
-				if(isDebug("postMessageBridge")) {
-					console.log("receive from:" + event.origin + ",my page:" + location.href);
-					console.log(event.data);
-				}
-				var data;
-				try {
-					data = xsParseJson(event.data);
-				} catch(e) {
-
-				}
-				if(!data || !(data.cmd && data.type)) {
-					return;
-				}
-
-				var cmd = data.cmd;
-				var oinstanceid = data.id;
-				var rdata = data.data;
-				var type = data.type;
-				var msgid = data.msgid;
-
-				if(type == "conn") {
-					handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "accept") {
-					handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-				} else if(type == "conned") {
-					handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "msg") {
-					handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-				} else if(type == "response") {
-					handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "binded") {
-					handleBinded(cmd, event.source, event.origin, rdata);
-				}
-
-			});
-
-			handle.runAfter = function(time, callback) {
-				setTimeout(callback, time);
-			};
-
-			return handle;
-		})();
-
-		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata) {
-			var msgQueue = new LinkedList();
-
-			var MAX_TRY = 100,
-				SLEEP = 500;
-			var isConnected = false,
-				connectCount = 0;
-			var isCanceled = false;
-
-			var thiz = this;
-			var handleId;
-
-			this.onConnectedListener = null;
-			this.onReceiveListener = null;
-			this.send = function(data) {
-				var msg = {
-					id: randId(),
-					data: data
+				handle.send = function(data, instanceid, msgid) {
+					var listener = instanceMap[instanceid];
+					_sendData("msg", listener.cmd, listener.osource, data, instanceid, msgid);
 				};
-				msgQueue.append(msg);
-				sendTop();
-			};
 
-			this.send.release = function() {
-				postMessageBridge.remove(handleId);
-			};
+				handle.sendConn = function(instanceid) {
+					var listener = instanceMap[instanceid];
+					_sendData("conn", listener.cmd, listener.osource, listener.conndata, instanceid);
+				};
 
-			function _onConned(_source, data) {
-				thiz.onConnectedListener.call(thiz, data);
-				isConnected = true;
-				sendTop();
-			};
+				handle.sendResponse = function(data, instanceid) {
+					var listener = instanceMap[instanceid];
+					_sendData("response", listener.cmd, listener.osource, data, instanceid);
+				};
 
-			function _onMsg(data, msgid) {
-				try {
-					thiz.onReceiveListener.call(thiz, data);
-				} catch(e) {
-					console.warn(e);
+				function handleConn(cmd, fromSource, originStr, data, oinstanceid) {
+					if(oinstanceidMap[oinstanceid]) {
+						//console.warn("already bind:" + cmd);
+						return;
+					}
+					var listeners = cmd2ListenerMap[cmd];
+					if(!listeners) {
+						return;
+					}
+
+					function Callback(instanceid) {
+
+						return function(isAccept, msg) {
+							if(!isAccept) {
+								var listener = instanceMap[instanceid];
+								listener.refused[oinstanceid] = true;
+								return;
+							}
+							if(oinstanceidMap[oinstanceid]) {
+								console.warn("already bind other:" + cmd + ",my page:" + location.href);
+							} else if(instanceBindMap[instanceid]) {
+								console.warn("already self bind:" + cmd + ",my page:" + location.href);
+								_sendData("binded", cmd, fromSource, oinstanceid);
+							} else {
+								oinstanceidMap[oinstanceid] = instanceid;
+								instanceBindMap[instanceid] = true;
+								var listener = instanceMap[instanceid];
+								listener.osource = fromSource;
+								listener.origin = originStr;
+								_sendData("accept", cmd, fromSource, listener.conndata, instanceid, oinstanceid);
+							}
+						}
+
+					}
+
+					for(var i = 0; i < listeners.length; i++) {
+						var listener = listeners[i];
+						if(!listener.refused[oinstanceid]) {
+							listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+						}
+					}
 				}
-				postMessageBridge.sendResponse({ //回应已经收到
-					id: msgid
-				}, handleId);
-			}
 
-			function _onResponse(data) {
-				msgQueue.remove(function(elem) {
-					return elem.id = data.id;
+				function handleAccept(cmd, fromSource, originStr, data, oinstanceid, minstanceid) {
+					var listeners = cmd2ListenerMap[cmd];
+					if(!listeners) {
+						return;
+					}
+
+					function Callback(instanceid) {
+
+						return function(isAccept, msg) {
+							if(!isAccept) {
+								var listener = instanceMap[instanceid];
+								listener.refused[oinstanceid] = true;
+								return;
+							}
+							if(oinstanceidMap[oinstanceid]) {
+								console.warn("already bind:" + cmd + ",my page:" + location.href);
+							} else if(instanceBindMap[instanceid]) {
+								console.warn("already self bind:" + cmd + ",my page:" + location.href);
+								_sendData("binded", cmd, fromSource, oinstanceid);
+							} else {
+								oinstanceidMap[oinstanceid] = instanceid;
+								instanceBindMap[instanceid] = true;
+
+								var listener = instanceMap[instanceid];
+								listener.osource = fromSource;
+								listener.origin = originStr;
+								_sendData("conned", cmd, fromSource, listener.conndata, instanceid);
+								listener._onConned(fromSource, data);
+							}
+						}
+
+					}
+
+					for(var i = 0; i < listeners.length; i++) {
+						var listener = listeners[i];
+						if(listener.id == minstanceid && !listener.refused[oinstanceid]) { //当前为主动发起连接的页面
+							listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
+						}
+					}
+				}
+
+				function handleBinded(cmd, fromSource, originStr, minstanceid) {
+					var listener = instanceMap[minstanceid];
+					listener._onElse("binded");
+				}
+
+				function checkSource(listener, fromSource, originStr) {
+					if(listener.osource != fromSource && listener.origin != originStr) {
+						console.warn("expected:" + listener.origin + ",but:" + originStr);
+						throw new Error("source changed!");
+					}
+				}
+
+				function handleConned(cmd, fromSource, originStr, data, oinstanceid) {
+					var instanceid = oinstanceidMap[oinstanceid];
+					var listener = instanceMap[instanceid];
+					checkSource(listener, fromSource, originStr);
+
+					listener._onConned(listener.osource, data);
+				}
+
+				function handleMsg(cmd, fromSource, originStr, data, oinstanceid, msgid) {
+					var instanceid = oinstanceidMap[oinstanceid];
+					var listener = instanceMap[instanceid];
+					checkSource(listener, fromSource, originStr);
+
+					listener._onMsg(data, msgid);
+				}
+
+				function handleResponse(cmd, fromSource, originStr, data, oinstanceid) {
+					var instanceid = oinstanceidMap[oinstanceid];
+					var listener = instanceMap[instanceid];
+					checkSource(listener, fromSource, originStr);
+
+					listener._onResponse(data);
+				}
+
+				function _sendData(type, cmd, source, data, instanceid, msgid) {
+					var msg = {
+						type: type,
+						data: data,
+						cmd: cmd,
+						id: instanceid,
+						msgid: msgid
+					};
+
+					if(isDebug("postMessageBridge")) {
+						console.log("send from:" + location.href);
+						console.log(msg);
+					}
+					source.postMessage(xsJson2String(msg), "*");
+				}
+
+				window.addEventListener('message', function(event) {
+					if(isDebug("postMessageBridge")) {
+						console.log("receive from:" + event.origin + ",my page:" + location.href);
+						console.log(event.data);
+					}
+					var data;
+					try {
+						data = xsParseJson(event.data);
+					} catch(e) {
+
+					}
+					if(!data || !(data.cmd && data.type)) {
+						return;
+					}
+
+					var cmd = data.cmd;
+					var oinstanceid = data.id;
+					var rdata = data.data;
+					var type = data.type;
+					var msgid = data.msgid;
+
+					if(type == "conn") {
+						handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "accept") {
+						handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+					} else if(type == "conned") {
+						handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "msg") {
+						handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+					} else if(type == "response") {
+						handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "binded") {
+						handleBinded(cmd, event.source, event.origin, rdata);
+					}
+
 				});
-				sendTop();
-			};
 
-			function _onElse(type) {
-				if(type == "binded") {
-					isCanceled = true;
-					console.error("connect failed,that page already binded:" + cmd + ",my page:" + location.href);
-					onfailed("canceled")
+				handle.runAfter = function(time, callback) {
+					setTimeout(callback, time);
+				};
+
+				return handle;
+			})();
+
+			function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata) {
+				var msgQueue = new LinkedList();
+
+				var MAX_TRY = 100,
+					SLEEP = 500;
+				var isConnected = false,
+					connectCount = 0;
+				var isCanceled = false;
+
+				var thiz = this;
+				var handleId;
+
+				this.onConnectedListener = null;
+				this.onReceiveListener = null;
+				this.send = function(data) {
+					var msg = {
+						id: randId(),
+						data: data
+					};
+					msgQueue.append(msg);
+					sendTop();
+				};
+
+				this.send.release = function() {
+					postMessageBridge.remove(handleId);
+				};
+
+				function _onConned(_source, data) {
+					thiz.onConnectedListener.call(thiz, data);
+					isConnected = true;
+					sendTop();
+				};
+
+				function _onMsg(data, msgid) {
+					try {
+						thiz.onReceiveListener.call(thiz, data);
+					} catch(e) {
+						console.warn(e);
+					}
+					postMessageBridge.sendResponse({ //回应已经收到
+						id: msgid
+					}, handleId);
 				}
-			}
 
-			function initListen() {
-				handleId = postMessageBridge.listen(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse);
-			}
+				function _onResponse(data) {
+					msgQueue.remove(function(elem) {
+						return elem.id = data.id;
+					});
+					sendTop();
+				};
 
-			function sendTop() {
-				if(isConnected) {
-					var msg = msgQueue.pop();
-					if(msg) {
-						postMessageBridge.send(msg.data, handleId, msg.id);
-						postMessageBridge.runAfter(SLEEP, init);
+				function _onElse(type) {
+					if(type == "binded") {
+						isCanceled = true;
+						console.error("connect failed,that page already binded:" + cmd + ",my page:" + location.href);
+						onfailed("canceled")
 					}
 				}
-			}
 
-			function init() {
-				if(isConnected || connectCount > MAX_TRY || isCanceled) {
-					if(!isConnected && !isCanceled) {
-						onfailed("timeout");
-					}
-					return;
+				function initListen() {
+					handleId = postMessageBridge.listen(cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse);
 				}
-				postMessageBridge.sendConn(handleId);
-				connectCount++;
-				postMessageBridge.runAfter(SLEEP, init);
-			}
-			if(source) {
-				initListen();
-				init();
-			} else if(!isActive) {
-				initListen();
-			}
 
-			this.setSource = function(_source) {
-				source = _source;
+				function sendTop() {
+					if(isConnected) {
+						var msg = msgQueue.pop();
+						if(msg) {
+							postMessageBridge.send(msg.data, handleId, msg.id);
+							postMessageBridge.runAfter(SLEEP, init);
+						}
+					}
+				}
+
+				function init() {
+					if(isConnected || connectCount > MAX_TRY || isCanceled) {
+						if(!isConnected && !isCanceled) {
+							onfailed("timeout");
+						}
+						return;
+					}
+					postMessageBridge.sendConn(handleId);
+					connectCount++;
+					postMessageBridge.runAfter(SLEEP, init);
+				}
 				if(source) {
 					initListen();
 					init();
+				} else if(!isActive) {
+					initListen();
 				}
-			};
-		}
 
-		var handleApi = api;
-
-		/**
-		 * 
-		 * @param {Object} winObjOrCallback
-		 * @param {Object} option
-		 * @param {Object} notActive
-		 */
-		function _connectWindow(winObjOrCallback, option, notActive) {
-			option = xsloader.extendDeep({
-				cmd: "default-cmd",
-				listener: null,
-				connected: null,
-				conndata: null,
-				connectingSource: function(source, origin, conndata, callback) {
-					var mine = location.protocol + "//" + location.host;
-					callback(mine == origin, "default");
-				},
-				onfailed: function(errtype) {
-					if(errtype == "timeout") {
-						console.warn("connect may timeout:cmd=" + option.cmd + ",my page=" + location.href);
-					}
-				}
-			}, option);
-
-			var cmd = option.cmd;
-			var connectedCallback = option.connected;
-			var receiveCallback = option.listener;
-			var conndata = option.conndata;
-			var onfailed = option.onfailed;
-
-			var isActive = !notActive;
-			var connectingSource = option.connectingSource;
-
-			var unit;
-			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata);
-			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata);
-			}
-
-			connectedCallback = connectedCallback || function(sender, conndata) {
-				console.log((isActive ? "active" : "") + " connected:" + cmd);
-			};
-			if(connectedCallback) {
-				unit.onConnectedListener = function(conndata) {
-					try {
-						connectedCallback(this.send, conndata);
-					} catch(e) {
-						console.error(e);
+				this.setSource = function(_source) {
+					source = _source;
+					if(source) {
+						initListen();
+						init();
 					}
 				};
 			}
-			if(receiveCallback) {
-				unit.onReceiveListener = function(data) {
-					try {
-						receiveCallback(data, this.send);
-					} catch(e) {
-						console.error(e);
+
+			var handleApi = api;
+
+			/**
+			 * 
+			 * @param {Object} winObjOrCallback
+			 * @param {Object} option
+			 * @param {Object} notActive
+			 */
+			function _connectWindow(winObjOrCallback, option, notActive) {
+				option = xsloader.extendDeep({
+					cmd: "default-cmd",
+					listener: null,
+					connected: null,
+					conndata: null,
+					connectingSource: function(source, origin, conndata, callback) {
+						var mine = location.protocol + "//" + location.host;
+						callback(mine == origin, "default");
+					},
+					onfailed: function(errtype) {
+						if(errtype == "timeout") {
+							console.warn("connect may timeout:cmd=" + option.cmd + ",my page=" + location.href);
+						}
 					}
+				}, option);
+
+				var cmd = option.cmd;
+				var connectedCallback = option.connected;
+				var receiveCallback = option.listener;
+				var conndata = option.conndata;
+				var onfailed = option.onfailed;
+
+				var isActive = !notActive;
+				var connectingSource = option.connectingSource;
+
+				var unit;
+				if(typeof winObjOrCallback == "function") {
+					unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata);
+				} else {
+					unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata);
+				}
+
+				connectedCallback = connectedCallback || function(sender, conndata) {
+					console.log((isActive ? "active" : "") + " connected:" + cmd);
 				};
-			}
-			if(typeof winObjOrCallback == "function") {
-				winObjOrCallback(function(winObj) {
-					unit.setSource(winObj);
-				});
-			}
-
-			return unit.send;
-		}
-
-		function _connectIFrame(iframe, option) {
-			var winObj;
-			if(typeof iframe == "string") {
-				//iframe = ddocument.querySelector(iframe);
-				winObj = function(callback) {
-					iframe.onload = function() {
-						callback(this.contentWindow);
+				if(connectedCallback) {
+					unit.onConnectedListener = function(conndata) {
+						try {
+							connectedCallback(this.send, conndata);
+						} catch(e) {
+							console.error(e);
+						}
 					};
-				};
-			} else {
-				winObj = iframe.contentWindow;
-			}
-			return _connectWindow(winObj, option);
-
-		};
-
-		/**
-		 * 用于连接iframe.
-		 * @param {Object} iframe iframe或selector
-		 * @param {Object} option
-		 * @return 返回sender
-		 */
-		handleApi.connectIFrame = function(iframe, option) {
-			return _connectIFrame(iframe, option);
-		};
-
-		/**
-		 * 用于连接父页面.
-		 * @param {Object} option
-		 * @return 返回sender
-		 */
-		handleApi.connectParent = function(option) {
-			return _connectWindow(window.parent, option);
-		};
-
-		/**
-		 * 用于连接顶层页面.
-		 * @param {Object} option
-		 * @return 返回sender
-		 */
-		handleApi.connectTop = function(option) {
-			return _connectWindow(window.top, option);
-		};
-
-		/**
-		 * 用于连接打开者.
-		 * @param {Object} option
-		 * @return 返回sender
-		 */
-		handleApi.connectOpener = function(option) {
-			return _connectWindow(window.opener, option);
-		};
-
-		/**
-		 * 用于监听其他页面发送消息.
-		 * @param {Object} option
-		 * @return 返回一个sender
-		 */
-		handleApi.listenMessage = function(option) {
-			return _connectWindow(null, option, true);
-		};
-
-		handleApi.debug = function(isDebug) {
-			isXsMsgDebug = isDebug;
-		};
-
-		/**
-		 * *******************
-		 * option参数
-		 *********************
-		 * option.cmd:
-		 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))默认只选择同源
-		 * option.listener: function(data,sender)
-		 * option.connected:function(sender,conndata)
-		 * option.onfailed:function(errtype):errtype,timeout,canceled
-		 * option.conndata:
-		 **************
-		 * 回调的extra参数
-		 **************
-		 * originStr:对方页面的地址
-		 */
-		xsloader.define("xsmsg", handleApi); //TODO STRONG xsmsg
-		xsloader.define("XsLinkedList", function() {
-			return LinkedList;
-		});
-	} catch(e) {
-		console.error(e);
-	}
-})();
-
-(function() { //TODO STRONG 静态资源服务
-	var http = window._xshttp_request_;
-	var DATA_CONF = "data-conf",
-		DATA_CONFX = "data-xsloader-conf";
-	var DATA_CONF2 = "data-conf2",
-		DATA_CONF2X = "data-xsloader-conf2";
-	var DATA_MAIN = "data-main";
-	var DATA_CONF_TYPE = "data-conf-type";
-
-	var url;
-	var dataConf = xsloader.script().getAttribute(DATA_CONF) || xsloader.script().getAttribute(DATA_CONFX);
-	var dataMain = xsloader.script().getAttribute(DATA_MAIN);
-	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
-	if(dataConfType !== "json" && dataConfType != "js") {
-		dataConfType = "auto";
-	}
-
-	if(dataConf) {
-		url = getPathWithRelative(location.href, dataConf);
-	} else if((dataConf = (xsloader.script().getAttribute(DATA_CONF2) || xsloader.script().getAttribute(DATA_CONF2X)))) {
-		url = getPathWithRelative(xsloader.script().src, dataConf);
-	} else {
-		return;
-	}
-
-	function getMainPath(config) {
-		var mainPath = config.main.getPath.call(config, dataMain);
-		var path = location.pathname;
-
-		var index = path.lastIndexOf("/");
-		var name = path.substring(index + 1);
-		if(name === "") {
-			name = "index";
-		}
-		if(endsWith(name, ".html")) {
-			name = name.substring(0, name.length - 5);
-		}
-		mainPath = mainPath.replace("{name}", name);
-		return mainPath;
-	}
-
-	function extendConfig(config) {
-		config = xsloader.extendDeep({
-			properties: {},
-			main: {
-				getPath: function() {
-					return dataMain || "./main/{name}.js";
-				},
-				name: "main",
-				localConfigVar: "lconfig",
-				globalConfigVar: "gconfig",
-				before: function(name) {
-					try {
-						console.log("before:" + name);
-					} catch(e) {}
-				},
-				after: function(name) {
-					try {
-						console.log("after:" + name);
-					} catch(e) {}
 				}
-			},
-			service: {
-				hasGlobal: false,
-				resUrls: []
-			},
-			chooseLoader: function(localConfig) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
-				return "default";
-			},
-			loader: {
-				"default": {
-					autoUrlArgs: true
+				if(receiveCallback) {
+					unit.onReceiveListener = function(data) {
+						try {
+							receiveCallback(data, this.send);
+						} catch(e) {
+							console.error(e);
+						}
+					};
 				}
+				if(typeof winObjOrCallback == "function") {
+					winObjOrCallback(function(winObj) {
+						unit.setSource(winObj);
+					});
+				}
+
+				return unit.send;
 			}
-		}, config);
 
-		return config;
-	};
-
-	function loadServiceConfig(tag, url, callback, isLocal) {
-		http({
-			url: url,
-			method: "get",
-			timeout: 20000,
-			handleType: "text",
-			ok: function(confText) {
-
-				var conf;
-				if(dataConfType == "js") {
-					conf = xsEval(confText);
-				} else if(dataConfType == "json") {
-					conf = xsParseJson(confText);
+			function _connectIFrame(iframe, option) {
+				var winObj;
+				if(typeof iframe == "string") {
+					//iframe = ddocument.querySelector(iframe);
+					winObj = function(callback) {
+						iframe.onload = function() {
+							callback(this.contentWindow);
+						};
+					};
 				} else {
-					if(startsWith(url, location.protocol + "//" + location.host + "/")) {
-						//同域则默认用脚本解析
-						conf = xsEval(confText);
-					} else {
-						conf = xsParseJson(confText);
+					winObj = iframe.contentWindow;
+				}
+				return _connectWindow(winObj, option);
+
+			};
+
+			/**
+			 * 用于连接iframe.
+			 * @param {Object} iframe iframe或selector
+			 * @param {Object} option
+			 * @return 返回sender
+			 */
+			handleApi.connectIFrame = function(iframe, option) {
+				return _connectIFrame(iframe, option);
+			};
+
+			/**
+			 * 用于连接父页面.
+			 * @param {Object} option
+			 * @return 返回sender
+			 */
+			handleApi.connectParent = function(option) {
+				return _connectWindow(window.parent, option);
+			};
+
+			/**
+			 * 用于连接顶层页面.
+			 * @param {Object} option
+			 * @return 返回sender
+			 */
+			handleApi.connectTop = function(option) {
+				return _connectWindow(window.top, option);
+			};
+
+			/**
+			 * 用于连接打开者.
+			 * @param {Object} option
+			 * @return 返回sender
+			 */
+			handleApi.connectOpener = function(option) {
+				return _connectWindow(window.opener, option);
+			};
+
+			/**
+			 * 用于监听其他页面发送消息.
+			 * @param {Object} option
+			 * @return 返回一个sender
+			 */
+			handleApi.listenMessage = function(option) {
+				return _connectWindow(null, option, true);
+			};
+
+			handleApi.debug = function(isDebug) {
+				isXsMsgDebug = isDebug;
+			};
+
+			/**
+			 * *******************
+			 * option参数
+			 *********************
+			 * option.cmd:
+			 * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))默认只选择同源
+			 * option.listener: function(data,sender)
+			 * option.connected:function(sender,conndata)
+			 * option.onfailed:function(errtype):errtype,timeout,canceled
+			 * option.conndata:
+			 **************
+			 * 回调的extra参数
+			 **************
+			 * originStr:对方页面的地址
+			 */
+			xsloader.define("xsmsg", handleApi); //TODO STRONG xsmsg
+			xsloader.define("XsLinkedList", function() {
+				return LinkedList;
+			});
+		} catch(e) {
+			console.error(e);
+		}
+	})();
+
+	(function() { //TODO STRONG 静态资源服务
+		var http = window._xshttp_request_;
+		var DATA_CONF = "data-conf",
+			DATA_CONFX = "data-xsloader-conf";
+		var DATA_CONF2 = "data-conf2",
+			DATA_CONF2X = "data-xsloader-conf2";
+		var DATA_MAIN = "data-main";
+		var DATA_CONF_TYPE = "data-conf-type";
+
+		var url;
+		var dataConf = xsloader.script().getAttribute(DATA_CONF) || xsloader.script().getAttribute(DATA_CONFX);
+		var dataMain = xsloader.script().getAttribute(DATA_MAIN);
+		var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
+		if(dataConfType !== "json" && dataConfType != "js") {
+			dataConfType = "auto";
+		}
+
+		if(dataConf) {
+			url = getPathWithRelative(location.href, dataConf);
+		} else if((dataConf = (xsloader.script().getAttribute(DATA_CONF2) || xsloader.script().getAttribute(DATA_CONF2X)))) {
+			url = getPathWithRelative(xsloader.script().src, dataConf);
+		} else {
+			return;
+		}
+
+		function getMainPath(config) {
+			var mainPath = config.main.getPath.call(config, dataMain);
+			var path = location.pathname;
+
+			var index = path.lastIndexOf("/");
+			var name = path.substring(index + 1);
+			if(name === "") {
+				name = "index";
+			}
+			if(endsWith(name, ".html")) {
+				name = name.substring(0, name.length - 5);
+			}
+			mainPath = mainPath.replace("{name}", name);
+			return mainPath;
+		}
+
+		function extendConfig(config) {
+			config = xsloader.extendDeep({
+				properties: {},
+				main: {
+					getPath: function() {
+						return dataMain || "./main/{name}.js";
+					},
+					name: "main",
+					localConfigVar: "lconfig",
+					globalConfigVar: "gconfig",
+					before: function(name) {
+						try {
+							console.log("before:" + name);
+						} catch(e) {}
+					},
+					after: function(name) {
+						try {
+							console.log("after:" + name);
+						} catch(e) {}
+					}
+				},
+				service: {
+					hasGlobal: false,
+					resUrls: []
+				},
+				chooseLoader: function(localConfig) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
+					return "default";
+				},
+				loader: {
+					"default": {
+						autoUrlArgs: true
 					}
 				}
+			}, config);
 
-				conf = extendConfig(conf);
-				conf = xsloader.dealProperties(conf, conf.properties); //参数处理
-
-				if(isLocal && conf.service.hasGlobal) {
-					loadServiceConfig("global servie", conf.service.confUrl,
-						function(globalConfig) {
-							var localConfig = conf;
-							window[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
-							window[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
-
-							var mainName, mainPath, loaderName;
-
-							loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
-							var conf;
-							if(loaderName != null) {
-								mainName = globalConfig.main.name;
-								mainPath = getPathWithRelative(location.href, getMainPath(globalConfig));
-								loader = globalConfig.loader[loaderName];
-								conf = globalConfig;
-							}
-
-							if(!loader) {
-								loaderName = localConfig.chooseLoader.call(localConfig, null);
-								mainName = localConfig.main.name;
-								mainPath = getPathWithRelative(location.href, getMainPath(localConfig));
-								loader = localConfig.loader[loaderName];
-								conf = localConfig;
-							}
-
-							if(!loader) {
-								console.error("unknown loader:" + loaderName + "");
-								return;
-							}
-
-							initXsloader(mainName, mainPath, loader, conf, localConfig);
-
-						});
-				} else {
-					callback(conf);
-				}
-			},
-			fail: function(err) {
-				console.error("load " + tag + " config err:url=" + url + ",errinfo=" + err);
-			}
-		}).done();
-	}
-
-	function startLoad() {
-		loadServiceConfig("local", url, function(localConfig) {
-			window[localConfig.main.localConfigVar] = localConfig;
-
-			var mainName = localConfig.main.name;
-
-			var href = location.href;
-			var index = href.lastIndexOf("?");
-			if(index >= 0) {
-				href = href.substring(0, index);
-			}
-
-			var mainPath = getMainPath(localConfig);
-
-			mainPath = mainPath.indexOf("!") == -1 ? getPathWithRelative(href, mainPath) : mainPath;
-			var loaderName = localConfig.chooseLoader.call(localConfig, null);
-
-			var loader = localConfig.loader[loaderName];
-			if(!loader) {
-				console.error("unknown local loader:" + loaderName);
-				return;
-			}
-			initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
-		}, true);
-	}
-
-	function initXsloader(pageHref, mainName, mainPath, loader, conf, localConfig) {
-		var resUrls = [];
-		conf.service.resUrl && resUrls.push(conf.service.resUrl);
-		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
-
-		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
-		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
-
-		xsloader._resUrlBuilder = function(groupModule) {
-			var as = [];
-			each(resUrls, function(url) {
-				as.push(appendArgs2Url(resUrl, "m=" + encodeURIComponent(groupModule)));
-			});
-			return as;
+			return config;
 		};
-		loader.ignoreProperties = true;
-		loader.defineFunction = loader.defineFunction || {};
-		loader.depsPaths = loader.depsPaths || {};
-		if(mainPath.indexOf("!") != -1) { //插件调用
-			var theConfig = xsloader(loader);
 
-			mainName = "_plugin_main_";
-			var deps = [mainPath];
-			if(theConfig.deps) { //手动添加*依赖
-				if(theConfig.deps["*"]) {
-					Array.pushAll(deps, theConfig.deps["*"]);
-				}
-				if(theConfig.deps[mainName]) {
-					Array.pushAll(deps, theConfig.deps[mainName]);
-				}
-			}
-			xsloader.defineAsync(mainName, deps, function() {
+		function loadServiceConfig(tag, url, callback, isLocal) {
+			http({
+				url: url,
+				method: "get",
+				timeout: 20000,
+				handleType: "text",
+				ok: function(confText) {
 
-			}).then({
-				absoluteUrl: pageHref
-			});
-		} else if(!xsloader.hasDefine(mainName)) {
-			loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
-			xsloader(loader);
-		} else {
-			xsloader(loader);
+					var conf;
+					if(dataConfType == "js") {
+						conf = xsEval(confText);
+					} else if(dataConfType == "json") {
+						conf = xsParseJson(confText);
+					} else {
+						if(startsWith(url, location.protocol + "//" + location.host + "/")) {
+							//同域则默认用脚本解析
+							conf = xsEval(confText);
+						} else {
+							conf = xsParseJson(confText);
+						}
+					}
+
+					conf = extendConfig(conf);
+					conf = xsloader.dealProperties(conf, conf.properties); //参数处理
+
+					if(isLocal && conf.service.hasGlobal) {
+						loadServiceConfig("global servie", conf.service.confUrl,
+							function(globalConfig) {
+								var localConfig = conf;
+								window[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
+								window[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
+
+								var mainName, mainPath, loaderName;
+
+								loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
+								var conf;
+								if(loaderName != null) {
+									mainName = globalConfig.main.name;
+									mainPath = getPathWithRelative(location.href, getMainPath(globalConfig));
+									loader = globalConfig.loader[loaderName];
+									conf = globalConfig;
+								}
+
+								if(!loader) {
+									loaderName = localConfig.chooseLoader.call(localConfig, null);
+									mainName = localConfig.main.name;
+									mainPath = getPathWithRelative(location.href, getMainPath(localConfig));
+									loader = localConfig.loader[loaderName];
+									conf = localConfig;
+								}
+
+								if(!loader) {
+									console.error("unknown loader:" + loaderName + "");
+									return;
+								}
+
+								initXsloader(mainName, mainPath, loader, conf, localConfig);
+
+							});
+					} else {
+						callback(conf);
+					}
+				},
+				fail: function(err) {
+					console.error("load " + tag + " config err:url=" + url + ",errinfo=" + err);
+				}
+			}).done();
 		}
 
-		loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
-			if(xsloader.isFunction(conf.main.before)) {
-				conf.main.before.call(conf, mainName);
-			}
-			var rt = originCallback.apply(originThis, originArgs);
+		function startLoad() {
+			loadServiceConfig("local", url, function(localConfig) {
+				window[localConfig.main.localConfigVar] = localConfig;
 
-			if(xsloader.isFunction(conf.main.after)) {
-				conf.main.after.call(conf, mainName);
-			}
-			return rt;
-		};
+				var mainName = localConfig.main.name;
 
-		xsloader.require([mainName], function(main) {}).then({
-			onError: function(err, invoker) {
-				if(invoker) {
-					console.error("error occured:invoker.url=", invoker.getUrl());
+				var href = location.href;
+				var index = href.lastIndexOf("?");
+				if(index >= 0) {
+					href = href.substring(0, index);
 				}
-				console.error("invoke main err:" + err);
+
+				var mainPath = getMainPath(localConfig);
+
+				mainPath = mainPath.indexOf("!") == -1 ? getPathWithRelative(href, mainPath) : mainPath;
+				var loaderName = localConfig.chooseLoader.call(localConfig, null);
+
+				var loader = localConfig.loader[loaderName];
+				if(!loader) {
+					console.error("unknown local loader:" + loaderName);
+					return;
+				}
+				initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
+			}, true);
+		}
+
+		function initXsloader(pageHref, mainName, mainPath, loader, conf, localConfig) {
+			var resUrls = [];
+			conf.service.resUrl && resUrls.push(conf.service.resUrl);
+			localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
+
+			conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
+			localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
+
+			xsloader._resUrlBuilder = function(groupModule) {
+				var as = [];
+				each(resUrls, function(url) {
+					as.push(appendArgs2Url(resUrl, "m=" + encodeURIComponent(groupModule)));
+				});
+				return as;
+			};
+			loader.ignoreProperties = true;
+			loader.defineFunction = loader.defineFunction || {};
+			loader.depsPaths = loader.depsPaths || {};
+			if(mainPath.indexOf("!") != -1) { //插件调用
+				var theConfig = xsloader(loader);
+
+				mainName = "_plugin_main_";
+				var deps = [mainPath];
+				if(theConfig.deps) { //手动添加*依赖
+					if(theConfig.deps["*"]) {
+						Array.pushAll(deps, theConfig.deps["*"]);
+					}
+					if(theConfig.deps[mainName]) {
+						Array.pushAll(deps, theConfig.deps[mainName]);
+					}
+				}
+				xsloader.defineAsync(mainName, deps, function() {
+
+				}).then({
+					absoluteUrl: pageHref
+				});
+			} else if(!xsloader.hasDefine(mainName)) {
+				loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
+				xsloader(loader);
+			} else {
+				xsloader(loader);
 			}
-		});
-	}
-	xsloader.asyncCall(startLoad, true);
-})();
+
+			loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
+				if(xsloader.isFunction(conf.main.before)) {
+					conf.main.before.call(conf, mainName);
+				}
+				var rt = originCallback.apply(originThis, originArgs);
+
+				if(xsloader.isFunction(conf.main.after)) {
+					conf.main.after.call(conf, mainName);
+				}
+				return rt;
+			};
+
+			xsloader.require([mainName], function(main) {}).then({
+				onError: function(err, invoker) {
+					if(invoker) {
+						console.error("error occured:invoker.url=", invoker.getUrl());
+					}
+					console.error("invoke main err:" + err);
+				}
+			});
+		}
+		xsloader.asyncCall(startLoad, true);
+	})();
