@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-21 10:20
+ * latest:2019-05-21 17:30
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -2259,7 +2259,7 @@ var queryString2ParamsMap;
 					//setTimeout(callback, 20);
 				}
 				if(cache.src != thePageUrl) {
-					context.defQueue.push(cache);//可能在script的load中触发
+					context.defQueue.push(cache); //可能在script的load中触发
 				}
 			}
 
@@ -4957,24 +4957,28 @@ var queryString2ParamsMap;
 		return;
 	}
 
+	function getMainPath(config) {
+		var mainPath = config.main.getPath.call(config,dataMain);
+		var path = location.pathname;
+
+		var index = path.lastIndexOf("/");
+		var name = path.substring(index + 1);
+		if(name === "") {
+			name = "index";
+		}
+		if(endsWith(name, ".html")) {
+			name = name.substring(0, name.length - 5);
+		}
+		mainPath = mainPath.replace("{name}", name);
+		return mainPath;
+	}
+
 	function extendConfig(config) {
 		config = xsloader.extendDeep({
 			properties: {},
 			main: {
 				getPath: function() {
-					var path = location.pathname;
-
-					var index = path.lastIndexOf("/");
-					var name = path.substring(index + 1);
-					if(name === "") {
-						name = "index";
-					}
-					if(endsWith(name, ".html")) {
-						name = name.substring(0, name.length - 5);
-					}
-					var url = dataMain || "./main/{name}.js";
-					url = url.replace("{name}", name);
-					return url;
+					return dataMain || "./main/{name}.js";
 				},
 				name: "main",
 				localConfigVar: "lconfig",
@@ -5045,7 +5049,7 @@ var queryString2ParamsMap;
 							var conf;
 							if(loaderName != null) {
 								mainName = globalConfig.main.name;
-								mainPath = getPathWithRelative(location.href, globalConfig.main.getPath.call(globalConfig));
+								mainPath = getPathWithRelative(location.href, getMainPath(globalConfig));
 								loader = globalConfig.loader[loaderName];
 								conf = globalConfig;
 							}
@@ -5053,7 +5057,7 @@ var queryString2ParamsMap;
 							if(!loader) {
 								loaderName = localConfig.chooseLoader.call(localConfig, null);
 								mainName = localConfig.main.name;
-								mainPath = getPathWithRelative(location.href, localConfig.main.getPath.call(localConfig));
+								mainPath = getPathWithRelative(location.href, getMainPath(localConfig));
 								loader = localConfig.loader[loaderName];
 								conf = localConfig;
 							}
@@ -5088,7 +5092,7 @@ var queryString2ParamsMap;
 				href = href.substring(0, index);
 			}
 
-			var mainPath = localConfig.main.getPath.call(localConfig);
+			var mainPath = getMainPath(localConfig);
 
 			mainPath = mainPath.indexOf("!") == -1 ? getPathWithRelative(href, mainPath) : mainPath;
 			var loaderName = localConfig.chooseLoader.call(localConfig, null);
