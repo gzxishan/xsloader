@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-23 11:00
+ * latest:2019-05-27 13:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -566,8 +566,8 @@ var queryString2ParamsMap;
 	var theLoaderScript = document.currentScript || scripts("xsloader.js");
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var lastAppendHeadDom = theLoaderScript;
-
 	var loadScriptMap = {}; //已经加载成功的脚本
+	var defaultJsExts = [".js", ".js+", "es6", ".jsx", ".vue"];
 
 	//去掉模块url的参数
 	function removeUrlParam(nameOrUrl) {
@@ -1132,9 +1132,16 @@ var queryString2ParamsMap;
 		if(index > 0) {
 			path = path.substring(0, index);
 		}
-
-		var isJs = _endsWith(path, ".js");
-		return isJs ? path : false;
+		var jsExts = theConfig && theConfig.jsExts || defaultJsExts;
+		for(var i = 0; i < jsExts.length; i++) {
+			if(_endsWith(path, jsExts[i])) {
+				return {
+					ext: jsExts[i],
+					path: path
+				};
+			}
+		}
+		return false;
 	}
 
 	function _getPluginParam(path) {
@@ -1166,7 +1173,7 @@ var queryString2ParamsMap;
 
 			if(module.thiz.rurl(thenOption)) { //替换相对路径为绝对路径
 				if(jsFilePath && _startsWith(m, ".")) {
-					m = _getPathWithRelative(module.thiz.rurl(thenOption), jsFilePath) + _getPluginParam(m);
+					m = _getPathWithRelative(module.thiz.rurl(thenOption), jsFilePath.path) + _getPluginParam(m);
 					deps[i] = m;
 				}
 			}
@@ -1269,7 +1276,6 @@ var queryString2ParamsMap;
 						urls = isArray(_url) ? _url : [_url];
 					} else if(config.isInUrls(dep)) {
 						urls = config.getUrls(dep);
-						isJsFile = true;
 					} else if(isJsFile) {
 						urls = [dep];
 					} else {
@@ -1616,7 +1622,7 @@ var queryString2ParamsMap;
 					}
 					this._object = addTheAttrs(isSingle ? obj : _clone(obj));
 				} else if(isFunction(obj)) {
-					this._object = obj;
+					this._object = addTheAttrs(obj);
 				}
 
 			},
@@ -2444,10 +2450,51 @@ var queryString2ParamsMap;
 		return invoker;
 	}
 
-	require = function(deps, callback) {
+	require = function(deps, callback, _option) {
 		var context = theContext;
 		if(!context) { //require必须是在config之后
-			throwError(-1, "not init,see 'xsloader({})'");
+			if(!_option) {
+				var thiz = this;
+				_option = {
+					delayRequire: true,
+					timeoutHandle: undefined,
+					isRequireCalled: false,
+					thenObj: {
+						thenOption: undefined,
+						thenError: undefined
+					}
+				};
+				var handle = {
+					then: function(option) {
+						_option.thenObj.thenOption = option;
+					},
+					error: function(fun) {
+						_option.thenObj.thenError = fun;
+					}
+				};
+				requiresQueueBeforeConf.push(function() {
+					_option.isRequireCalled = true;
+					clearTimeout(_option.timeoutHandle);
+					var handle = xsloader.require.call(thiz, deps, callback, _option);
+					if(xsloader.isArray(deps)) {
+						if(_option.thenObj.thenOption) {
+							handle.then(_option.thenObj.thenOption);
+						}
+
+						if(_option.thenObj.thenError) {
+							handle.error(_option.thenObj.thenError);
+						}
+					}
+				});
+				_option.timeoutHandle = setTimeout(function() {
+					if(!_option.isRequireCalled) {
+						xsloader.require.call(thiz, deps, callback, _option);
+					}
+				}, 10000); //自动延迟
+				return handle;
+			} else {
+				throwError(-1, "not init,deps=[" + deps.join(",") + "],see 'xsloader({})'");
+			}
 		}
 		var thatInvoker = getThatInvokerForDef_Req(this);
 		if(isString(deps)) { //获取已经加载的模块
@@ -2459,6 +2506,10 @@ var queryString2ParamsMap;
 				deps = deps.substring(0, pluginIndex);
 			}
 			var module = getModule(deps);
+			if(!module){
+				deps = thatInvoker ? thatInvoker.getUrl(deps, false) : xsloader.getUrl(deps, false);
+				module = getModule(deps);
+			}
 			if(!module) {
 				throwError(-12, "the module '" + originDeps + "' is not load!");
 			} else if(module.state != "defined") {
@@ -2581,6 +2632,8 @@ var queryString2ParamsMap;
 		return true;
 	};
 
+	var requiresQueueBeforeConf = []; //配置前的require
+
 	/**
 	 * 进行配置
 	 * @param {Object} option
@@ -2596,6 +2649,7 @@ var queryString2ParamsMap;
 			paths: {},
 			depsPaths: {},
 			deps: {},
+			jsExts: defaultJsExts,
 			properties: {},
 			modulePrefix: {},
 			defineFunction: {},
@@ -2879,6 +2933,11 @@ var queryString2ParamsMap;
 			elem.data.isGlobal = true;
 			__define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
 		});
+		if(requiresQueueBeforeConf && requiresQueueBeforeConf.length) {
+			while(requiresQueueBeforeConf.length) {
+				requiresQueueBeforeConf.shift()();
+			}
+		}
 		return theConfig;
 	};
 	xsloader.define = define;
