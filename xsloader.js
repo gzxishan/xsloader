@@ -1807,7 +1807,9 @@ var queryString2ParamsMap;
 						console.log("ignore moudule named '" + moduleMap.name + "':" + obj);
 					}
 				}
+				var isDefault = false;
 				if(obj === undefined) {
+					isDefault = true;
 					obj = {
 						__default: true
 					};
@@ -1821,7 +1823,10 @@ var queryString2ParamsMap;
 					}
 					obj = this.loopObject;
 				}
-				if(this.moduleObject === undefined) { //用于支持exports
+				//this.moduleObject不为undefined，则使用了exports
+				if(this.moduleObject === undefined ||
+					!isDefault && obj !== undefined//如果使用了return、则优先使用
+				) {
 					this.moduleObject = obj;
 				}
 				this.setState("defined");
@@ -2506,7 +2511,7 @@ var queryString2ParamsMap;
 				deps = deps.substring(0, pluginIndex);
 			}
 			var module = getModule(deps);
-			if(!module){
+			if(!module) {
 				deps = thatInvoker ? thatInvoker.getUrl(deps, false) : xsloader.getUrl(deps, false);
 				module = getModule(deps);
 			}
