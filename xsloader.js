@@ -3457,15 +3457,15 @@ var queryString2ParamsMap;
 			xsloader.appendHeadDom(link);
 		}
 		cssAPI.pluginMain = function(cssId, onload, onerror, config) {
-			if(cssId.indexOf(".css") != cssId.length - 4) {
-				cssId += ".css";
-			}
+//			if(cssId.indexOf(".css") != cssId.length - 4) {
+//				cssId += ".css";
+//			}
 			(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
 		};
 		cssAPI.getCacheKey = function(cssId) {
-			if(cssId.indexOf(".css") != cssId.length - 4) {
-				cssId += ".css";
-			}
+//			if(cssId.indexOf(".css") != cssId.length - 4) {
+//				cssId += ".css";
+//			}
 			var invoker = this.invoker();
 			return invoker ? invoker.getUrl(cssId, true) : cssId;
 		};
