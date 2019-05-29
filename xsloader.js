@@ -2217,6 +2217,7 @@ var queryString2ParamsMap;
 				console.error(err);
 			}
 		}
+		var thatInvoker = getThatInvokerForDef_Req(this);
 		var cache = {
 			id: randId(),
 			data: data,
@@ -2226,8 +2227,8 @@ var queryString2ParamsMap;
 			thenOption: {
 				onError: onError,
 				defined_module_for_deps: null,
-				absoluteUrl: null,
-				thatInvoker: getThatInvokerForDef_Req(this),
+				absoluteUrl: thatInvoker ? thatInvoker.getUrl() : null,
+				thatInvoker: thatInvoker,
 				before: undefined,
 				depBefore: undefined,
 				orderDep: IE_VERSION > 0 && IE_VERSION <= 10
