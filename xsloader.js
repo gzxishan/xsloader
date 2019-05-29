@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-27 13:00
+ * latest:2019-05-29 15:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1825,7 +1825,7 @@ var queryString2ParamsMap;
 				}
 				//this.moduleObject不为undefined，则使用了exports
 				if(this.moduleObject === undefined ||
-					!isDefault && obj !== undefined//如果使用了return、则优先使用
+					!isDefault && obj !== undefined //如果使用了return、则优先使用
 				) {
 					this.moduleObject = obj;
 				}
@@ -2638,6 +2638,7 @@ var queryString2ParamsMap;
 	};
 
 	var requiresQueueBeforeConf = []; //配置前的require
+	var argsObject = {};
 
 	/**
 	 * 进行配置
@@ -2744,6 +2745,9 @@ var queryString2ParamsMap;
 				}
 				if(isFunction(urlArg)) {
 					urlArg = urlArg.call(this, nameOrUrl);
+				}
+				for(var k in argsObject) { //加入全局的参数
+					urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
 				}
 				return _appendArgs2Url(url, urlArg);
 			},
@@ -2945,17 +2949,33 @@ var queryString2ParamsMap;
 		}
 		return theConfig;
 	};
+	xsloader.putUrlArgs = function(argsObj) {
+		argsObject = xsloader.extend(argsObject, argsObj);
+	};
+
+	xsloader.getUrlArgs = function(argsObj) {
+		var obj = xsloader.extend({}, argsObject);
+		return obj;
+	};
+
+	xsloader.clearUrlArgs = function(argsObj) {
+		argsObject = {};
+	};
 	xsloader.define = define;
 	xsloader.defineAsync = defineAsync;
 	xsloader.require = require;
 	xsloader.randId = randId;
-	xsloader.tryCall = function(fun, defaultReturn, thiz) {
+	xsloader.tryCall = function(fun, defaultReturn, thiz, exCallback) {
 		var rs;
 		try {
 			thiz = thiz === undefined ? this : thiz;
 			rs = fun.call(thiz);
 		} catch(e) {
-			console.log(e);
+			if(exCallback) {
+				exCallback(e);
+			} else {
+				console.log(e);
+			}
 		}
 		if(rs === undefined || rs === null) {
 			rs = defaultReturn;
@@ -3457,15 +3477,15 @@ var queryString2ParamsMap;
 			xsloader.appendHeadDom(link);
 		}
 		cssAPI.pluginMain = function(cssId, onload, onerror, config) {
-//			if(cssId.indexOf(".css") != cssId.length - 4) {
-//				cssId += ".css";
-//			}
+			//			if(cssId.indexOf(".css") != cssId.length - 4) {
+			//				cssId += ".css";
+			//			}
 			(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
 		};
 		cssAPI.getCacheKey = function(cssId) {
-//			if(cssId.indexOf(".css") != cssId.length - 4) {
-//				cssId += ".css";
-//			}
+			//			if(cssId.indexOf(".css") != cssId.length - 4) {
+			//				cssId += ".css";
+			//			}
 			var invoker = this.invoker();
 			return invoker ? invoker.getUrl(cssId, true) : cssId;
 		};
