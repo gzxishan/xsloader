@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-29 15:00
+ * latest:2019-05-29 23:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1441,7 +1441,7 @@ var queryString2ParamsMap;
 				} while (false);
 			}
 			relyItFun();
-		}, thenOption.orderDep || IE_VERSION > 0 && IE_VERSION <= 10);
+		}, thenOption.orderDep);
 		//TODO STRONG ie10及以下版本，js文件一个一个加载，从而解决缓存等造成的混乱问题
 	}
 
@@ -2229,7 +2229,8 @@ var queryString2ParamsMap;
 				absoluteUrl: null,
 				thatInvoker: getThatInvokerForDef_Req(this),
 				before: undefined,
-				depBefore: undefined
+				depBefore: undefined,
+				orderDep: IE_VERSION > 0 && IE_VERSION <= 10
 			},
 			src: src
 		};
@@ -2242,6 +2243,7 @@ var queryString2ParamsMap;
 				this.error(thenOption.onError);
 				thenOption.onError = undefined;
 				cache.thenOption = xsloader.extend(cache.thenOption, thenOption);
+				cache.thenOption.orderDep = thenOption.orderDep || IE_VERSION > 0 && IE_VERSION <= 10;
 				return this;
 			},
 			error: function(onError) {
@@ -5272,7 +5274,7 @@ var queryString2ParamsMap;
 			var theConfig = xsloader(loader);
 
 			mainName = "_plugin_main_";
-			var deps = [mainPath];
+			var deps = [];
 			if(theConfig.deps) { //手动添加*依赖
 				if(theConfig.deps["*"]) {
 					Array.pushAll(deps, theConfig.deps["*"]);
@@ -5281,6 +5283,7 @@ var queryString2ParamsMap;
 					Array.pushAll(deps, theConfig.deps[mainName]);
 				}
 			}
+			deps.push(mainPath);
 			xsloader.defineAsync(mainName, deps, function() {
 
 			}).then({
