@@ -124,6 +124,7 @@
     xsloader.config()得到当前配置对象
     xsloader.config().dealUrlArgs(url)返回加上参数的地址,url可为相当于当前页面地址的路径
     xsloader.script()得到xsloader的script对象
+    xsloader.scriptSrc()得到xsloader的script脚本地址
     xsloader.hasDefine(name)判断是否存在模块定义
     xsloader.define
     xsloader.require

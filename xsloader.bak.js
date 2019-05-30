@@ -40,6 +40,7 @@ var appendArgs2Url;
 var queryString2ParamsMap;
 //////
 (function(global, setTimeout) {
+	global.IS_XSLOADER_DEBUG = global.IS_XSLOADER_DEBUG || false;
 	//ie9
 	try {
 		if(Function.prototype.bind && console && typeof console.log == "object") {
@@ -552,6 +553,7 @@ var queryString2ParamsMap;
 	queryString2ParamsMap = _queryString2ParamsMap;
 
 	var DATA_ATTR_MODULE = 'data-xsloader-module';
+	var DATA_ATTR_MODULE_LOADED = 'data-xsloader-module-loaded';
 	var DATA_ATTR_CONTEXT = "data-xsloader-context";
 	var defContextName = "xsloader1.0.0";
 
@@ -654,7 +656,7 @@ var queryString2ParamsMap;
 				if(!useTimer && global.Promise && global.Promise.resolve) {
 					global.Promise.resolve().then(ctrlCallback);
 				} else {
-					setTimeout(ctrlCallback, 0);
+					setTimeout(ctrlCallback, 10);
 				}
 			}
 			var queue = ctrlCallbackMap[mineCount];
@@ -831,13 +833,14 @@ var queryString2ParamsMap;
 		return singlePrefix || '';
 	}
 
-	function __createNode(config, moduleName, url) {
+	function __createNode(config, moduleName) {
 		var node = config.xhtml ?
 			document.createElementNS('http://www.w3.org/1999/xhtml', 'html:script') :
 			document.createElement('script');
 		node.type = config.scriptType || 'text/javascript';
 		node.charset = 'utf-8';
 		node.async = true;
+		//		node.defer = true;
 		return node;
 	};
 
@@ -879,17 +882,31 @@ var queryString2ParamsMap;
 			//console.log(url);
 			setModule(url, module); //绑定绝对路径
 
-			module.aurl = url;
+			module.aurl = _removeQueryHash(url);
 			var config = (context && context.config) || {},
 				node;
-			node = __createNode(config, moduleName, url);
+			node = __createNode(config, moduleName);
 			node.setAttribute(DATA_ATTR_MODULE, moduleName);
+			node.setAttribute(DATA_ATTR_MODULE_LOADED, "false");
 			node.setAttribute(DATA_ATTR_CONTEXT, defContextName);
 
 			if(node.attachEvent &&
 				!(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) &&
 				!isOpera) {
-				node.attachEvent('onreadystatechange', callbackObj.onScriptLoad);
+				node.attachEvent('onreadystatechange', function(e) {
+					if(_isScriptLoaded(e)) {
+						var evt = {
+							type: e.type,
+							currentTarget: {
+								readyState: (e.currentTarget || e.srcElement).readyState
+							},
+							_script_data_: __getScriptData(e, callbackObj)
+						};
+						xsloader.asyncCall(function() {
+							callbackObj.onScriptLoad(evt); //ie下、确保script事件在对应脚本之后执行
+						});
+					}
+				});
 			} else {
 				node.addEventListener('load', callbackObj.onScriptLoad, false);
 				var errListen = function() {
@@ -903,8 +920,9 @@ var queryString2ParamsMap;
 				callbackObj.errListen = errListen;
 				node.addEventListener('error', errListen, false);
 			}
-			node.src = url;
+			if(IE_VERSION > 0 && IE_VERSION <= 10) {}
 			xsloader.appendHeadDom(node);
+			node.src = url;
 		};
 		if(urls.length == 0) {
 			throwError(-9, "url is empty:" + moduleName);
@@ -953,11 +971,20 @@ var queryString2ParamsMap;
 		return "_xs_req_2018_" + randModuleIndex++;
 	}
 
-	function __getScriptData(evt, callbackObj) {
+	function _isScriptLoaded(evt) {
+		var isLoad = evt.type === 'load' ||
+			(readyRegExp.test((evt.currentTarget || evt.srcElement).readyState));
+		return isLoad;
+	}
 
+	function __getScriptData(evt, callbackObj) {
+		if(evt && evt._script_data_) {
+			return evt._script_data_;
+		}
 		var node = evt.currentTarget || evt.srcElement;
 		__removeListener(node, callbackObj.onScriptLoad, 'load', 'onreadystatechange');
 		__removeListener(node, callbackObj.errListen, 'error');
+		node.setAttribute(DATA_ATTR_MODULE_LOADED, "true");
 		return {
 			node: node,
 			name: node && node.getAttribute(DATA_ATTR_MODULE)
@@ -965,7 +992,7 @@ var queryString2ParamsMap;
 	}
 
 	//处理嵌套依赖
-	function _dealEmbedDeps(deps) {
+	function _dealEmbedDeps(deps, thenOption) {
 		for(var i = 0; i < deps.length; i++) {
 			var dep = deps[i];
 			if(isArray(dep)) {
@@ -987,7 +1014,7 @@ var queryString2ParamsMap;
 	}
 
 	function _onScriptComplete(moduleName, cache, aurl, isRequire, lastThenOptionObj) {
-		var ifmodule = getModule(moduleName);
+		var ifmodule = getModule(moduleName); //多个模块的aurl可能是同一个
 		if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
 			var lastModule = ifmodule;
 			if(aurl && lastModule.aurl == aurl && moduleName == aurl) { //已经加载过js模块
@@ -1015,7 +1042,7 @@ var queryString2ParamsMap;
 		}
 		cache.name = moduleName || cache.name;
 
-		var module = getModule(moduleName);
+		var module = ifmodule;
 		if(!module) {
 			module = _newModule(moduleName, null, callback, thenOption.thatInvoker, thenOption.absoluteUrl);
 		}
@@ -1040,8 +1067,7 @@ var queryString2ParamsMap;
 			var moduleSelf = getModule(cache.selfname);
 			if(moduleSelf) {
 				if(moduleSelf.state == "init") {
-					setModule(cache.selfname, module);
-					moduleSelf.toOtherModule(module);
+					moduleSelf.toOtherModule(cache.selfname,module);
 				} else if(moduleSelf.cacheId == cache.id) {
 					return;
 				} else {
@@ -1132,7 +1158,7 @@ var queryString2ParamsMap;
 		if(pluginIndex > 0) {
 			path = path.substring(0, pluginIndex);
 		}
-		var index = _removeQueryHash(path);
+		path = _removeQueryHash(path);
 
 		var jsExts = theConfig && theConfig.jsExts || defaultJsExts;
 		for(var i = 0; i < jsExts.length; i++) {
@@ -1166,7 +1192,7 @@ var queryString2ParamsMap;
 		var context = theContext;
 
 		_replaceModulePrefix(config, deps); //前缀替换
-		_dealEmbedDeps(deps); //处理嵌套依赖
+		_dealEmbedDeps(deps, thenOption); //处理嵌套依赖
 
 		for(var i = 0; i < deps.length; i++) {
 			//console.log(module.name+("("+thenOption.defined_module_for_deps+")"), ":", deps);
@@ -1193,7 +1219,7 @@ var queryString2ParamsMap;
 		//module.jsScriptCount = 0;
 		var depModules = new Array(depCount);
 
-		var thatInvoker = thenOption.thatInvoker || module.thiz;
+		var invoker_the_module = module.thiz;
 
 		function checkFinish(index, dep_name, depModule, syncHandle) {
 			depModules[index] = depModule;
@@ -1208,7 +1234,7 @@ var queryString2ParamsMap;
 						err: isError,
 						index: index,
 						dep_name: dep_name
-					}, thatInvoker);
+					}, invoker_the_module);
 				}
 			}!isError && syncHandle && syncHandle();
 		}
@@ -1222,7 +1248,7 @@ var queryString2ParamsMap;
 				dep = dep.substring(0, pluginIndex);
 			}
 			var relyItFun = function() {
-				getModule(dep).relyIt(thatInvoker, function(depModule, err) {
+				getModule(dep).relyIt(invoker_the_module, function(depModule, err) {
 
 					if(!err) {
 						depCount--;
@@ -1240,8 +1266,11 @@ var queryString2ParamsMap;
 				}, pluginArgs);
 			};
 
+			var isJsFile = _isJsFile(dep);
+			if(isJsFile) {
+				dep = _removeQueryHash(dep);
+			}
 			if(!getModule(dep)) {
-				var isJsFile = _isJsFile(dep);
 				do {
 
 					var willDelay = false;
@@ -1257,7 +1286,7 @@ var queryString2ParamsMap;
 						var i3 = i2 > 0 ? dep.indexOf(":", i2 + 1) : -1;
 						if(i2 == -1) {
 							isError = "illegal module:" + dep;
-							errCallback(isError, thatInvoker);
+							errCallback(isError, invoker_the_module);
 							break;
 						}
 						var version;
@@ -1271,7 +1300,7 @@ var queryString2ParamsMap;
 						}
 						if(version === undefined) {
 							isError = "unknown version for:" + dep;
-							errCallback(isError, thatInvoker);
+							errCallback(isError, invoker_the_module);
 							break;
 						}
 						var _url = xsloader._resUrlBuilder(groupModule);
@@ -1285,13 +1314,11 @@ var queryString2ParamsMap;
 						urls = [];
 					}
 
-					var module2 = _newModule(dep, _deps, null);
-					//console.log(module2);
-					module2.invoker = thenOption.thatInvoker || module.thiz;
+					var module2 = _newModule(dep, _deps, null, /*thenOption.thatInvoker ||*/ module.thiz);
 					if(willDelay && _deps.length == 0) {
 						break;
 					}
-					module2.aurl = urls[0];
+					module2.aurl = _removeQueryHash(urls[0]);
 
 					var loadAllScript = function() {
 						if(_deps.length > 0) {
@@ -1312,7 +1339,7 @@ var queryString2ParamsMap;
 					}
 
 					function mayAsyncCallLoadScript() {
-						if(IE_VERSION > 0 && IE_VERSION <= 10) {
+						if(IE_VERSION > 0 && IE_VERSION <= 10 && thenOption.orderDep) {
 							asyncCall(function() {
 								loadScript();
 							});
@@ -1335,25 +1362,41 @@ var queryString2ParamsMap;
 								if(callbackObj.removed) {
 									return;
 								}
-								if(evt.type === 'load' ||
-									(readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
+								if(_isScriptLoaded(evt)) {
 
 									//TODO STRONG 直接认定队列里的模块全来自于该脚本
 									var scriptData = __getScriptData(evt, callbackObj);
+									var nodeSrc = _removeQueryHash(_getAbsolutePath(scriptData.node));
 
-									loadScriptMap[scriptData.node.src] = true;
+									loadScriptMap[nodeSrc] = true;
 									callbackObj.removed = true;
 									var hasAnonymous = false;
 									var defQueue = context.defQueue;
 									context.defQueue = [];
 									var defineCount = defQueue.length;
 
+									if(global.IS_XSLOADER_DEBUG) {
+										console.log("*****nodeSrc=", nodeSrc);
+										for(var i2 = 0; i2 < defQueue.length; i2++) {
+											var cache = defQueue[i2];
+											console.log("cache.src=", cache.src);
+										}
+										console.log("*****nodeSrc*****");
+									}
+
 									for(var i2 = 0; i2 < defQueue.length; i2++) {
 										var cache = defQueue[i2];
+										if(IE_VERSION > 0 && IE_VERSION <= 10) {
+											if(cache.src && cache.src != nodeSrc) {
+												defineCount--;
+												context.defQueue.push(cache);
+												continue;
+											}
+										}
 										var isCurrentScriptDefine = true;
 										if(hasAnonymous || !isCurrentScriptDefine) {
 											if(!cache.name) {
-												var errinfo = "multi anonymous define in a script:" + (scriptData.node && scriptData.node.src) + "," + (cache.callback && cache.callback.originCallback || cache.callback);
+												var errinfo = "multi anonymous define in a script:" + nodeSrc + "," + (cache.callback && cache.callback.originCallback || cache.callback);
 												isError = errinfo;
 												checkFinish(index, undefined, undefined, syncHandle);
 												throwError(-10, errinfo);
@@ -1370,15 +1413,12 @@ var queryString2ParamsMap;
 										var aurl = cache.src;
 										if(isCurrentScriptDefine) {
 											if(cache.src == theLoaderUrl) {
-												aurl = _getAbsolutePath(scriptData.node); //获取脚本地址
+												aurl = nodeSrc; //获取脚本地址
 											} else {
-												aurl = cache.src || _getAbsolutePath(scriptData.node); //获取脚本地址
+												aurl = cache.src || nodeSrc; //获取脚本地址
 											}
 										}
 
-										if(aurl) {
-											aurl = _removeQueryHash(aurl);
-										}
 										//对于只有一个define的脚本，优先使用外部指定的模块名称、同时也保留define提供的名称。
 										if(defineCount == 1 && !parentDefine) {
 											var name = scriptData.name || cache.name;
@@ -1413,7 +1453,7 @@ var queryString2ParamsMap;
 							callbackObj.removed = true;
 							var errinfo = "load module '" + scriptData.name + "' error:" + xsJson2String(evt);
 							isError = errinfo;
-							errCallback(errinfo, thatInvoker);
+							errCallback(errinfo, invoker_the_module);
 						};
 						module2.setState("loading");
 						each(urls, function(url, index) {
@@ -1431,7 +1471,7 @@ var queryString2ParamsMap;
 									url = config.baseUrl + url;
 								}
 							}
-							urls[index] = config.dealUrl(thenOption.thatInvoker && thenOption.thatInvoker.getName() || module2, url);
+							urls[index] = config.dealUrl( /*thenOption.thatInvoker && thenOption.thatInvoker.getName() || */ module2, url);
 						});
 						__browserLoader(context, module2, urls, callbackObj);
 					}
@@ -1564,35 +1604,13 @@ var queryString2ParamsMap;
 		this.isAsyncDefine = function() {
 			return asyncDefine;
 		}
+		this.getSrc = function() {
+			return invoker.getUrl();
+		}
 	}
 
 	//relyCallback(depModuleThis)
 	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs) {
-
-		if(!thatInvoker) {
-			var newObj = {
-				module: {
-					name: ""
-				},
-				thiz: {
-					getAbsoluteUrl: function() {
-						return thePageUrl;
-					},
-					absUrl: function() {
-						return thePageUrl;
-					},
-					getName: function() {
-						return "__root__";
-					},
-					invoker: function() {
-						return this;
-					}
-				}
-			};
-			_buildInvoker(newObj);
-			thatInvoker = newObj.thiz;
-		}
-
 		var depModule = {
 			relyCallback: relyCallback,
 			_invoker: thatInvoker,
@@ -1831,6 +1849,9 @@ var queryString2ParamsMap;
 				) {
 					this.moduleObject = obj;
 				}
+				if(global.IS_XSLOADER_DEBUG) {
+					console.log("defined module:name=", this.name, ",aurl=", this.aurl, ",relys.length=", relys.length);
+				}
 				this.setState("defined");
 			},
 			state: "init", //init,loading,loaded,defined,error,
@@ -1872,14 +1893,20 @@ var queryString2ParamsMap;
 			setState: function(_state, errinfo) {
 				this.state = _state;
 				this.errinfo = errinfo;
-				if(!this._callback()) {
-					while(relys.length) {
-						var fun = relys.shift();
-						this._callback(fun);
-					}
+				if(!this._callback() && relys.length) {
+					var _relys = relys;
+					relys = [];
+					var thiz = this;
+					xsloader.asyncCall(function() { //异步执行
+						while(_relys.length) {
+							var fun = _relys.shift();
+							thiz._callback(fun);
+						}
+					});
 				}
 			},
-			toOtherModule: function(otherModule) {
+			toOtherModule: function(newName,otherModule) {//当前模块为init，表示提前被依赖，此时需要替换成新的模块
+				setModule(newName,otherModule);
 				var theRelys = relys;
 				relys = [];
 				while(theRelys.length) {
@@ -2099,55 +2126,81 @@ var queryString2ParamsMap;
 		}
 	}
 
-	function _getCurrentScriptSrc() {
-		function getCurrentScriptSrc() { //兼容获取正在运行的js
-			//取得正在解析的script节点
-			if(document.currentScript !== undefined) { //firefox 4+
-				return document.currentScript && document.currentScript.src || "";
-			}
-			var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+	function _getCurrentScriptDom() {
+		if(document.currentScript !== undefined) { //firefox 4+
+			return document.currentScript;
+		} else {
+			var nodes = document.getElementsByTagName("script");
 			for(var i = 0, node; node = nodes[i++];) {
-				if(node.readyState === "interactive") {
-					return node.src;
+				if(node.readyState === "interactive" && node.getAttribute(DATA_ATTR_CONTEXT) == defContextName) {
+					return node;
 				}
 			}
-			var stack, i;
-			try {
-				a.b.c(); //强制报错,以便捕获e.stack
-			} catch(e) { //safari的错误对象只有line,sourceId,sourceURL
-				stack = e.stack;
-				if(!stack && window.opera) {
-					//opera 9没有e.stack,但有e.Backtrace,但不能直接取得,需要对e对象转字符串进行抽取
-					stack = (String(e).match(/of linked script \S+/g) || []).join(" ");
+
+			function getCurrentScriptSrc() { //兼容获取正在运行的js
+				//取得正在解析的script节点
+				if(document.currentScript !== undefined) { //firefox 4+
+					return document.currentScript && document.currentScript.src || "";
+				}
+				var nodes = document.getElementsByTagName("script");
+				for(var i = 0, node; node = nodes[i++];) {
+					if(node.readyState === "interactive" && node.getAttribute(DATA_ATTR_CONTEXT) == defContextName) {
+						return node.src;
+					}
+				}
+				var stack, i;
+				try {
+					a.b.c(); //强制报错,以便捕获e.stack
+				} catch(e) { //safari的错误对象只有line,sourceId,sourceURL
+					stack = e.stack;
+					if(!stack && window.opera) {
+						//opera 9没有e.stack,但有e.Backtrace,但不能直接取得,需要对e对象转字符串进行抽取
+						stack = (String(e).match(/of linked script \S+/g) || []).join(" ");
+					}
+				}
+				if(stack) {
+					/**e.stack最后一行在所有支持的浏览器大致如下:
+					 *chrome23:
+					 * at http://113.93.50.63/data.js:4:1
+					 *firefox17:
+					 *@http://113.93.50.63/query.js:4
+					 *opera12:
+					 *@http://113.93.50.63/data.js:4
+					 *IE10:
+					 *  at Global code (http://113.93.50.63/data.js:4:1)
+					 */
+					stack = stack.split(/[@ ]/g).pop(); //取得最后一行,最后一个空格或@之后的部分
+					stack = stack[0] == "(" ? stack.slice(1, -1) : stack;
+					var s = stack.replace(/(:\d+)?:\d+$/i, ""); //去掉行号与或许存在的出错字符起始位置
+					return s;
 				}
 			}
-			if(stack) {
-				/**e.stack最后一行在所有支持的浏览器大致如下:
-				 *chrome23:
-				 * at http://113.93.50.63/data.js:4:1
-				 *firefox17:
-				 *@http://113.93.50.63/query.js:4
-				 *opera12:
-				 *@http://113.93.50.63/data.js:4
-				 *IE10:
-				 *  at Global code (http://113.93.50.63/data.js:4:1)
-				 */
-				stack = stack.split(/[@ ]/g).pop(); //取得最后一行,最后一个空格或@之后的部分
-				stack = stack[0] == "(" ? stack.slice(1, -1) : stack;
-				var s = stack.replace(/(:\d+)?:\d+$/i, ""); //去掉行号与或许存在的出错字符起始位置
-				return s;
+
+			var src = getCurrentScriptSrc() || '';
+			if(src) {
+				for(var i = 0, node; node = nodes[i++];) {
+					if(node.src == src) {
+						return node;
+					}
+				}
 			}
 		}
+	}
 
-		var src = getCurrentScriptSrc();
-		if(src === '') {
+	function _getCurrentScriptSrc() {
+
+		var node = _getCurrentScriptDom();
+		var src;
+		if(node) {
+			src = node.src;
+		} else {
 			src = thePageUrl;
 		}
-		if(src) {
-			src=_removeQueryHash(src);
+		src = _removeQueryHash(src);
+		if(!globalDefineQueue && (src == theLoaderUrl || src == thePageUrl)) {
+			src = '';
 		}
 		return src;
-
 	};
 
 	function _getAbsolutePath(node) {
@@ -2216,6 +2269,9 @@ var queryString2ParamsMap;
 				console.error(err);
 			}
 		}
+		var isIEOrderDep = IE_VERSION > 0 && IE_VERSION <= 10;
+		isIEOrderDep = false;
+
 		var thatInvoker = getThatInvokerForDef_Req(this);
 		var cache = {
 			id: randId(),
@@ -2230,7 +2286,7 @@ var queryString2ParamsMap;
 				thatInvoker: thatInvoker,
 				before: undefined,
 				depBefore: undefined,
-				orderDep: IE_VERSION > 0 && IE_VERSION <= 10
+				orderDep: isIEOrderDep
 			},
 			src: src
 		};
@@ -2243,7 +2299,7 @@ var queryString2ParamsMap;
 				this.error(thenOption.onError);
 				thenOption.onError = undefined;
 				cache.thenOption = xsloader.extend(cache.thenOption, thenOption);
-				cache.thenOption.orderDep = thenOption.orderDep || IE_VERSION > 0 && IE_VERSION <= 10;
+				cache.thenOption.orderDep = thenOption.orderDep || isIEOrderDep;
 				return this;
 			},
 			error: function(onError) {
@@ -2254,13 +2310,14 @@ var queryString2ParamsMap;
 			}
 		};
 		if(context) {
-			cache.src = src || _getCurrentScriptSrc(cache) || null;
+			cache.src = src || _getCurrentScriptSrc() || null;
 			if( /*cache.src == thePageUrl &&*/ data.parentDefine && data.parentDefine.aurl) { //解决部分浏览器（如ie）无法正确获取脚本地址的情况
 				cache.src = data.parentDefine.aurl;
 			}
 
 			try {
 				if(cache.src) {
+					cache.src = _removeQueryHash(cache.src);
 					var node = document.currentScript;
 					if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
 						cache.src != theLoaderUrl && cache.src != thePageUrl) {
@@ -2273,6 +2330,10 @@ var queryString2ParamsMap;
 
 			}
 
+			if(!cache.src && data) {
+				cache.src = _removeQueryHash(data.currentSrc);
+			}
+
 			if(data.isRequire || data.asyncDefine) {
 				isAsync = true;
 				asyncCall(function() {
@@ -2282,9 +2343,8 @@ var queryString2ParamsMap;
 				_onScriptComplete(name, cache, cache.src);
 			} else {
 				isAsync = true;
-				if(!data.isRequire && !data.asyncDefine && !data.isGlobal && !data.parentDefine &&
-					xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
-					!theConfig.isInUrls(name)) {
+				if(xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
+					!theConfig.isInUrls(name)) { //直接定义模块的情况
 					var callback = function() {
 						var module = getModule(name);
 						if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
@@ -2292,7 +2352,8 @@ var queryString2ParamsMap;
 						}
 					};
 					//需要延迟、且在timer循环中触发，否则在js里调用define会执行此部分
-					asyncCall(callback, true); //不能return，define有可能在js里调用、紧接着会触发对应的js load事件
+					asyncCall().next().next(callback, true);
+					//注意：如果define来自于新的模块脚本、必须在js的load后执行
 					//return handle;
 					//setTimeout(callback, 20);
 				}
@@ -2417,7 +2478,8 @@ var queryString2ParamsMap;
 	define = function(name, deps, callback) {
 		var data = {
 			parentDefine: currentDefineModuleQueue.peek(),
-			asyncDefine: (this instanceof _Async_Object_) && this.isAsyncDefine()
+			asyncDefine: (this instanceof _Async_Object_) && this.isAsyncDefine(),
+			currentSrc: (this instanceof _Async_Object_) ? this.getSrc() : null
 		};
 		return __define.call(this, data, name, deps, callback);
 	};
@@ -2447,13 +2509,36 @@ var queryString2ParamsMap;
 	define.amd = true;
 	define("exports", function() {});
 
-	function getThatInvokerForDef_Req(thiz) {
+	function getThatInvokerForDef_Req(thiz, nullNew) {
 		if(thiz instanceof _Async_Object_) {
 			return thiz.getInvoker();
 		}
 		var invoker = thiz && isFunction(thiz.invoker) &&
 			isFunction(thiz.getName) && isFunction(thiz.getUrl) &&
 			isFunction(thiz.getAbsoluteUrl) ? thiz : null;
+		if(!invoker && nullNew) {
+			var newObj = {
+				module: {
+					name: ""
+				},
+				thiz: {
+					getAbsoluteUrl: function() {
+						return thePageUrl;
+					},
+					absUrl: function() {
+						return thePageUrl;
+					},
+					getName: function() {
+						return "__root__";
+					},
+					invoker: function() {
+						return this;
+					}
+				}
+			};
+			_buildInvoker(newObj);
+			invoker = newObj.thiz;
+		}
 		return invoker;
 	}
 
@@ -2503,7 +2588,7 @@ var queryString2ParamsMap;
 				throwError(-1, "not init,deps=[" + deps.join(",") + "],see 'xsloader({})'");
 			}
 		}
-		var thatInvoker = getThatInvokerForDef_Req(this);
+		var thatInvoker = getThatInvokerForDef_Req(this, true);
 		if(isString(deps)) { //获取已经加载的模块
 			var originDeps = deps;
 			var pluginArgs = undefined;
@@ -2514,7 +2599,7 @@ var queryString2ParamsMap;
 			}
 			var module = getModule(deps);
 			if(!module) {
-				deps = thatInvoker ? thatInvoker.getUrl(deps, false) : xsloader.getUrl(deps, false);
+				deps = thatInvoker.getUrl(deps, false);
 				module = getModule(deps);
 			}
 			if(!module) {
@@ -2582,7 +2667,7 @@ var queryString2ParamsMap;
 
 		var timeid;
 		asyncCall(function() {
-			if(thatInvoker) {
+			if(!src) {
 				src = thatInvoker.getUrl();
 			}
 			__define(data, moduleName, deps, function() {
@@ -3312,9 +3397,17 @@ var queryString2ParamsMap;
 					var existsMods = [];
 					for(var i = 0; i < names.length; i++) {
 						var newName = names[i];
-						if(getModule(newName)) {
-							existsMods.push(newName);
-							return;
+						var lastModule = getModule(newName);
+						if(lastModule) {
+							if(lastModule.state == "init") {//已经提前被依赖过
+								lastModule.toOtherModule(newName,depModuleArgs[0].module);
+							} else {
+								existsMods.push(newName);
+							}
+							continue;
+						}
+						if(global.IS_XSLOADER_DEBUG) {
+							console.log("bind new name:newname=", newName, ",oldName=", depModuleArgs[0].module.name);
 						}
 						setModule(newName, depModuleArgs[0].module)
 					}
