@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-30 11:00
+ * latest:2019-05-29 23:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -26,7 +26,6 @@ var indexInArrayFrom;
  * function(path,relative,isPathDir):相对于path，获取relative的绝对路径
  */
 var getPathWithRelative;
-var removeQueryHash;
 
 /**
  * function(url,args):args例子"a=1&b=2"
@@ -523,17 +522,10 @@ var queryString2ParamsMap;
 			return url; //参数没有变化直接返回
 		}
 
-		var paramKeys = [];
-		for(var k in oldParams) {
-			paramKeys.push(k);
-		}
-		paramKeys.sort();
-
 		var path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
 		var params = [];
 
-		for(var i = 0; i < paramKeys.length; i++) { //保证参数按照顺序
-			var k = paramKeys[i];
+		for(var k in oldParams) {
 			params.push(k + "=" + oldParams[k]);
 		}
 		params = params.join("&");
@@ -572,35 +564,31 @@ var queryString2ParamsMap;
 	var globalDefineQueue = []; //在config之前，可以调用define来定义模块
 	var theDefinedMap = {}; //存放原始模块
 	var theLoaderScript = document.currentScript || scripts("xsloader.js");
-	var theLoaderUrl = _removeQueryHash(_getAbsolutePath(theLoaderScript));
+	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var lastAppendHeadDom = theLoaderScript;
 	var loadScriptMap = {}; //已经加载成功的脚本
 	var defaultJsExts = [".js", ".js+", "es6", ".jsx", ".vue"];
 
-	//去掉url的query参数和#参数
-	function _removeQueryHash(url) {
-		if(url) {
-			var index = url.indexOf("?");
-			if(index >= 0) {
-				url = url.substring(0, index);
-			}
-
-			index = url.indexOf("#");
-			if(index >= 0) {
-				url = url.substring(0, index);
-			}
+	//去掉模块url的参数
+	function removeUrlParam(nameOrUrl) {
+		if(!nameOrUrl) {
+			return nameOrUrl;
 		}
-		return url;
-	};
-	removeQueryHash = _removeQueryHash;
+		var index = nameOrUrl.indexOf("?");
+		if(index >= 0) {
+			return nameOrUrl.substring(0, index);
+		} else {
+			return nameOrUrl;
+		}
+	}
 
 	function getModule(nameOrUrl) {
-		nameOrUrl = _removeQueryHash(nameOrUrl);
+		nameOrUrl = removeUrlParam(nameOrUrl);
 		return theDefinedMap[nameOrUrl];
 	}
 
 	function setModule(nameOrUrl, m) {
-		nameOrUrl = _removeQueryHash(nameOrUrl);
+		nameOrUrl = removeUrlParam(nameOrUrl);
 		var last = theDefinedMap[nameOrUrl];
 		theDefinedMap[nameOrUrl] = m;
 		return last;
@@ -613,7 +601,11 @@ var queryString2ParamsMap;
 		}
 	};
 	var thePageUrl = (function() {
-		var url = _removeQueryHash(location.href);
+		var url = location.href;
+		var index = url.indexOf("?");
+		if(index > 0) {
+			url = url.substring(0, index);
+		}
 		return url;
 	})();
 
@@ -1132,8 +1124,14 @@ var queryString2ParamsMap;
 		if(pluginIndex > 0) {
 			path = path.substring(0, pluginIndex);
 		}
-		var index = _removeQueryHash(path);
-
+		var index = path.indexOf("?");
+		if(index > 0) {
+			path = path.substring(0, index);
+		}
+		index = path.indexOf("#");
+		if(index > 0) {
+			path = path.substring(0, index);
+		}
 		var jsExts = theConfig && theConfig.jsExts || defaultJsExts;
 		for(var i = 0; i < jsExts.length; i++) {
 			if(_endsWith(path, jsExts[i])) {
@@ -1377,7 +1375,10 @@ var queryString2ParamsMap;
 										}
 
 										if(aurl) {
-											aurl = _removeQueryHash(aurl);
+											var i = aurl.indexOf("?");
+											if(i >= 0) {
+												aurl = aurl.substring(0, i);
+											}
 										}
 										//对于只有一个define的脚本，优先使用外部指定的模块名称、同时也保留define提供的名称。
 										if(defineCount == 1 && !parentDefine) {
@@ -1494,9 +1495,6 @@ var queryString2ParamsMap;
 				url = theConfig.baseUrl + relativeUrl;
 			}
 			if(appendArgs) {
-				if(url == thePageUrl) {
-					url += location.search + location.hash;
-				}
 				return theConfig.dealUrl(module, url);
 			} else {
 				return url;
@@ -2144,7 +2142,10 @@ var queryString2ParamsMap;
 			src = thePageUrl;
 		}
 		if(src) {
-			src=_removeQueryHash(src);
+			var index = src.indexOf("?");
+			if(index > 0) {
+				src = src.substring(0, index);
+			}
 		}
 		return src;
 
@@ -3005,9 +3006,6 @@ var queryString2ParamsMap;
 			url = theConfig.baseUrl + relativeUrl;
 		}
 		if(appendArgs) {
-			if(url == thePageUrl) {
-				url += location.search + location.hash;
-			}
 			return theConfig.dealUrl({}, url);
 		} else {
 			return url;
@@ -3150,10 +3148,6 @@ var queryString2ParamsMap;
 	};
 	xsloader.script = function() {
 		return theLoaderScript;
-	};
-
-	xsloader.scriptSrc = function() {
-		return theLoaderUrl;
 	};
 
 	(function() {
@@ -5094,7 +5088,7 @@ var queryString2ParamsMap;
 		DATA_MAINX = "data-xsloader-main";
 	var DATA_CONF_TYPE = "data-conf-type";
 
-	var serviceConfigUrl;
+	var url;
 	var dataConf = xsloader.script().getAttribute(DATA_CONF) || xsloader.script().getAttribute(DATA_CONFX);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN) || xsloader.script().getAttribute(DATA_MAINX);
 	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
@@ -5103,9 +5097,9 @@ var queryString2ParamsMap;
 	}
 
 	if(dataConf) {
-		serviceConfigUrl = getPathWithRelative(location.href, dataConf);
+		url = getPathWithRelative(location.href, dataConf);
 	} else if((dataConf = (xsloader.script().getAttribute(DATA_CONF2) || xsloader.script().getAttribute(DATA_CONF2X)))) {
-		serviceConfigUrl = getPathWithRelative(xsloader.scriptSrc(), dataConf);
+		url = getPathWithRelative(xsloader.script().src, dataConf);
 	} else {
 		return;
 	}
@@ -5234,12 +5228,17 @@ var queryString2ParamsMap;
 	}
 
 	function startLoad() {
-		loadServiceConfig("local", serviceConfigUrl, function(localConfig) {
+		loadServiceConfig("local", url, function(localConfig) {
 			window[localConfig.main.localConfigVar] = localConfig;
 
 			var mainName = localConfig.main.name;
 
-			var href = removeQueryHash(location.href);
+			var href = location.href;
+			var index = href.lastIndexOf("?");
+			if(index >= 0) {
+				href = href.substring(0, index);
+			}
+
 			var mainPath = getMainPath(localConfig);
 
 			mainPath = mainPath.indexOf("!") == -1 ? getPathWithRelative(href, mainPath) : mainPath;
