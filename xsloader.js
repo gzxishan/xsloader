@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-29 23:00
+ * latest:2019-05-30 11:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -521,11 +521,18 @@ var queryString2ParamsMap;
 		if(!has) {
 			return url; //参数没有变化直接返回
 		}
-
+		
+		var paramKeys=[];
+		for(var k in oldParams) {
+			paramKeys.push(k);
+		}
+		paramKeys.sort();
+		
 		var path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
 		var params = [];
 
-		for(var k in oldParams) {
+		for(var i=0;i<paramKeys.length;i++) {//保证参数按照顺序
+			var k=paramKeys[i];
 			params.push(k + "=" + oldParams[k]);
 		}
 		params = params.join("&");
@@ -1495,6 +1502,9 @@ var queryString2ParamsMap;
 				url = theConfig.baseUrl + relativeUrl;
 			}
 			if(appendArgs) {
+				if(url == thePageUrl) {
+					url += location.search + location.hash;
+				}
 				return theConfig.dealUrl(module, url);
 			} else {
 				return url;
@@ -3006,6 +3016,9 @@ var queryString2ParamsMap;
 			url = theConfig.baseUrl + relativeUrl;
 		}
 		if(appendArgs) {
+			if(url == thePageUrl) {
+				url += location.search + location.hash;
+			}
 			return theConfig.dealUrl({}, url);
 		} else {
 			return url;
