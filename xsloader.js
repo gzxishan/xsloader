@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-29 23:00
+ * latest:2019-05-30 11:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -522,10 +522,17 @@ var queryString2ParamsMap;
 			return url; //参数没有变化直接返回
 		}
 
+		var paramKeys = [];
+		for(var k in oldParams) {
+			paramKeys.push(k);
+		}
+		paramKeys.sort();
+
 		var path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
 		var params = [];
 
-		for(var k in oldParams) {
+		for(var i = 0; i < paramKeys.length; i++) { //保证参数按照顺序
+			var k = paramKeys[i];
 			params.push(k + "=" + oldParams[k]);
 		}
 		params = params.join("&");
@@ -1191,7 +1198,7 @@ var queryString2ParamsMap;
 		//module.jsScriptCount = 0;
 		var depModules = new Array(depCount);
 
-		var thatInvoker = thenOption.thatInvoker || module.thiz;
+		var invoker_the_module = module.thiz;
 
 		function checkFinish(index, dep_name, depModule, syncHandle) {
 			depModules[index] = depModule;
@@ -1206,7 +1213,7 @@ var queryString2ParamsMap;
 						err: isError,
 						index: index,
 						dep_name: dep_name
-					}, thatInvoker);
+					}, invoker_the_module);
 				}
 			}!isError && syncHandle && syncHandle();
 		}
@@ -1220,7 +1227,7 @@ var queryString2ParamsMap;
 				dep = dep.substring(0, pluginIndex);
 			}
 			var relyItFun = function() {
-				getModule(dep).relyIt(thatInvoker, function(depModule, err) {
+				getModule(dep).relyIt(invoker_the_module, function(depModule, err) {
 
 					if(!err) {
 						depCount--;
@@ -1255,7 +1262,7 @@ var queryString2ParamsMap;
 						var i3 = i2 > 0 ? dep.indexOf(":", i2 + 1) : -1;
 						if(i2 == -1) {
 							isError = "illegal module:" + dep;
-							errCallback(isError, thatInvoker);
+							errCallback(isError, invoker_the_module);
 							break;
 						}
 						var version;
@@ -1269,7 +1276,7 @@ var queryString2ParamsMap;
 						}
 						if(version === undefined) {
 							isError = "unknown version for:" + dep;
-							errCallback(isError, thatInvoker);
+							errCallback(isError, invoker_the_module);
 							break;
 						}
 						var _url = xsloader._resUrlBuilder(groupModule);
@@ -1283,9 +1290,7 @@ var queryString2ParamsMap;
 						urls = [];
 					}
 
-					var module2 = _newModule(dep, _deps, null);
-					//console.log(module2);
-					module2.invoker = thenOption.thatInvoker || module.thiz;
+					var module2 = _newModule(dep, _deps, null, /*thenOption.thatInvoker ||*/ module.thiz);
 					if(willDelay && _deps.length == 0) {
 						break;
 					}
@@ -1414,7 +1419,7 @@ var queryString2ParamsMap;
 							callbackObj.removed = true;
 							var errinfo = "load module '" + scriptData.name + "' error:" + xsJson2String(evt);
 							isError = errinfo;
-							errCallback(errinfo, thatInvoker);
+							errCallback(errinfo, invoker_the_module);
 						};
 						module2.setState("loading");
 						each(urls, function(url, index) {
@@ -1432,7 +1437,7 @@ var queryString2ParamsMap;
 									url = config.baseUrl + url;
 								}
 							}
-							urls[index] = config.dealUrl(thenOption.thatInvoker && thenOption.thatInvoker.getName() || module2, url);
+							urls[index] = config.dealUrl( /*thenOption.thatInvoker && thenOption.thatInvoker.getName() || */ module2, url);
 						});
 						__browserLoader(context, module2, urls, callbackObj);
 					}
@@ -1495,6 +1500,9 @@ var queryString2ParamsMap;
 				url = theConfig.baseUrl + relativeUrl;
 			}
 			if(appendArgs) {
+				if(url == thePageUrl) {
+					url += location.search + location.hash;
+				}
 				return theConfig.dealUrl(module, url);
 			} else {
 				return url;
@@ -1566,31 +1574,6 @@ var queryString2ParamsMap;
 
 	//relyCallback(depModuleThis)
 	function _newDepModule(module, thatInvoker, relyCallback, pluginArgs) {
-
-		if(!thatInvoker) {
-			var newObj = {
-				module: {
-					name: ""
-				},
-				thiz: {
-					getAbsoluteUrl: function() {
-						return thePageUrl;
-					},
-					absUrl: function() {
-						return thePageUrl;
-					},
-					getName: function() {
-						return "__root__";
-					},
-					invoker: function() {
-						return this;
-					}
-				}
-			};
-			_buildInvoker(newObj);
-			thatInvoker = newObj.thiz;
-		}
-
 		var depModule = {
 			relyCallback: relyCallback,
 			_invoker: thatInvoker,
@@ -2105,7 +2088,7 @@ var queryString2ParamsMap;
 			}
 			var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
 			for(var i = 0, node; node = nodes[i++];) {
-				if(node.readyState === "interactive") {
+				if(node.readyState === "interactive" && node.getAttribute(DATA_ATTR_CONTEXT) == defContextName) {
 					return node.src;
 				}
 			}
@@ -2283,9 +2266,8 @@ var queryString2ParamsMap;
 				_onScriptComplete(name, cache, cache.src);
 			} else {
 				isAsync = true;
-				if(!data.isRequire && !data.asyncDefine && !data.isGlobal && !data.parentDefine &&
-					xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
-					!theConfig.isInUrls(name)) {
+				if(xsloader.isString(name) && name.indexOf("!") == -1 && !_isJsFile(name) &&
+					!theConfig.isInUrls(name)) { //直接定义模块的情况
 					var callback = function() {
 						var module = getModule(name);
 						if(!module || module.state == "init") { //后定义的模块、且不在js第一次解析时定义的模块
@@ -2448,13 +2430,36 @@ var queryString2ParamsMap;
 	define.amd = true;
 	define("exports", function() {});
 
-	function getThatInvokerForDef_Req(thiz) {
+	function getThatInvokerForDef_Req(thiz, nullNew) {
 		if(thiz instanceof _Async_Object_) {
 			return thiz.getInvoker();
 		}
 		var invoker = thiz && isFunction(thiz.invoker) &&
 			isFunction(thiz.getName) && isFunction(thiz.getUrl) &&
 			isFunction(thiz.getAbsoluteUrl) ? thiz : null;
+		if(!invoker && nullNew) {
+			var newObj = {
+				module: {
+					name: ""
+				},
+				thiz: {
+					getAbsoluteUrl: function() {
+						return thePageUrl;
+					},
+					absUrl: function() {
+						return thePageUrl;
+					},
+					getName: function() {
+						return "__root__";
+					},
+					invoker: function() {
+						return this;
+					}
+				}
+			};
+			_buildInvoker(newObj);
+			invoker = newObj.thiz;
+		}
 		return invoker;
 	}
 
@@ -2504,7 +2509,7 @@ var queryString2ParamsMap;
 				throwError(-1, "not init,deps=[" + deps.join(",") + "],see 'xsloader({})'");
 			}
 		}
-		var thatInvoker = getThatInvokerForDef_Req(this);
+		var thatInvoker = getThatInvokerForDef_Req(this, true);
 		if(isString(deps)) { //获取已经加载的模块
 			var originDeps = deps;
 			var pluginArgs = undefined;
@@ -2515,7 +2520,7 @@ var queryString2ParamsMap;
 			}
 			var module = getModule(deps);
 			if(!module) {
-				deps = thatInvoker ? thatInvoker.getUrl(deps, false) : xsloader.getUrl(deps, false);
+				deps = thatInvoker.getUrl(deps, false);
 				module = getModule(deps);
 			}
 			if(!module) {
@@ -2583,7 +2588,7 @@ var queryString2ParamsMap;
 
 		var timeid;
 		asyncCall(function() {
-			if(thatInvoker) {
+			if(src == thePageUrl) {
 				src = thatInvoker.getUrl();
 			}
 			__define(data, moduleName, deps, function() {
@@ -3006,6 +3011,9 @@ var queryString2ParamsMap;
 			url = theConfig.baseUrl + relativeUrl;
 		}
 		if(appendArgs) {
+			if(url == thePageUrl) {
+				url += location.search + location.hash;
+			}
 			return theConfig.dealUrl({}, url);
 		} else {
 			return url;
@@ -3148,6 +3156,10 @@ var queryString2ParamsMap;
 	};
 	xsloader.script = function() {
 		return theLoaderScript;
+	};
+	
+	xsloader.scriptSrc=function(){
+		return theLoaderUrl;
 	};
 
 	(function() {
@@ -5088,7 +5100,7 @@ var queryString2ParamsMap;
 		DATA_MAINX = "data-xsloader-main";
 	var DATA_CONF_TYPE = "data-conf-type";
 
-	var url;
+	var serviceConfigUrl;
 	var dataConf = xsloader.script().getAttribute(DATA_CONF) || xsloader.script().getAttribute(DATA_CONFX);
 	var dataMain = xsloader.script().getAttribute(DATA_MAIN) || xsloader.script().getAttribute(DATA_MAINX);
 	var dataConfType = xsloader.script().getAttribute(DATA_CONF_TYPE);
@@ -5097,9 +5109,9 @@ var queryString2ParamsMap;
 	}
 
 	if(dataConf) {
-		url = getPathWithRelative(location.href, dataConf);
+		serviceConfigUrl = getPathWithRelative(location.href, dataConf);
 	} else if((dataConf = (xsloader.script().getAttribute(DATA_CONF2) || xsloader.script().getAttribute(DATA_CONF2X)))) {
-		url = getPathWithRelative(xsloader.script().src, dataConf);
+		serviceConfigUrl = getPathWithRelative(xsloader.scriptSrc(), dataConf);
 	} else {
 		return;
 	}
@@ -5228,7 +5240,7 @@ var queryString2ParamsMap;
 	}
 
 	function startLoad() {
-		loadServiceConfig("local", url, function(localConfig) {
+		loadServiceConfig("local", serviceConfigUrl, function(localConfig) {
 			window[localConfig.main.localConfigVar] = localConfig;
 
 			var mainName = localConfig.main.name;
