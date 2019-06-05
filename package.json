@@ -1,0 +1,33 @@
+{
+  "name": "xsloader.js",
+  "version": "1.1.0",
+  "description": "",
+  "main": "dist/xsloader.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "rollup -c  scripts/rollup.config.js"
+  },
+  "keywords": [
+    "js loader",
+    "require"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/gzxishan/xsloader#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.4.4",
+    "@babel/core": "^7.4.5",
+    "@babel/plugin-proposal-object-rest-spread": "^7.4.4",
+    "@babel/preset-env": "^7.4.5",
+    "babel-eslint": "^8.2.6",
+    "eslint": "^4.19.1",
+    "rollup": "^1.14.2",
+    "rollup-plugin-babel": "^4.3.2",
+    "rollup-plugin-commonjs": "^10.0.0",
+    "rollup-plugin-node-resolve": "^5.0.1",
+    "rollup-plugin-uglify": "^6.0.2"
+  },
+  "dependencies": {
+    "@babel/polyfill": "^7.4.4"
+  }
+}
