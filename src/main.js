@@ -1,16 +1,19 @@
-import B from "./b.js";
-let a = {
-	b: "c",
-	c: "d",
-	B
+import {
+	global,
+	tglobal,
+	globalVars,
+	setTimeout,
+	randId,
+	IE_VERSION
+} from './utils';
+
+for(let v in globalVars){
+	global[v]=globalVars[v];
+}
+
+
+export let xsloader = function() {
+
 };
-let b = { ...a
-}; // code2
-let set = new Set().add('a').add('b').add('c');
-let [x, y] = set;
-let [first, ...rest] = set;
-export {
-	b,
-	first,
-	rest
-};
+
+global.xsloader = xsloader;
