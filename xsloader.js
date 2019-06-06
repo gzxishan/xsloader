@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-05-30 11:00
+ * latest:2019-06-06 12:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -591,7 +591,8 @@ var queryString2ParamsMap;
 
 	function getModule(nameOrUrl) {
 		nameOrUrl = removeUrlParam(nameOrUrl);
-		return theDefinedMap[nameOrUrl];
+		var m = theDefinedMap[nameOrUrl];
+		return m ? m.get() : null;
 	}
 
 	function setModule(nameOrUrl, m) {
@@ -1726,12 +1727,13 @@ var queryString2ParamsMap;
 	}
 
 	function _newModule(name, deps, callback, thatInvoker, absoluteUrl) {
-		var relys = [];
 		var instances = []; //所有模块实例
 		var moduleMap = {
 			id: idCount++,
 			name: name,
 			deps: deps || [],
+			relys: [],
+			otherModule: undefined,
 			directDefineIndex: 0, //模块直接声明的依赖开始索引
 			ignoreAspect: false,
 			depModules: null,
@@ -1854,15 +1856,24 @@ var queryString2ParamsMap;
 				this.state = _state;
 				this.errinfo = errinfo;
 				if(!this._callback()) {
-					while(relys.length) {
-						var fun = relys.shift();
+					while(this.relys.length) {
+						var fun = this.relys.shift();
 						this._callback(fun);
 					}
 				}
 			},
+			get: function() {
+				if(this.otherModule) {
+					this.state = this.otherModule.state; //状态同步
+					return this.otherModule;
+				}
+				return this;
+			},
 			toOtherModule: function(otherModule) {
-				var theRelys = relys;
-				relys = [];
+				this.otherModule = otherModule;
+				this.get(); //状态同步
+				var theRelys = this.relys;
+				this.relys = [];
 				while(theRelys.length) {
 					var fun = theRelys.shift();
 					otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
@@ -1875,13 +1886,18 @@ var queryString2ParamsMap;
 			 * @param {Object} pluginArgs
 			 */
 			relyIt: function(thatInvoker, callbackFun, pluginArgs) {
+				if(this.otherModule) {
+					this.get(); //状态同步
+					this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs);
+					return;
+				}
 				var fun = {
 					thatInvoker: thatInvoker,
 					relyCallback: callbackFun,
 					pluginArgs: pluginArgs
 				};
 				if(this._callback(fun)) {
-					relys.push(fun);
+					this.relys.push(fun);
 				}
 			},
 			thiz: {
@@ -3157,8 +3173,8 @@ var queryString2ParamsMap;
 	xsloader.script = function() {
 		return theLoaderScript;
 	};
-	
-	xsloader.scriptSrc=function(){
+
+	xsloader.scriptSrc = function() {
 		return theLoaderUrl;
 	};
 
@@ -3318,16 +3334,23 @@ var queryString2ParamsMap;
 					var existsMods = [];
 					for(var i = 0; i < names.length; i++) {
 						var newName = names[i];
-						if(getModule(newName)) {
+						var lastM = getModule(newName);
+						if(lastM && lastM.state != "init") {
 							existsMods.push(newName);
-							return;
+							continue
 						}
-						setModule(newName, depModuleArgs[0].module)
+						if(lastM) {
+							lastM.toOtherModule(depModuleArgs[0].module);
+						} else {
+							setModule(newName, depModuleArgs[0].module)
+						}
 					}
 					if(existsMods.length) {
 						console.warn("already exists:", existsMods.join(','));
 					}
 					onload(mod);
+				}).error(function(e) {
+					onerror(e);
 				});
 			}
 		});
