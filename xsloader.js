@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-06-06 12:50
+ * latest:2019-06-08 16:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1425,11 +1425,11 @@ var queryString2ParamsMap;
 						module2.setState("loading");
 						each(urls, function(url, index) {
 							if(_startsWith(url, ".") || _startsWith(url, "/")) {
-								if(!module2.rurl(thenOption)) {
+								if(!module2.thiz.rurl(thenOption)) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
-								url = _getPathWithRelative(module2.rurl(thenOption), url);
+								url = _getPathWithRelative(module2.thiz.rurl(thenOption), url);
 							} else {
 								var absolute = _dealAbsolute(url);
 								if(absolute.absolute) {
