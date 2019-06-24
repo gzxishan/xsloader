@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-06-21 13:00
+ * latest:2019-06-24 16:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -4927,10 +4927,9 @@ var queryString2ParamsMap;
 
 			function sendTop() {
 				if(isConnected) {
-					var msg = msgQueue.pop();
-					if(msg) {
+					var msg;
+					while((msg = msgQueue.pop())) {
 						postMessageBridge.send(msg.data, handleId, msg.id);
-						postMessageBridge.runAfter(SLEEP, init);
 					}
 				}
 			}
