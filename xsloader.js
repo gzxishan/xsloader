@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-06-24 16:00
+ * latest:2019-06-28 12:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -584,7 +584,7 @@ var queryString2ParamsMap;
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var lastAppendHeadDom = theLoaderScript;
 	var loadScriptMap = {}; //已经加载成功的脚本
-	var defaultJsExts = [".js", ".js+", "es6", ".jsx", ".vue"];
+	var defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue"];
 
 	//去掉模块url的参数
 	function removeUrlParam(nameOrUrl) {
