@@ -1,19 +1,17 @@
 import {
+	setTimeout,
+	scripts,
+	IE_VERSION,
 	global,
 	tglobal,
-	globalVars,
-	setTimeout,
-	randId,
-	IE_VERSION
-} from './utils';
+	xsJSON,
+	getNodeAbsolutePath,
+	getPathWithRelative,
+	dealPathMayAbsolute,
+	appendArgs2Url,
+} from './utils.js';
 
-for(let v in globalVars){
-	global[v]=globalVars[v];
-}
-
-
-export let xsloader = function() {
-
-};
+import './core/global-xsloader-vars.js';
+import { xsloader } from './core/xsloader.js';
 
 global.xsloader = xsloader;

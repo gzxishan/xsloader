@@ -1,7 +1,7 @@
-import xsJSON from './json';
+import xsJSON from './core/json.js';
 
 //-1表示不是ie，其余检测结果为ie6~ie11及edge
-export const IE_VERSION = (() => {
+const IE_VERSION = (() => {
 	let userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
 	let isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
 	let isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
@@ -18,9 +18,88 @@ export const IE_VERSION = (() => {
 		return -1; //不是ie浏览器
 	}
 })();
+const op = Object.prototype;
+const ostring = op.toString;
 
-export const global = window;
-export const tglobal = (() => {
+//ie9
+try {
+	if(Function.prototype.bind && console && typeof console.log == "object") {
+		["log", "info", "warn", "error", "assert", "dir", "clear", "profile", "profileEnd"]
+		.forEach(function(method) {
+			console[method] = this.call(console[method], console);
+		}, Function.prototype.bind);
+	}
+} catch(e) {
+	try {
+		window.console = {
+			log: function() {},
+			error: function() {},
+			warn: function() {}
+		};
+	} catch(e) {}
+}
+
+try {
+	if(!String.prototype.trim) {
+		String.prototype.trim = function(str) {
+			return this.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+		}
+	}
+
+	if(!Array.prototype.indexOf) {
+		Array.prototype.indexOf = function(elem, offset) {
+			for(var i = offset === undefined ? 0 : offset; i < this.length; i++) {
+				if(this[i] == elem) {
+					return i;
+				}
+			}
+			return -1;
+		};
+	}
+	if(!Array.pushAll) {
+		Array.pushAll = function(thiz, arr) {
+			if(!isArray(arr)) {
+				throw new Error("not array:" + arr);
+			}
+			for(var i = 0; i < arr.length; i++) {
+				thiz.push(arr[i]);
+			}
+			return thiz;
+		};
+	}
+} catch(e) {
+	console.error(e);
+}
+
+function isArray(it) {
+	return it && (it instanceof Array) || ostring.call(it) === '[object Array]';
+};
+
+function isFunction(it) {
+	return it && (typeof it == "function") || ostring.call(it) === '[object Function]';
+};
+
+function isObject(it) {
+	if(it === null || it === undefined) {
+		return false;
+	}
+	return(typeof it == "object") || ostring.call(it) === '[object Object]';
+}
+
+function isString(it) {
+	return it && (typeof it == "string") || ostring.call(it) === '[object String]';
+}
+
+function isDate(it) {
+	return it && (it instanceof Date) || ostring.call(it) === '[object Date]';
+}
+
+function isRegExp(it) {
+	return it && (it instanceof RegExp) || ostring.call(it) === '[object RegExp]';
+}
+
+const global = window;
+const tglobal = (() => {
 	let win = window;
 	try {
 		while(true) {
@@ -34,257 +113,583 @@ export const tglobal = (() => {
 	return win;
 })();
 
-function initGlobalVars(globalVars) {
-	globalVars.randId = tglobal.randId || (() => {
-		let idCount = 1991;
-		const T = 3600 * 1000 * 24 * 30;
-		//生成一个随机的id，只保证在本页面是唯一的
-		return(suffix) => {
-			let id = "i" + parseInt(new Date().getTime() % T) + "_" + parseInt(Math.random() * 100) + "_" + (idCount++);
-			if(suffix !== undefined) {
-				id += suffix;
-			}
-			return id;
-		}
-	})();
+const setTimeout = global.setTimeout;
 
-	globalVars.startsWith = (str, starts) => {
-		if(!(typeof str == "string")) {
-			return false;
+function scripts(subname) {
+	let ss = document.getElementsByTagName('script');
+	if(subname) {
+		for(let i = 0; i < ss.length; i++) {
+			let script = ss[i];
+			let src = script.src;
+			src = src.substring(src.lastIndexOf("/"));
+			if(src.indexOf(subname) >= 0) {
+				return script;
+			}
 		}
-		return str.indexOf(starts) == 0;
-	};
-	globalVars.endsWith = (str, ends) => {
-		if(!(typeof str == "string")) {
-			return false;
-		}
-		var index = str.lastIndexOf(ends);
-		if(index >= 0 && (str.length - ends.length == index)) {
-			return true;
+	} else {
+		return ss;
+	}
+}
+
+function dealPathMayAbsolute(path, currentUrl) {
+	currentUrl = currentUrl || location.href;
+	let rs = ABSOLUTE_PROTOCOL_REG.exec(path);
+
+	let finalPath;
+	let absolute;
+	if(rs) {
+		let protocol = rs[1];
+		absolute = true;
+
+		rs = ABSOLUTE_PROTOCOL_REG2.exec(currentUrl);
+		let _protocol = rs && rs[1] || location.protocol;
+		let _host = rs && rs[2] || location.host;
+
+		if(protocol == "//") {
+			finalPath = _protocol + "//" + path;
+		} else if(protocol == "/") {
+			finalPath = _protocol + "//" + _host + path;
 		} else {
-			return false;
+			finalPath = path;
 		}
+
+	} else {
+		absolute = false;
+		finalPath = path;
+	}
+	return {
+		absolute: absolute,
+		path: finalPath
 	};
-	globalVars.xsEval = (scriptString) => {
-		try {
-			let rs = IE_VERSION > 0 && IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
-			return rs;
-		} catch(e) {
-			throw e;
-		}
-	};
+}
 
-	globalVars.xsParseJson = (str, option) => {
-		if(str === "" || str === null || str === undefined || !isString(str)) {
-			return str;
-		}
+function getPathWithRelative(path, relative, isPathDir) {
 
-		option = xsloader.extend({
-			fnStart: "", //"/*{f}*/",
-			fnEnd: "", //"/*{f}*/",
-			rcomment: "\\/\\/#\\/\\/"
-		}, option);
-
-		let fnMap = {};
-		let fnOffset = 0;
-		let replacer = undefined;
-		if(option.fnStart && option.fnEnd) {
-			while(true) {
-				var indexStart = str.indexOf(option.fnStart, fnOffset);
-				var indexEnd = str.indexOf(option.fnEnd, indexStart == -1 ? fnOffset : indexStart + option.fnStart.length);
-				if(indexStart == -1 && indexEnd == -1) {
-					break;
-				} else if(indexStart == -1) {
-					console.warn("found end:" + option.fnEnd + ",may lack start:" + option.fnStart);
-					break;
-				} else if(indexEnd == -1) {
-					console.warn("found start:" + option.fnStart + ",may lack end:" + option.fnEnd);
-					break;
-				}
-				var fnId = "_[_" + randId() + "_]_";
-				var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
-				if(!_startsWith(fnStr, "function(")) {
-					throw "not a function:" + fnStr;
-				}
-				try {
-					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-					var fn = xsEval(fnStr);
-					fnMap[fnId] = fn;
-				} catch(e) {
-					console.error(fnStr);
-					throw e;
-				}
-				fnOffset = indexStart + fnId.length;
-			}
-			replacer = function(key, val) {
-				if(isString(val) && fnMap[val]) {
-					return fnMap[val];
-				} else {
-					return val;
-				}
-			};
-		}
-
-		if(option.rcomment) {
-			str = str.replace(/(\r\n)|\r/g, "\n"); //统一换行符号
-			str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), ""); //去除行注释
-		}
-
-		try {
-			let jsonObj = xsJSON;
-			return jsonObj.parse(str, replacer);
-		} catch(e) {
-			try {
-				let reg = new RegExp('position[\\s]*([0-9]+)[\\s]*$')
-				if(e.message && reg.test(e.message)) {
-					let posStr = e.message.substring(e.message.lastIndexOf("position") + 8);
-					let pos = parseInt(posStr.trim());
-					let _str = str.substring(pos);
-					console.error(e.message + ":" + _str.substring(0, _str.length > 100 ? 100 : _str.length));
-				}
-			} catch(e) {}
-			throw e;
-		}
-	};
-	globalVars.xsJson2String = (obj) => {
-		let jsonObj = xsJSON;
-		return jsonObj.stringify(obj);
-	};
-
-	const indexInArray = (array, ele, offset, compare) => {
-		let index = -1;
-		if(array) {
-			for(let i = offset || 0; i < array.length; i++) {
-				if(compare) {
-					if(compare(array[i], ele, i, array)) {
-						index = i;
-						break;
-					}
-				} else {
-					if(array[i] == ele) {
-						index = i;
-						break;
-					}
-				}
-
-			}
-		}
-		return index;
-	};
-	globalVars.indexInArrayFrom = indexInArray;
-	/**
-	 * function(array,ele,compare):得到ele在array中的位置，若array为空或没有找到返回-1；compare(arrayEle,ele)可选函数，默认为==比较.
-	 */
-	globalVars.indexInArray = (array, ele, compare) => {
-		return indexInArray(array, ele, 0, compare);
-	};
-
-	/**
-	 * function(path,relative,isPathDir):相对于path，获取relative的绝对路径
-	 */
-	globalVars.getPathWithRelative = (path, relative, isPathDir) => {
-
-		var pathQuery = "";
-		var relativeQuery = "";
-		var qIndex = path.lastIndexOf("?");
+	let pathQuery = "";
+	let relativeQuery = "";
+	let qIndex = path.lastIndexOf("?");
+	if(qIndex >= 0) {
+		pathQuery = path.substring(qIndex);
+		path = path.substring(0, qIndex);
+	} else {
+		qIndex = path.lastIndexOf("#");
 		if(qIndex >= 0) {
 			pathQuery = path.substring(qIndex);
 			path = path.substring(0, qIndex);
-		} else {
-			qIndex = path.lastIndexOf("#");
-			if(qIndex >= 0) {
-				pathQuery = path.substring(qIndex);
-				path = path.substring(0, qIndex);
-			}
 		}
+	}
 
-		qIndex = relative.lastIndexOf("?");
+	qIndex = relative.lastIndexOf("?");
+	if(qIndex >= 0) {
+		relativeQuery = relative.substring(qIndex);
+		relative = relative.substring(0, qIndex);
+	} else {
+		qIndex = relative.lastIndexOf("#");
 		if(qIndex >= 0) {
 			relativeQuery = relative.substring(qIndex);
 			relative = relative.substring(0, qIndex);
+		}
+	}
+
+	let absolute = dealPathMayAbsolute(relative);
+	if(absolute.absolute) {
+		return absolute.path + relativeQuery;
+	}
+
+	if(isPathDir === undefined) {
+		let index = path.lastIndexOf("/");
+		if(index == path.length - 1) {
+			isPathDir = true;
 		} else {
-			qIndex = relative.lastIndexOf("#");
-			if(qIndex >= 0) {
-				relativeQuery = relative.substring(qIndex);
-				relative = relative.substring(0, qIndex);
-			}
-		}
-
-		var absolute = _dealAbsolute(relative);
-		if(absolute.absolute) {
-			return absolute.path + relativeQuery;
-		}
-
-		if(isPathDir === undefined) {
-			var index = path.lastIndexOf("/");
-			if(index == path.length - 1) {
-				isPathDir = true;
-			} else {
-				if(index == -1) {
-					index = 0;
-				} else {
-					index++;
-				}
-				isPathDir = path.indexOf(".", index) == -1;
-			}
-		}
-
-		if(globalVars.endsWith(path, "/")) {
-			path = path.substring(0, path.length - 1);
-		}
-
-		var isRelativeDir = false;
-		if(relative == "." || globalVars.endsWith(relative, "/")) {
-			relative = relative.substring(0, relative.length - 1);
-			isRelativeDir = true;
-		} else if(relative == "." || relative == ".." || globalVars.endsWith("/.") || globalVars.endsWith("/..")) {
-			isRelativeDir = true;
-		}
-
-		var prefix = "";
-		var index = -1;
-		var absolute2 = _dealAbsolute(path);
-		if(absolute2.absolute) {
-			path = absolute2.path;
-			var index2 = path.indexOf("//");
-			index = path.indexOf("/", index2 + 2);
 			if(index == -1) {
-				index = path.length;
+				index = 0;
+			} else {
+				index++;
 			}
+			isPathDir = path.indexOf(".", index) == -1;
 		}
+	}
 
-		prefix = path.substring(0, index + 1);
-		path = path.substring(index + 1);
+	if(_endsWith(path, "/")) {
+		path = path.substring(0, path.length - 1);
+	}
 
-		var stack = path.split("/");
-		if(!isPathDir && stack.length > 0) {
+	let isRelativeDir = false;
+	if(relative == "." || relative.endsWith("/")) {
+		relative = relative.substring(0, relative.length - 1);
+		isRelativeDir = true;
+	} else if(relative == "." || relative == ".." || relative.endsWith("/.") || relative.endsWith("/..")) {
+		isRelativeDir = true;
+	}
+
+	let prefix = "";
+	let index = -1;
+	let absolute2 = dealPathMayAbsolute(path);
+	if(absolute2.absolute) {
+		path = absolute2.path;
+		let index2 = path.indexOf("//");
+		index = path.indexOf("/", index2 + 2);
+		if(index == -1) {
+			index = path.length;
+		}
+	}
+
+	prefix = path.substring(0, index + 1);
+	path = path.substring(index + 1);
+
+	let stack = path.split("/");
+	if(!isPathDir && stack.length > 0) {
+		stack.pop();
+	}
+	let relatives = relative.split("/");
+	for(let i = 0; i < relatives.length; i++) {
+		let str = relatives[i];
+		if(".." == str) {
+			if(stack.length == 0) {
+				throw new Error("no more upper path!");
+			}
 			stack.pop();
+		} else if("." != str) {
+			stack.push(str);
 		}
-		var relatives = relative.split("/");
-		for(var i = 0; i < relatives.length; i++) {
-			var str = relatives[i];
-			if(".." == str) {
-				if(stack.length == 0) {
-					throw new Error("no more upper path!");
+	}
+	if(stack.length == 0) {
+		return "";
+	}
+	let result = prefix + stack.join("/");
+	if(isRelativeDir && !result.endsWith("/")) {
+		result += "/";
+	}
+	//		result += pathQuery;
+	result = appendArgs2Url(result, relativeQuery);
+	return result;
+};
+
+function getNodeAbsolutePath(node) {
+	let src = node.src;
+	return getPathWithRelative(location.href, src);
+}
+
+function toParamsMap(argsStr, decode = true) {
+	if(isObject(argsStr)) {
+		return argsStr;
+	}
+	if(!argsStr) {
+		argsStr = location.search;
+	}
+
+	let index = argsStr.indexOf("?");
+	if(index >= 0) {
+		argsStr = argsStr.substring(index + 1);
+	} else {
+		if(_dealAbsolute(argsStr)) {
+			return {};
+		}
+	}
+	index = argsStr.lastIndexOf("#");
+	if(index >= 0) {
+		argsStr = argsStr.substring(0, index);
+	}
+
+	let ret = {},
+		seg = argsStr.split('&'),
+		len = seg.length,
+		i = 0,
+		s;
+	for(; i < len; i++) {
+		if(!seg[i]) {
+			continue;
+		}
+		s = seg[i].split('=');
+		let name = decode ? decodeURIComponent(s[0]) : s[0];
+		ret[name] = decode ? decodeURIComponent(s[1]) : s[1];
+	}
+	return ret;
+}
+
+function appendArgs2Url(url, urlArgs) {
+	if(url === undefined || url === null || !urlArgs) {
+		return url;
+	}
+
+	function replaceUrlParams(myUrl, newParams) {
+		for(let x in newParams) {
+			let hasInMyUrlParams = false;
+			for(let y in myUrl.params) {
+				if(x.toLowerCase() == y.toLowerCase()) {
+					myUrl.params[y] = newParams[x];
+					hasInMyUrlParams = true;
+					break;
 				}
-				stack.pop();
-			} else if("." != str) {
-				stack.push(str);
+			}
+			//原来没有的参数则追加
+			if(!hasInMyUrlParams) {
+				myUrl.params[x] = newParams[x];
 			}
 		}
-		if(stack.length == 0) {
-			return "";
-		}
-		var result = prefix + stack.join("/");
-		if(isRelativeDir && !globalVars.endsWith(result, "/")) {
-			result += "/";
-		}
-		//		result += pathQuery;
-		result = _appendArgs2Url(result, relativeQuery);
-		return result;
-	};
+		let _result = myUrl.protocol + "://" + myUrl.host + (myUrl.port ? ":" + myUrl.port : "") + myUrl.path + "?";
 
-	return globalVars;
+		for(let p in myUrl.params) {
+			_result += (p + "=" + myUrl.params[p] + "&");
+		}
+
+		if(_result.substring(_result.length - 1) == "&") {
+			_result = _result.substring(0, _result.length - 1);
+		}
+
+		if(myUrl.hash != "") {
+			_result += "#" + myUrl.hash;
+		}
+		return _result;
+	}
+
+	let index = url.lastIndexOf("?");
+	let hashIndex = url.lastIndexOf("#");
+	if(hashIndex < 0) {
+		hashIndex = url.length;
+	}
+	let oldParams = index < 0 ? {} : toParamsMap(url.substring(index + 1, hashIndex), false);
+	let newParams = toParamsMap(urlArgs, false);
+	let has = false;
+	for(let k in newParams) {
+		if(oldParams[k] != newParams[k]) {
+			oldParams[k] = newParams[k];
+			has = true;
+		}
+	}
+	if(!has) {
+		return url; //参数没有变化直接返回
+	}
+
+	let paramKeys = [];
+	for(let k in oldParams) {
+		paramKeys.push(k);
+	}
+	paramKeys.sort();
+
+	let path = index < 0 ? url.substring(0, hashIndex) : url.substring(0, index);
+	let params = [];
+
+	for(let i = 0; i < paramKeys.length; i++) { //保证参数按照顺序
+		let k = paramKeys[i];
+		params.push(k + "=" + oldParams[k]);
+	}
+	params = params.join("&");
+	let hash = "";
+	if(hashIndex >= 0 && hashIndex < url.length) {
+		hash = url.substring(hashIndex);
+	}
+	return path + (params ? "?" + params : "") + (hash ? hash : "");
+
 };
-export const globalVars = initGlobalVars({});
-export const setTimeout = global.setTimeout;
+
+//去掉url的query参数和#参数
+function removeQueryHash(url) {
+	if(url) {
+		let index = url.indexOf("?");
+		if(index >= 0) {
+			url = url.substring(0, index);
+		}
+
+		index = url.indexOf("#");
+		if(index >= 0) {
+			url = url.substring(0, index);
+		}
+	}
+	return url;
+};
+
+function isDom = ((typeof HTMLElement === 'object') ?
+	function(obj) {
+		return obj && (obj instanceof HTMLElement);
+	} :
+	function(obj) {
+		return obj && typeof obj === 'object' && obj.nodeType === 1 && typeof obj.nodeName === 'string';
+	});
+
+const head = document.head || document.getElementsByTagName('head')[0];
+
+const REPLACE_STRING_PROPERTIES_EXP = new RegExp("\\$\\{([^\\{]+)\\}");
+const ALL_TYPE_PROPERTIES_EXP = new RegExp("^\\$\\[([^\\[\\]]+)\\]$");
+
+function propertiesDeal(configObject, properties) {
+	if(!properties) {
+		return configObject;
+	}
+
+	function replaceStringProperties(string, properties, property) {
+		let rs;
+		let str = string;
+		rs = ALL_TYPE_PROPERTIES_EXP.exec(str);
+		if(rs) {
+			let propKey = rs[1];
+			let propValue = xsloader.getObjectAttr(properties, propKey);
+			if(propValue === undefined) {
+				return str;
+			} else {
+				return propValue;
+			}
+		}
+
+		let result = "";
+		while(true) {
+			rs = REPLACE_STRING_PROPERTIES_EXP.exec(str);
+			if(!rs) {
+				result += str;
+				break;
+			} else {
+				let propKey = rs[1];
+				if(property !== undefined && property.propertyKey == propKey) {
+					throw new Error("replace property error:propertyKey=" + propKey);
+				} else if(property) {
+					property.has = true;
+				}
+				result += str.substring(0, rs.index);
+				result += xsloader.getObjectAttr(properties, propKey);
+				str = str.substring(rs.index + rs[0].length);
+			}
+		}
+		return result;
+	}
+
+	//处理属性引用
+	function replaceProperties(obj, property, enableKeyAttr) {
+		if(!obj) {
+			return obj;
+		}
+		if(isFunction(obj)) {
+			return obj;
+		} else if(isArray(obj)) {
+			for(let i = 0; i < obj.length; i++) {
+				obj[i] = replaceProperties(obj[i], property, enableKeyAttr);
+			}
+		} else if(isString(obj)) {
+			obj = replaceStringProperties(obj, properties, property);
+		} else if(isObject(obj)) {
+			if(property) {
+				property.has = false;
+			}
+			let replaceKeyMap = {};
+			for(let x in obj) {
+				if(property) {
+					property.propertyKey = x;
+				}
+				obj[x] = replaceProperties(obj[x], property, enableKeyAttr);
+				if(enableKeyAttr) {
+					let _x = replaceStringProperties(x, properties, property);
+					if(_x !== x) {
+						replaceKeyMap[x] = _x;
+					}
+				}
+			}
+			for(let x in replaceKeyMap) {
+				let objx = obj[x];
+				delete obj[x];
+				obj[replaceKeyMap[x]] = objx;
+			}
+		}
+
+		return obj;
+
+	}
+
+	if(!properties.__dealt__) {
+		let property = {
+			has: false
+		};
+
+		for(let x in properties) {
+			let fun = properties[x];
+			if(isFunction(fun)) {
+				properties[x] = fun.call(properties);
+			}
+		}
+		do {
+			replaceProperties(properties, property);
+		} while (property.has);
+		properties.__dealt__ = true;
+	}
+
+	return replaceProperties(configObject, undefined, true);
+}
+
+function replaceModulePrefix(config, deps) {
+
+	if(!deps) {
+		return;
+	}
+
+	for(var i = 0; i < deps.length; i++) {
+		var m = deps[i];
+		var index = m.indexOf("!");
+		var pluginParam = index > 0 ? m.substring(index) : "";
+		m = index > 0 ? m.substring(0, index) : m;
+
+		index = m.indexOf("?");
+		var query = index > 0 ? m.substring(index) : "";
+		m = index > 0 ? m.substring(0, index) : m;
+
+		var isJsFile = _isJsFile(m);
+		if(!isJsFile && (global.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+			deps[i] = m + ".js" + query + pluginParam;
+		}
+	}
+
+	if(config.modulePrefixCount) {
+		//模块地址的前缀替换
+		for(var prefix in config.modulePrefix) {
+			var replaceStr = config.modulePrefix[prefix].replace;
+			var len = prefix.length;
+			for(var i = 0; i < deps.length; i++) {
+				var m = deps[i];
+				var pluginIndex = m.indexOf("!");
+				var pluginName = null;
+				if(pluginIndex >= 0) {
+					pluginName = m.substring(0, pluginIndex + 1);
+					m = m.substring(pluginIndex + 1);
+				}
+				if(_startsWith(m, prefix)) {
+					var dep = replaceStr + m.substring(len);
+					deps[i] = pluginName ? pluginName + dep : dep;
+				}
+			}
+		}
+	}
+}
+
+
+function queryParam(name, otherValue, optionUrl) {
+	var search;
+	if(optionUrl) {
+		var index = optionUrl.indexOf('?');
+		if(index < 0) {
+			index = 0;
+		} else {
+			index += 1;
+		}
+		search = optionUrl.substr(index);
+	} else {
+		search = window.location.search.substr(1);
+	}
+
+	var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
+	var r = search.match(reg);
+	if(r != null) return decodeURIComponent(r[2]);
+	return otherValue !== undefined ? otherValue : null;
+}
+
+function tryCall(fun, defaultReturn, thiz, exCallback) {
+	var rs;
+	try {
+		thiz = thiz === undefined ? this : thiz;
+		rs = fun.call(thiz);
+	} catch(e) {
+		if(exCallback) {
+			exCallback(e);
+		} else {
+			console.log(e);
+		}
+	}
+	if(rs === undefined || rs === null) {
+		rs = defaultReturn;
+	}
+	return rs;
+};
+
+function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
+	if(optionalAbsUrl && !dealPathMayAbsolute(optionalAbsUrl).absolute) {
+		throwError(-1, "expected absolute url:" + optionalAbsUrl)
+	}
+	if(appendArgs === undefined) {
+		appendArgs = true;
+	}
+	let theConfig = xsloader.config();
+	let thePageUrl = xsloader.pageUrl();
+	var url;
+	if(relativeUrl === undefined) {
+		url = thePageUrl;
+	} else if(global.startsWith(relativeUrl, ".") || dealPathMayAbsolute(relativeUrl).absolute) {
+		url = getPathWithRelative(optionalAbsUrl || thePageUrl, relativeUrl);
+	} else {
+		url = theConfig.baseUrl + relativeUrl;
+	}
+	if(appendArgs) {
+		if(url == thePageUrl) {
+			url += location.search + location.hash;
+		}
+		return theConfig.dealUrl({}, url);
+	} else {
+		return url;
+	}
+};
+
+function extend(target) {
+	for(var i = 1; i < arguments.length; i++) {
+		var obj = arguments[i];
+		if(!obj) {
+			continue;
+		}
+		for(var x in obj) {
+			var value = obj[x];
+			if(value === undefined) {
+				continue;
+			}
+			target[x] = obj[x];
+		}
+	}
+	return target;
+}
+
+function extendDeep(target) {
+	if(!target) {
+		return target;
+	}
+	for(var i = 1; i < arguments.length; i++) {
+		var obj = arguments[i];
+		if(!obj) {
+			continue;
+		}
+
+		for(var x in obj) {
+			var value = obj[x];
+			if(value === undefined) {
+				continue;
+			}
+			if(isObject(value) && isObject(target[x])) {
+				target[x] = extendDeep(target[x], value);
+			} else {
+				target[x] = obj[x];
+			}
+		}
+	}
+	return target;
+}
+
+export {
+	setTimeout,
+	scripts,
+	IE_VERSION,
+	global,
+	tglobal,
+	xsJSON,
+	getNodeAbsolutePath,
+	getPathWithRelative,
+	dealPathMayAbsolute,
+	appendArgs2Url,
+	removeQueryHash,
+	isDom,
+	head,
+	propertiesDeal,
+	replaceModulePrefix,
+	queryParam,
+	tryCall,
+	getUrl,
+	extend,
+	extendDeep,
+	isArray,
+	isFunction,
+	isObject,
+	isString,
+	isRegExp,
+	isDate,
+}
