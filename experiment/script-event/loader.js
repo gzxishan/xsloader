@@ -1,8 +1,43 @@
 console.log("this is loader.");
 (function() {
+
+	var safariVersion = (function() {
+		var ua = navigator.userAgent.toLowerCase();
+		var s;
+		return(s = ua.match(/version\/([\d.]+).*safari/)) ? parseInt(s[1]) : -1;
+	})();
+	console.log("safari:",safariVersion)
+	
+	//-1表示不是ie，其余检测结果为6~11及edge
+	var IE_VERSION = (function() {
+		var userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
+		var isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
+		var isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
+		var isIE11 = userAgent.indexOf('Trident') > -1 && userAgent.indexOf("rv:11.0") > -1;
+		if(isIE) {
+			var reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
+			var fIEVersion = parseInt(reIE && reIE[1] || -1);
+			return fIEVersion == -1 ? -1 : fIEVersion;
+		} else if(isEdge) {
+			return 'edge'; //edge
+		} else if(isIE11) {
+			return 11; //IE11  
+		} else {
+			return -1; //不是ie浏览器
+		}
+	})();
+
+
+
 	var isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
 	var readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 	var head = document.head || document.getElementsByTagName('head')[0];
+
+	var useDefineQueue, theDefineQueue;
+	if(safariVersion > 0 && safariVersion <= 7) {
+		useDefineQueue = true;
+		theDefineQueue = [];
+	}
 
 	function __createNode() {
 		var node = document.createElement('script');
@@ -73,17 +108,20 @@ console.log("this is loader.");
 			if(document.currentScript !== undefined) { //firefox 4+
 				return document.currentScript && document.currentScript.src || "";
 			}
-			var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
-			for(var i = 0, node; node = nodes[i++];) {
-				if(node.readyState === "interactive") {
-					return node.src;
+			if(IE_VERSION > 0 && IE_VERSION <= 10) {
+				var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+				for(var i = 0, node; node = nodes[i++];) {
+					if(node.readyState === "interactive") {
+						return node.src;
+					}
 				}
 			}
-			var stack, i;
+			var stack;
 			try {
+				throw new Error();
 				a.b.c(); //强制报错,以便捕获e.stack
 			} catch(e) { //safari的错误对象只有line,sourceId,sourceURL
-				stack = e.stack;
+				stack = e.stack || e.sourceURL || e.stacktrace || '';
 				if(!stack && window.opera) {
 					//opera 9没有e.stack,但有e.Backtrace,但不能直接取得,需要对e对象转字符串进行抽取
 					stack = (String(e).match(/of linked script \S+/g) || []).join(" ");
@@ -124,8 +162,20 @@ console.log("this is loader.");
 				(readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
 
 				var scriptData = __getScriptData(evt, callbackObj);
+
+				if(useDefineQueue) {
+					try {
+						document.currentScript = scriptData.node;
+						while(theDefineQueue.length) {
+							var obj = theDefineQueue.shift();
+							theDefine.apply(obj.thiz, obj.args);
+						}
+					} catch(e) {}
+					document.currentScript = undefined;
+				}
+
 				console.log("script load src:", scriptData.node.src);
-				console.log("\tcurrent.src:",currentScript())
+				console.log("\tcurrent.src:", currentScript())
 			}
 		};
 		callbackObj.onScriptError = function(evt) {
@@ -143,10 +193,25 @@ console.log("this is loader.");
 	loaderScript("b.js");
 
 	window.loaderScript = loaderScript;
-	window.currentScript=_getCurrentScriptSrc;
-	window.define=function(callback){
-		console.log("define.current.src:",currentScript())
+	window.currentScript = _getCurrentScriptSrc;
+	var theDefine = function(callback) {
+		console.log("define.current.src:", currentScript())
 		callback();
+	}
+	window.define = function(callback) {
+		if(useDefineQueue) {
+			console.log("__define.current.src:", currentScript())
+			var args = [];
+			for(var i = 0; i < arguments.length; i++) {
+				args.push(arguments[i]);
+			}
+			theDefineQueue.push({
+				thiz: this,
+				args: args
+			});
+		} else {
+			theDefine.apply(this, arguments);
+		}
 	}
 
 })();

@@ -1,6 +1,6 @@
 import xsJSON from './core/json.js';
 
-//-1表示不是ie，其余检测结果为ie6~ie11及edge
+//-1表示不是ie，其余检测结果为6~11及edge
 const IE_VERSION = (() => {
 	let userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
 	let isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
@@ -18,6 +18,13 @@ const IE_VERSION = (() => {
 		return -1; //不是ie浏览器
 	}
 })();
+const safariVersion = (function() {
+	let ua = navigator.userAgent.toLowerCase();
+	let s;
+	return(s = ua.match(/version\/([\d.]+).*safari/)) ? parseInt(s[1]) : -1;
+})();
+const isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
+
 const op = Object.prototype;
 const ostring = op.toString;
 
@@ -557,7 +564,6 @@ function replaceModulePrefix(config, deps) {
 	}
 }
 
-
 function queryParam(name, otherValue, optionUrl) {
 	var search;
 	if(optionUrl) {
@@ -669,6 +675,8 @@ export {
 	setTimeout,
 	scripts,
 	IE_VERSION,
+	safariVersion,
+	isOpera,
 	global,
 	tglobal,
 	xsJSON,
