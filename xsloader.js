@@ -453,7 +453,7 @@ var queryString2ParamsMap;
 		if(index >= 0) {
 			argsStr = argsStr.substring(index + 1);
 		} else {
-			if(_dealAbsolute(argsStr)) {
+			if(_dealAbsolute(argsStr).absolute) {
 				return {};
 			}
 		}

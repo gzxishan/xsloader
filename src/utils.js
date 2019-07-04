@@ -289,7 +289,7 @@ function toParamsMap(argsStr, decode = true) {
 	if(index >= 0) {
 		argsStr = argsStr.substring(index + 1);
 	} else {
-		if(_dealAbsolute(argsStr)) {
+		if(dealPathMayAbsolute(argsStr).absolute) {
 			return {};
 		}
 	}
