@@ -1,32 +1,22 @@
-import {
-	scripts,
-	safariVersion,
-	isOpera,
-	IE_VERSION,
-	getPathWithRelative,
-	getNodeAbsolutePath,
-	isDom,
-	head,
-	removeQueryHash,
-} from "../utils.js"
+import * as utils from '../utils/index.js';
 
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
-const theLoaderScript = document.currentScript || scripts("xsloader.js");
-const theLoaderUrl = getNodeAbsolutePath(theLoaderScript);
+const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
+const theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
 
 const DATA_ATTR_MODULE = 'data-xsloader-module';
 const DATA_ATTR_CONTEXT = "data-xsloader-context";
-const defContextName = "xsloader1.1.0";
+const defContextName = utils.defContextName;
 let lastAppendHeadDom = theLoaderScript;
 let useDefineQueue;
 let theRealDefine;
-if(safariVersion > 0 && safariVersion <= 7) {
+if(utils.safariVersion > 0 && utils.safariVersion <= 7) {
 	useDefineQueue = [];
 }
 
 const thePageUrl = (function() {
 	let url = location.href;
-	url = removeQueryHash(url);
+	url = utils.removeQueryHash(url);
 	return url;
 })();
 
@@ -36,7 +26,7 @@ function getCurrentScriptSrc(isRemoveQueryHash = true) {
 		if(document.currentScript !== undefined) { //firefox 4+
 			return document.currentScript && document.currentScript.src || "";
 		}
-		if(IE_VERSION > 0 && IE_VERSION <= 10) {
+		if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
 			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
 			for(let i = 0, node; node = nodes[i++];) {
 				if(node.readyState === "interactive") {
@@ -74,10 +64,10 @@ function getCurrentScriptSrc(isRemoveQueryHash = true) {
 
 	let src = _getCurrentScriptSrc();
 	if(isRemoveQueryHash) {
-		src = removeQueryHash(src);
+		src = utils.removeQueryHash(src);
 	}
 	if(src) {
-		src = getPathWithRelative(location.href, src);
+		src = utils.getPathWithRelative(location.href, src);
 	}
 	return src;
 
@@ -88,9 +78,6 @@ function __createNode() {
 	node.type = 'text/javascript';
 	node.charset = 'utf-8';
 	node.async = true;
-	if(useDefineQueue) {
-		node.defer = true;
-	}
 	return node;
 };
 
@@ -137,7 +124,7 @@ function __getScriptData(evt, callbackObj) {
 	return {
 		node: node,
 		name: node && node.getAttribute(DATA_ATTR_MODULE),
-		src: node && (node.src || node.getAttribute("src"))
+		src: node && utils.getNodeAbsolutePath(node.src || node.getAttribute("src"))
 	};
 }
 
@@ -146,7 +133,7 @@ const appendHeadDom = function(dom) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
-	head.insertBefore(dom, nextDom);
+	utils.head.insertBefore(dom, nextDom);
 	//			head.appendChild(dom);
 	lastAppendHeadDom = dom;
 }
@@ -160,16 +147,11 @@ function loaderScript(moduleName, url, onload, onerror) {
 		if(evt.type === 'load' || (readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
 			callbackObj.removed = true;
 			let scriptData = __getScriptData(evt, callbackObj);
-
 			if(useDefineQueue) {
-				try {
-					document.currentScript = scriptData.node;
-					while(useDefineQueue.length) {
-						let obj = useDefineQueue.shift();
-						theRealDefinetheRealDefine.apply(obj.thiz, obj.args);
-					}
-				} catch(e) {}
-				document.currentScript = undefined;
+				useDefineQueue.forEach((defineObject) => {
+					defineObject.src = scriptData.src;
+				});
+				theRealDefine.define([...useDefineQueue]);
 			}
 
 			onload(scriptData);
@@ -193,29 +175,56 @@ function throwError(code, info, invoker) {
 	throw code + ":" + info;
 }
 
-//对于safari7-:可采用一个一个加载的方式
-//
-function getDefineObject(theDefine) {
+//对于safari7-:在脚本加载事件中可获得正确的脚本地址
+
+const initDefine = function(theDefine) {
 	theRealDefine = theDefine;
-	let define = function() {
-		if(useDefineQueue) {
-			//then的处理
-			let args = [];
-			for(let i = 0; i < arguments.length; i++) {
-				args.push(arguments[i]);
-			}
-			useDefineQueue.push({
-				thiz: this,
-				args: args
-			});
-		} else {
-			return theRealDefine.apply(this, arguments);
+};
+
+function predefine() {
+	let args = [];
+	for(let i = 0; i < arguments.length; i++) {
+		args.push(arguments[i]);
+	}
+
+	let defineObject = {
+		thiz: this,
+		args,
+		src: null,
+		handle: {
+			onError(err) {
+
+			},
+			before(deps) {},
+			depBefore(index, dep, depDeps) {},
+			orderDep: false,
+			absoluteUrl: null,
 		}
 	};
-	let thisDefine = function() {
-		return theRealDefine.apply(this, arguments);
+	if(!useDefineQueue) {
+		defineObject.src = getCurrentScriptSrc()
+	}
+
+	let handle = {
+		then(option) {
+			defineObject.handle = utils.extend(defineObject.handle, option);
+			return this;
+		},
+		error(onError) {
+			defineObject.handle.onError = onError;
+			return this;
+		}
 	};
-	return define;
+
+	utils.asyncCall(() => {
+		if(useDefineQueue) {
+			useDefineQueue.push(defineObject);
+		} else {
+			theRealDefine.define([defineObject]);
+		}
+	});
+
+	return handle;
 }
 
 export {
@@ -229,4 +238,6 @@ export {
 	loaderScript,
 	getCurrentScriptSrc,
 	throwError,
+	initDefine,
+	predefine,
 }
