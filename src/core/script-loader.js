@@ -7,6 +7,14 @@ const theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
 const DATA_ATTR_MODULE = 'data-xsloader-module';
 const DATA_ATTR_CONTEXT = "data-xsloader-context";
 const defContextName = utils.defContextName;
+
+const currentDefineModuleQueue = []; //当前回调的模块
+currentDefineModuleQueue.peek = function() {
+	if(this.length > 0) {
+		return this[this.length - 1];
+	}
+};
+
 let lastAppendHeadDom = theLoaderScript;
 let useDefineQueue;
 let theRealDefine;
@@ -181,16 +189,14 @@ const initDefine = function(theDefine) {
 	theRealDefine = theDefine;
 };
 
-function predefine() {
-	let args = [];
-	for(let i = 0; i < arguments.length; i++) {
-		args.push(arguments[i]);
-	}
+function doDefine(thiz, args, isRequire) {
 
 	let defineObject = {
-		thiz: this,
+		thiz,
 		args,
 		src: null,
+		isRequire,
+		parentDefine: currentDefineModuleQueue.peek(),
 		handle: {
 			onError(err) {
 
@@ -203,6 +209,21 @@ function predefine() {
 	};
 	if(!useDefineQueue) {
 		defineObject.src = getCurrentScriptSrc()
+
+		try {//防止执行其他脚本
+			if(defineObject.src) {
+				var node = document.currentScript;
+				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
+					defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
+					console.error("unknown js script module:" + utils.xsJson2String(defineObject.src));
+					console.error(node);
+					return;
+				}
+			}
+		} catch(e) {
+			config.error(e);
+		}
+
 	}
 
 	let handle = {
@@ -227,6 +248,18 @@ function predefine() {
 	return handle;
 }
 
+function predefine() {
+	let args = [];
+	for(let i = 0; i < arguments.length; i++) {
+		args.push(arguments[i]);
+	}
+	return doDefine(this, args, false);
+}
+
+function prerequire() {
+	throw 'todo...';
+}
+
 export {
 	DATA_ATTR_MODULE,
 	DATA_ATTR_CONTEXT,
@@ -240,4 +273,6 @@ export {
 	throwError,
 	initDefine,
 	predefine,
+	prerequire,
+	currentDefineModuleQueue,
 }

@@ -7,9 +7,8 @@ let theConfig;
 let argsObject = {};
 
 function _newContext(contextName) {
-	var context = {
+	let context = {
 		contextName: contextName,
-		defQueue: []
 	};
 	return context;
 };
@@ -415,5 +414,8 @@ export {
 	appendInnerDeps,
 	getContext() {
 		return theContext;
+	},
+	getConfig(){
+		return theConfig;
 	}
 }
