@@ -6,7 +6,8 @@ const currentDefineModuleQueue = loader.currentDefineModuleQueue;
 let idCount = 2019;
 let theDefinedMap = {}; //存放原始模块
 
-function _onScriptComplete(moduleName, cache, aurl, isRequire, lastThenOptionObj) {
+function _onScriptComplete(moduleName, defineObject, isRequire, lastThenOptionObj) {
+	let aurl=defineObject.src;
 	let ifmodule = getModule(moduleName);
 	if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
 		let lastModule = ifmodule;
@@ -24,14 +25,13 @@ function _onScriptComplete(moduleName, cache, aurl, isRequire, lastThenOptionObj
 
 	let context = loader.getContext();
 	let data = cache.data;
-	let deps = cache.deps;
+	let deps = defineObject.deps;
 	let callback = cache.callback;
 	let thenOption = cache.thenOption;
 
 	thenOption.absUrl = thenOption.absUrl || function() {
 		return this.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
 	}
-	cache.name = moduleName || cache.name;
 
 	let module = getModule(moduleName);
 	if(!module) {
@@ -617,8 +617,9 @@ loader.initDefine(function theRealDefine(defines) {
 			};
 			callback.originCallback = originCallback;
 		}
-
-		_onScriptComplete(name, defineObject, src, isRequire)
+		defineObject.deps=deps;
+		defineObject.callback=callback;
+		_onScriptComplete(name, defineObject, isRequire)
 
 	});
 });
