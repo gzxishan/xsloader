@@ -183,18 +183,12 @@ function throwError(code, info, invoker) {
 	throw code + ":" + info;
 }
 
-//对于safari7-:在脚本加载事件中可获得正确的脚本地址
-
-const initDefine = function(theDefine) {
-	theRealDefine = theDefine;
-};
-
 function doDefine(thiz, args, isRequire) {
 
 	let defineObject = {
 		thiz,
 		args,
-		src: null,
+		src: undefined,
 		isRequire,
 		parentDefine: currentDefineModuleQueue.peek(),
 		handle: {
@@ -204,13 +198,14 @@ function doDefine(thiz, args, isRequire) {
 			before(deps) {},
 			depBefore(index, dep, depDeps) {},
 			orderDep: false,
-			absoluteUrl: null,
+			absoluteUrl: undefined,
+			instance:undefined,
 		}
 	};
 	if(!useDefineQueue) {
 		defineObject.src = getCurrentScriptSrc()
 
-		try {//防止执行其他脚本
+		try { //防止执行其他脚本
 			if(defineObject.src) {
 				var node = document.currentScript;
 				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
@@ -260,6 +255,16 @@ function prerequire() {
 	throw 'todo...';
 }
 
+//对于safari7-:在脚本加载事件中可获得正确的脚本地址
+
+const initDefine = function(theDefine) {
+	theRealDefine = theDefine;
+	return {
+		predefine,
+		prerequire,
+	};
+};
+
 export {
 	DATA_ATTR_MODULE,
 	DATA_ATTR_CONTEXT,
@@ -272,7 +277,5 @@ export {
 	getCurrentScriptSrc,
 	throwError,
 	initDefine,
-	predefine,
-	prerequire,
 	currentDefineModuleQueue,
 }
