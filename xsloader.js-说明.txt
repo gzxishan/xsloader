@@ -196,6 +196,9 @@
 	},
 	loader:{
 		"configName":{}
+	},
+	beforeDealProperties:function(){//处理参数前调用
+	
 	}
 }
 四、properties

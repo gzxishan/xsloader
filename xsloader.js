@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-06-28 12:00
+ * latest:2019-07-19 16:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -5225,6 +5225,9 @@ var queryString2ParamsMap;
 				}
 
 				conf = extendConfig(conf);
+				if(conf.beforeDealProperties){
+					conf.beforeDealProperties();
+				}
 				conf = xsloader.dealProperties(conf, conf.properties); //参数处理
 
 				if(isLocal && conf.service.hasGlobal) {
