@@ -2543,6 +2543,11 @@ var queryString2ParamsMap;
 			if(pluginIndex > 0) {
 				pluginArgs = deps.substring(pluginIndex + 1);
 				deps = deps.substring(0, pluginIndex);
+				if(pluginArgs){
+					var argArr=[pluginArgs];
+					_replaceModulePrefix(theConfig, argArr); //前缀替换
+					pluginArgs=argArr[0];
+				}
 			}
 			var module = getModule(deps);
 			if(!module) {
