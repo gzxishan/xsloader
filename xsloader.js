@@ -1107,7 +1107,7 @@ var queryString2ParamsMap;
 			m = index > 0 ? m.substring(0, index) : m;
 
 			var isJsFile = _isJsFile(m);
-			if(!isJsFile && (_startsWith(m, ".") || _dealAbsolute(m).absolute)) {
+			if(!isJsFile && !/\.[^\/\s]*$/.test(m) && (_startsWith(m, ".") || _dealAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
@@ -2543,10 +2543,10 @@ var queryString2ParamsMap;
 			if(pluginIndex > 0) {
 				pluginArgs = deps.substring(pluginIndex + 1);
 				deps = deps.substring(0, pluginIndex);
-				if(pluginArgs){
-					var argArr=[pluginArgs];
+				if(pluginArgs) {
+					var argArr = [pluginArgs];
 					_replaceModulePrefix(theConfig, argArr); //前缀替换
-					pluginArgs=argArr[0];
+					pluginArgs = argArr[0];
 				}
 			}
 			var module = getModule(deps);
@@ -3336,7 +3336,7 @@ var queryString2ParamsMap;
 				this.invoker().require([arg], function(mod, depModuleArgs) {
 					onload(mod);
 				}).then({
-					depBefore:function(index,dep,depDeps) {
+					depBefore: function(index, dep, depDeps) {
 						depDeps.splice(0, depDeps.length);
 					}
 				}).error(function(e) {
