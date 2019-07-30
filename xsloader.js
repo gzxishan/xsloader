@@ -3324,13 +3324,30 @@ var queryString2ParamsMap;
 		});
 	})();
 
+	(function() {
+		xsloader.define("nodeps", {
+			isSingle: true,
+			pluginMain: function(arg, onload, onerror, config) {
+				this.invoker().require([arg], function(mod, depModuleArgs) {
+					onload(mod);
+				}).then({
+					depBefore:function(index,dep,depDeps) {
+						depDeps.splice(0, depDeps.length);
+					}
+				}).error(function(e) {
+					onerror(e);
+				});
+			}
+		});
+	})();
+
 	/**
 	 * 格式:name!moduleName=>>modulePath
 	 */
 	(function() { //TODO STRONG name插件
 		xsloader.define("name", {
 			isSingle: true,
-			pluginMain: function(arg, onload, onerror, config, http) {
+			pluginMain: function(arg, onload, onerror, config) {
 				var index = arg.indexOf("=>>");
 				if(index == -1) {
 					onerror("expected:=>>");
@@ -5225,7 +5242,7 @@ var queryString2ParamsMap;
 				}
 
 				conf = extendConfig(conf);
-				if(conf.beforeDealProperties){
+				if(conf.beforeDealProperties) {
 					conf.beforeDealProperties();
 				}
 				conf = xsloader.dealProperties(conf, conf.properties); //参数处理
