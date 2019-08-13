@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-07-19 16:00
+ * latest:2019-08-13 15:00
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -5181,6 +5181,9 @@ var queryString2ParamsMap;
 		}
 		if(endsWith(name, ".html")) {
 			name = name.substring(0, name.length - 5);
+		}
+		if(!mainPath){
+			mainPath="./main/{name}.js";
 		}
 		mainPath = mainPath.replace("{name}", name);
 		return mainPath;
