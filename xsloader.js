@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-08-13 15:00
+ * latest:2019-08-14 17:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -1034,6 +1034,7 @@ var queryString2ParamsMap;
 			module.cacheId = cache.id;
 		}
 
+		//cache里的deps最初是直接声明的依赖
 		deps = cache.deps = module.mayAddDeps(deps);
 		if(thenOption.before) {
 			thenOption.before(deps);
@@ -1073,19 +1074,27 @@ var queryString2ParamsMap;
 		if(deps.length == 0) {
 			module.finish([]); //递归结束
 		} else {
-			_everyRequired(data, thenOption, module, deps, function(depModules) {
-
-				var args = [];
-				var depModuleArgs = [];
-				each(depModules, function(depModule) {
-					depModuleArgs.push(depModule);
-					args.push(depModule && depModule.moduleObject());
+			//在其他模块依赖此模块时进行加载
+			var needCallback = function() {
+				_everyRequired(data, thenOption, module, deps, function(depModules) {
+					var args = [];
+					var depModuleArgs = [];
+					each(depModules, function(depModule) {
+						depModuleArgs.push(depModule);
+						args.push(depModule && depModule.moduleObject());
+					});
+					args.push(depModuleArgs);
+					module.finish(args);
+				}, function(err, invoker) {
+					thenOption.onError(err, invoker);
 				});
-				args.push(depModuleArgs);
-				module.finish(args);
-			}, function(err, invoker) {
-				thenOption.onError(err, invoker);
-			});
+			};
+
+			if(isRequire) {
+				needCallback();
+			} else {
+				module.whenNeed(needCallback);
+			}
 		}
 
 	};
@@ -1749,6 +1758,7 @@ var queryString2ParamsMap;
 			depModules: null,
 			aurl: null, //绝对路径,可能等于当前页面路径
 			callback: callback,
+			_loadCallback: null,
 			moduleObject: undefined, //依赖模块对应的对象
 			loopObject: undefined, //循环依赖对象
 			invoker: thatInvoker,
@@ -1874,11 +1884,15 @@ var queryString2ParamsMap;
 			},
 			get: function() {
 				if(this.otherModule) {
-					this.state = this.otherModule.state; //状态同步
+					this.state = this.otherModule.state; //状态同步,保持与otherModule状态相同
 					return this.otherModule;
 				}
 				return this;
 			},
+			/**
+			 * 依赖当前模块、表示依赖otherModule模块，当前模块为别名或引用。
+			 * @param {Object} otherModule
+			 */
 			toOtherModule: function(otherModule) {
 				this.otherModule = otherModule;
 				this.get(); //状态同步
@@ -1887,6 +1901,13 @@ var queryString2ParamsMap;
 				while(theRelys.length) {
 					var fun = theRelys.shift();
 					otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+				}
+			},
+			whenNeed: function(loadCallback) {
+				if(this.relys.length || this.otherModule && this.otherModule.relys.length) {
+					loadCallback(); //已经被依赖了
+				} else {
+					this._loadCallback = loadCallback;
 				}
 			},
 			/**
@@ -1898,7 +1919,7 @@ var queryString2ParamsMap;
 			relyIt: function(thatInvoker, callbackFun, pluginArgs) {
 				if(this.otherModule) {
 					this.get(); //状态同步
-					this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs);
+					this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给otherModule
 					return;
 				}
 				var fun = {
@@ -1908,6 +1929,11 @@ var queryString2ParamsMap;
 				};
 				if(this._callback(fun)) {
 					this.relys.push(fun);
+				}
+				if(this._loadCallback) { //将会加载此模块及其依赖的模块
+					var loadCallback = this._loadCallback;
+					this._loadCallback = null;
+					loadCallback();
 				}
 			},
 			thiz: {
@@ -1973,12 +1999,13 @@ var queryString2ParamsMap;
 			var insertCount = 0;
 			each(moduleDeps, function(dep) {
 				if(indexInArray(deps, dep) < 0) {
-					deps.splice(0, 0, dep);
+					//					deps.splice(0, 0, dep);
+					deps.push(dep);
 					insertCount++;
 				}
 			}, false, true);
 			this.deps = deps;
-			this.directDefineIndex += insertCount;
+			//this.directDefineIndex += insertCount;
 			return deps;
 		};
 		moduleMap.printOnNotDefined = function() {
@@ -3342,6 +3369,44 @@ var queryString2ParamsMap;
 				}).error(function(e) {
 					onerror(e);
 				});
+			}
+		});
+	})();
+
+	(function() {
+		xsloader.define("exists", {
+			isSingle: true,
+			pluginMain: function(arg, onload, onerror, config) {
+				var vars = arg.split("|");
+				for(var i = 0; i < vars.length; i++) {
+					vars[i] = vars[i].trim();
+				}
+				if(vars.length == 0) {
+					onerror("args error for exists!");
+				} else {
+					var moduleName = vars[0];
+					var module = getModule(moduleName);
+					if(module) {
+						this.invoker().require([moduleName], function(mod, depModuleArgs) {
+							onload(mod);
+						}).error(function(e) {
+							onerror(e);
+						});
+					} else {
+						var obj = undefined;
+						for(var i = 1; i < vars.length; i++) {
+							if(window[vars[i]]) {
+								obj = window[vars[i]];
+								break;
+							}
+						}
+						if(obj === undefined) {
+							onerror("not found:" + arg);
+						} else {
+							onload(obj);
+						}
+					}
+				}
 			}
 		});
 	})();
@@ -5182,8 +5247,8 @@ var queryString2ParamsMap;
 		if(endsWith(name, ".html")) {
 			name = name.substring(0, name.length - 5);
 		}
-		if(!mainPath){
-			mainPath="./main/{name}.js";
+		if(!mainPath) {
+			mainPath = "./main/{name}.js";
 		}
 		mainPath = mainPath.replace("{name}", name);
 		return mainPath;

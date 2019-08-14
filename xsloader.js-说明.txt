@@ -90,6 +90,7 @@
      ===（2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
      ===（3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖
      ===（4）nodeps!插件用于加载某些js文件，忽略其所有依赖，可用于忽略在加载webpack等打包的模块时自动添加内部require('...')的依赖
+     （5）exists!插件格式：exists!module|windowVar1|windowVar2...
  10、config参数详解
  
     ===1）config.modulePrefix
