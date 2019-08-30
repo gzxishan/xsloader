@@ -1,3 +1,7 @@
+/**
+ * 用于加载脚本
+ */
+
 import * as utils from '../utils/index.js';
 
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
@@ -28,17 +32,33 @@ const thePageUrl = (function() {
 	return url;
 })();
 
-function getCurrentScriptSrc(isRemoveQueryHash = true) {
-	function _getCurrentScriptSrc() { //兼容获取正在运行的js
+/**
+ * 获取当前脚本，返回对象：
+ * src:脚本绝对地址，不含参数
+ * node:脚本dom对象
+ * @param {Object} isRemoveQueryHash
+ */
+function getCurrentScript(isRemoveQueryHash = true) {
+	function _getCurrentScriptOrSrc() { //兼容获取正在运行的js
 		//取得正在解析的script节点
 		if(document.currentScript !== undefined) { //firefox 4+
-			return document.currentScript && document.currentScript.src || "";
+			let node = document.currentScript && document.currentScript.src && document.currentScript;
+			if(node) {
+				return {
+					node,
+					src: node.src
+				}
+			}
 		}
 		if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
 			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
-			for(let i = 0, node; node = nodes[i++];) {
+			for(let i = 0; i < nodes.length; i++) {
+				let node = nodes[i];
 				if(node.readyState === "interactive") {
-					return node.src;
+					return {
+						node,
+						src: node.src
+					};
 				}
 			}
 		}
@@ -66,18 +86,31 @@ function getCurrentScriptSrc(isRemoveQueryHash = true) {
 			stack = stack.split(/[@ ]/g).pop(); //取得最后一行,最后一个空格或@之后的部分
 			stack = stack[0] == "(" ? stack.slice(1, -1) : stack;
 			let s = stack.replace(/(:\d+)?:\d+$/i, ""); //去掉行号与或许存在的出错字符起始位置
-			return s;
+			return {
+				src: s
+			};
 		}
 	}
 
-	let src = _getCurrentScriptSrc();
-	if(isRemoveQueryHash) {
-		src = utils.removeQueryHash(src);
+	let rs = _getCurrentScriptOrSrc();
+	if(rs) {
+		if(!rs.node) {
+			let src = utils.removeQueryHash(rs.src);
+			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+			for(let i = 0; i < nodes.length; i++) {
+				let node = nodes[i];
+				if(src == utils.removeQueryHash(node.src)) {
+					rs.node = node;
+					break;
+				}
+			}
+		}
+		rs.src = utils.getNodeAbsolutePath(rs.src);
+		if(isRemoveQueryHash) {
+			rs.src = utils.removeQueryHash(rs.src);
+		}
 	}
-	if(src) {
-		src = utils.getPathWithRelative(location.href, src);
-	}
-	return src;
+	return rs;
 
 };
 
@@ -199,11 +232,11 @@ function doDefine(thiz, args, isRequire) {
 			depBefore(index, dep, depDeps) {},
 			orderDep: false,
 			absoluteUrl: undefined,
-			instance:undefined,
+			instance: undefined,
 		}
 	};
 	if(!useDefineQueue) {
-		defineObject.src = getCurrentScriptSrc()
+		defineObject.src = getCurrentScript().src
 
 		try { //防止执行其他脚本
 			if(defineObject.src) {
@@ -268,13 +301,11 @@ const initDefine = function(theDefine) {
 export {
 	DATA_ATTR_MODULE,
 	DATA_ATTR_CONTEXT,
-	defContextName,
 	appendHeadDom,
 	theLoaderScript,
 	theLoaderUrl,
 	thePageUrl,
 	loaderScript,
-	getCurrentScriptSrc,
 	throwError,
 	initDefine,
 	currentDefineModuleQueue,
