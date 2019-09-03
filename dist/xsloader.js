@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 02 Sep 2019 14:43:06 GMT
+ * build time:Tue, 03 Sep 2019 13:19:11 GMT
  */
 (function () {
   'use strict';
@@ -1014,7 +1014,7 @@
       var args = arguments;
 
       if (args.length < 0 || !xsloader$3.isString(args[0])) {
-        throwError(-1, "expected module name from the first argument");
+        throw new Error("expected module name from the first argument");
       }
 
       xsloader$3.asyncCall(function () {
@@ -1693,7 +1693,7 @@
             if (xsloader$3.startsWith(url, ".") || xsloader$3.startsWith(url, "/")) {
               if (!module2.thiz.rurl(thenOption)) {
                 isError = "script url is null:'" + module2.name + "'," + module2.callback;
-                throw new Error(-11, isError);
+                throw new Error(isError);
               }
 
               url = utils.getPathWithRelative(module2.thiz.rurl(thenOption), url);

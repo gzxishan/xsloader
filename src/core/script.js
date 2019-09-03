@@ -29,6 +29,66 @@ let theRealDefine;
 if(utils.safariVersion > 0 && utils.safariVersion <= 7) {
 	useDefineQueue = [];
 }
+/////////////////////////////
+
+class Invoker {
+	moduleMap;
+	constructor(moduleMap) {
+		this.moduleMap = moduleMap;
+	}
+	getAbsoluteUrl() {
+		return this.moduleMap.src;
+	}
+	getName() {
+		return this.moduleMap.name;
+	}
+	invoker() {
+		return this.moduleMap.invoker;
+	}
+	absUrl() { //用于获取其他模块地址的参考路径
+		return this.moduleMap.absoluteUrl;
+	}
+}
+
+class DefineObject {
+	thiz;
+	args;
+	isRequire;
+	src;
+	parentDefine;
+	handle;
+	selfname;
+	deps;
+	callback;
+	thatInvoker;
+	constructor(thiz, args, isRequire = false) {
+		this.thiz = thiz;
+		this.args = args;
+		this.isRequire = isRequire;
+		this.parentDefine = currentDefineModuleQueue.peek();
+		this.handle = {
+			onError(err) {
+
+			},
+			before(deps) {},
+			depBefore(index, dep, depDeps) {},
+			orderDep: false,
+			absoluteUrl: undefined,
+			instance: undefined,
+			absUrl: () => {
+				return this.handle.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
+			}
+
+		};
+		if(thiz instanceof Invoker) {
+			this.thatInvoker = thiz;
+		} else if(thiz instanceof DefineObject) {
+			this.thatInvoker = thiz.thatInvoker;
+		}
+	}
+}
+
+////////////////////////
 
 /**
  * 获取当前脚本，返回对象：
@@ -180,7 +240,7 @@ function appendHeadDom(dom) {
 
 /////////////////////////
 
-function loaderScript(moduleName, url, onload, onerror) {
+function loadScript(moduleName, url, onload, onerror) {
 	let callbackObj = {};
 	callbackObj.onScriptLoad = function(evt) {
 		if(callbackObj.removed) {
@@ -195,7 +255,6 @@ function loaderScript(moduleName, url, onload, onerror) {
 				});
 				theRealDefine.define([...useDefineQueue]);
 			}
-
 			onload(scriptData);
 		}
 	};
@@ -212,26 +271,9 @@ function loaderScript(moduleName, url, onload, onerror) {
 
 function doDefine(thiz, args, isRequire) {
 
-	let defineObject = {
-		thiz,
-		args,
-		src: undefined,
-		isRequire,
-		parentDefine: currentDefineModuleQueue.peek(),
-		handle: {
-			onError(err) {
-
-			},
-			before(deps) {},
-			depBefore(index, dep, depDeps) {},
-			orderDep: false,
-			absoluteUrl: undefined,
-			instance: undefined,
-		}
-	};
+	let defineObject = new DefineObject(thiz, args, isRequire);
 	if(!useDefineQueue) {
 		defineObject.src = getCurrentScript().src;
-
 		try { //防止执行其他脚本
 			if(defineObject.src) {
 				var node = document.currentScript;
@@ -299,4 +341,7 @@ export default {
 	thePageUrl,
 	appendHeadDom,
 	initDefine,
+	Invoker,
+	DefineObject,
+	loadScript
 };

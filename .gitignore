@@ -18,3 +18,4 @@ npm-debug.log
 .gradle/
 build/
 .project
+.settings/

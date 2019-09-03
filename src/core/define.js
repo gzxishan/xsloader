@@ -7,13 +7,14 @@ const xsloader = global.xsloader;
 const theDefinedMap = {};
 
 const defineHandle = script.initDefine(function theRealDefine(defines) {
-	utils.eache(defines, (defineObject) => {
+	utils.each(defines, (defineObject) => {
 		let {
 			thiz,
 			args,
-			src, //必存在src
 			isRequire,
+			src, //必存在src
 			parentDefine,
+			thatInvoker,
 			handle: {
 				onError,
 				before,
@@ -23,7 +24,6 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 				instance,
 			},
 		} = defineObject;
-		defineObject.thatInvoker = getThatInvokerForDef_Req(thiz);
 
 		let [selfname, deps, callback] = args;
 
@@ -42,14 +42,26 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 			deps = [];
 		}
 
-		if(!isRequire) {
-			xsloader.appendInnerDeps(deps, callback);
+		//获取函数体里直接require('...')的依赖
+		//if(!isRequire) {
+		utils.appendInnerDeps(deps, callback);
+		//}
+		//获取配置里配置的依赖
+		let _deps = xsloader.script().getDeps(src);
+		utils.each(_deps, (dep) => {
+			deps.push(dep);
+		});
+		if(selfname && selfname != src) {
+			deps = xsloader.script().getDeps(selfname);
+			utils.each(_deps, (dep) => {
+				deps.push(dep);
+			});
 		}
 
 		if(xsloader.isFunction(callback)) {
 			let originCallback = callback;
 			callback = function() {
-				let config = script.getConfig();
+				let config = xsloader.script();
 				let rt;
 				if(xsloader.isFunction(config.defineFunction[cache.name])) {
 					let args = [];
@@ -155,7 +167,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 				args.push(depModuleArgs);
 				module.finish(args);
 			}, (err, invoker) => {
-				thenOption.onError(err, invoker);
+				define.handle.onError(err, invoker);
 			});
 		};
 

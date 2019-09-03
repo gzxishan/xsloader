@@ -4,15 +4,6 @@ const global = utils.global;
 const xsloader = global.xsloader;
 const theDefinedMap = {};
 
-/**
- *模块的名字来源：
- * 1、模块url地址:一定存在
- * 2、模块define时提供的：可选
- * 3、paths或depsPaths提供的：可选
- * 4、name!提供的：可选
- */
-/////////////////////////////////
-
 function getModule(nameOrUrl) {
 	nameOrUrl = utils.removeUrlParam(nameOrUrl);
 	let m = theDefinedMap[nameOrUrl];
@@ -58,74 +49,62 @@ function buildInvoker(obj) {
 		}
 	};
 	invoker.require = function() {
-		let h = xsloader.require.apply(new _Async_Object_(invoker, false), arguments);
+		let h = xsloader.require.apply(invoker, arguments);
 		return h;
 	};
 	invoker.define = function() {
-		let h = xsloader.define.apply(new _Async_Object_(invoker, false), arguments);
+		let h = xsloader.define.apply(invoker, arguments);
 		return h;
 	};
-	invoker.rurl = function(thenOption) {
-		return thenOption && thenOption.absUrl() || this.absUrl() || this.getAbsoluteUrl();
+	invoker.rurl = function(thenHandle) {
+		return thenHandle && thenHandle.absUrl() || this.absUrl() || this.getAbsoluteUrl();
 	};
 	invoker.defineAsync = function() {
-		let thenOption = {
-
-		};
-		let handle = {
-			then: function(option) {
-				thenOption = xsloader.extend(thenOption, option);
-			}
-		};
-		let args = arguments;
-		if(args.length < 0 || !xsloader.isString(args[0])) {
-			throw new Error("expected module name from the first argument");
-		}
-		xsloader.asyncCall(function() {
-			let h = xsloader.define.apply(new _Async_Object_(invoker, true), args);
-			if(thenOption) {
-				h.then(thenOption);
-			}
-		});
-		return handle;
+		let h = xsloader.define.apply(invoker, arguments);
+		return h;
 	};
 	invoker.withAbsUrl = function(absoluteUrl) {
-		let newObj = {
+		let moduleMap = {
 			module: module,
-			thiz: {
-				getAbsoluteUrl() {
-					return absoluteUrl;
-				},
-				absUrl() {
-					return absoluteUrl;
-				},
-				getName() {
-					return invoker.getName();
-				},
-				invoker() {
-					return invoker.invoker();
-				}
-			}
+			src: absoluteUrl,
+			absoluteUrl: absoluteUrl,
+			name: invoker.getName(),
+			invoker: invoker.invoker()
 		};
-		buildInvoker(newObj);
-		return newObj.thiz;
+		moduleMap.thiz = new script.Invoker(moduleMap);
+		buildInvoker(moduleMap);
+		return moduleMap.thiz;
 	};
 };
 
 function _newModule(name, src, deps, absoluteUrl, thatInvoker, callback) {
-	let defineObject = {
-		selfname: name,
-		src,
-		deps,
-		thatInvoker,
-		callback,
-		handle: {
-
+	let defineObject = new script.DefineObject(null, null, false);
+	defineObject.selfname = name;
+	defineObject.src = src;
+	defineObject.deps = deps;
+	defineObject.thatInvoker = thatInvoker;
+	defineObject.callback = callback;
+	defineObject.handle = {
+		absUrl() {
+			return null;
 		}
 	};
 	return newModule(defineObject);
 }
 
+//
+//模块依赖来源：
+//1、define里声明的
+//2、define或require里直接require('...')
+//3、config里配置的
+//4、手动通过handle.before或depBefore进行修改的
+/*
+ *模块的名字来源：
+ * 1、模块url地址:一定存在
+ * 2、模块define时提供的：可选
+ * 3、paths或depsPaths提供的：可选
+ * 4、name!提供的：可选
+ */
 function newModule(defineObject) {
 
 	let instances = []; //所有模块实例
@@ -318,22 +297,9 @@ function newModule(defineObject) {
 				this._loadCallback = null;
 				loadCallback();
 			}
-		},
-		thiz: {
-			getAbsoluteUrl() {
-				return moduleMap.src;
-			},
-			getName() {
-				return moduleMap.name;
-			},
-			invoker() {
-				return moduleMap.invoker;
-			},
-			absUrl() { //用于获取其他模块地址的参考路径
-				return moduleMap.absoluteUrl;
-			}
 		}
 	};
+	moduleMap.thiz = new script.Invoker(moduleMap);
 
 	//返回_module_
 	moduleMap.dealInstance = function(moduleInstance) {
@@ -377,6 +343,7 @@ function newModule(defineObject) {
 	};
 
 	//添加到前面
+	//提供的参数deps为define里声明的
 	moduleMap.mayAddDeps = function(deps) {
 		let moduleDeps = this.deps;
 		utils.each(moduleDeps, function(dep) {
@@ -531,7 +498,6 @@ function _getPluginParam(path) {
 
 //everyOkCallback(depModules,module),errCallback(err,invoker)
 function everyRequired(defineObject, module, everyOkCallback, errCallback) {
-	//data, thenOption, module, deps, 
 	if(defineObject.isError) {
 		return;
 	}
@@ -544,17 +510,17 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 	_dealEmbedDeps(deps); //处理嵌套依赖
 
 	for(let i = 0; i < deps.length; i++) {
-		//console.log(module.name+("("+thenOption.defined_module_for_deps+")"), ":", deps);
+		//console.log(module.name+("("+defineObject.hanle.defined_module_for_deps+")"), ":", deps);
 		let m = deps[i];
 		let jsFilePath = utils.isJsFile(m);
 
-		if(module.thiz.rurl(thenOption)) { //替换相对路径为绝对路径
+		if(module.thiz.rurl(defineObject.hanle)) { //替换相对路径为绝对路径
 			if(jsFilePath && xsloader.startsWith(m, ".")) {
-				m = utils.getPathWithRelative(module.thiz.rurl(thenOption), jsFilePath.path) + _getPluginParam(m);
+				m = utils.getPathWithRelative(module.thiz.rurl(defineObject.hanle), jsFilePath.path) + _getPluginParam(m);
 				deps[i] = m;
 			}
 		}
-		let paths = utils.graphPath.tryAddEdge(thenOption.defined_module_for_deps || module.name, m);
+		let paths = utils.graphPath.tryAddEdge(defineObject.hanle.defined_module_for_deps || module.name, m);
 		if(paths.length > 0) {
 			let moduleLoop = getModule(m); //该模块必定已经被定义过
 			moduleLoop.loopObject = {};
@@ -621,10 +587,6 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 
 				let willDelay = false;
 				let urls;
-				let _deps = config.getDeps(dep); //未加载模块前，获取其依赖
-				if(defineObject.handle.depBefore) {
-					defineObject.handle.depBefore(index, dep, _deps, 1);
-				}
 
 				if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
 					let i1 = dep.indexOf(":");
@@ -660,19 +622,16 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls = [];
 				}
 
-				//(name, src, deps, absoluteUrl, thatInvoker, callback)
-				let module2 = _newModule(dep, undefined, _deps, null, module.thiz);
-				if(willDelay && _deps.length == 0) {
-					break;
-				}
+				let module2 = _newModule(dep, undefined, null, null, module.thiz);
+
 				module2.setState("loading");
 				utils.each(urls, function(url, index) {
 					if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
-						if(!module2.thiz.rurl(thenOption)) {
+						if(!module2.thiz.rurl(defineObject.hanle)) {
 							isError = "script url is null:'" + module2.name + "'," + module2.callback;
 							throw new Error(isError);
 						}
-						url = utils.getPathWithRelative(module2.thiz.rurl(thenOption), url);
+						url = utils.getPathWithRelative(module2.thiz.rurl(defineObject.hanle), url);
 					} else {
 						let absolute = utils.dealPathMayAbsolute(url);
 						if(absolute.absolute) {
@@ -684,33 +643,17 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls[index] = config.dealUrl(module2, url);
 				});
 
-				if(_deps.length > 0) {
-					xsloader.require.call(defineObject, _deps, (_depModules) => {
-						let depModules = _depModules.slice(_deps.length);
-						let args = [];
-						let hasExports = false;
-						utils.each(depModules, function(depModule) {
-							args.push(depModule && depModule.moduleObject());
-						});
-						mayAsyncCallLoadModule();
-					}).then({
-						error(err, invoker) {
-							isError = err;
-							errCallback(err, invoker);
-						}
-					});
-				} else {
-					mayAsyncCallLoadModule();
-				}
+				mayAsyncCallLoadModule();
 
 				function mayAsyncCallLoadModule() {
-					if(IE_VERSION > 0 && IE_VERSION <= 10) {
-						asyncCall(function() {
-							loadModule();
-						});
-					} else {
-						loadModule();
-					}
+					//					if(IE_VERSION > 0 && IE_VERSION <= 10) {
+					//						asyncCall(function() {
+					//							loadModule();
+					//						});
+					//					} else {
+					//						loadModule();
+					//					}
+					loadModule();
 				};
 
 				//加载模块dep:module2
@@ -718,7 +661,13 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					if(index >= urls.length) {
 						return;
 					}
-					let url=urls[index];
+					let url = urls[index];
+					module2.src = url;
+					script.loadScript(module2.name, url, (scriptData) => {
+						
+					}, (err) => {
+
+					});
 				}
 
 			} while (false);
@@ -733,4 +682,5 @@ export default {
 	newModule,
 	getModule,
 	everyRequired,
+	Invoker
 };
