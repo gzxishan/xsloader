@@ -1,20 +1,16 @@
-import utils from "../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+/**
+ * 用于加载脚本
+ */
 
-const defContextName = "xsloader1.1.x";
-const DATA_ATTR_MODULE = 'data-xsloader-module';
-const DATA_ATTR_CONTEXT = "data-xsloader-context";
+import * as utils from '../utils/index.js';
 
-const isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
 const theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
-const thePageUrl = (function() {
-	let url = location.href;
-	url = utils.removeQueryHash(url);
-	return url;
-})();
+
+const DATA_ATTR_MODULE = 'data-xsloader-module';
+const DATA_ATTR_CONTEXT = "data-xsloader-context";
+const defContextName = utils.defContextName;
 
 const currentDefineModuleQueue = []; //当前回调的模块
 currentDefineModuleQueue.peek = function() {
@@ -29,6 +25,12 @@ let theRealDefine;
 if(utils.safariVersion > 0 && utils.safariVersion <= 7) {
 	useDefineQueue = [];
 }
+
+const thePageUrl = (function() {
+	let url = location.href;
+	url = utils.removeQueryHash(url);
+	return url;
+})();
 
 /**
  * 获取当前脚本，返回对象：
@@ -45,7 +47,7 @@ function getCurrentScript(isRemoveQueryHash = true) {
 				return {
 					node,
 					src: node.src
-				};
+				}
 			}
 		}
 		if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
@@ -60,9 +62,8 @@ function getCurrentScript(isRemoveQueryHash = true) {
 				}
 			}
 		}
-		let stack;
+		let stack, i;
 		try {
-			let a = undefined;
 			a.b.c(); //强制报错,以便捕获e.stack
 		} catch(e) { //safari的错误对象只有line,sourceId,sourceURL
 			stack = e.stack || e.sourceURL || e.stacktrace || '';
@@ -111,7 +112,7 @@ function getCurrentScript(isRemoveQueryHash = true) {
 	}
 	return rs;
 
-}
+};
 
 function __createNode() {
 	let node = document.createElement('script');
@@ -119,7 +120,7 @@ function __createNode() {
 	node.charset = 'utf-8';
 	node.async = true;
 	return node;
-}
+};
 
 function __removeListener(node, func, name, ieName) {
 	if(node.detachEvent && !isOpera) {
@@ -149,13 +150,13 @@ function __browserLoader(moduleName, url, callbackObj) {
 		let errListen = function() {
 			__removeListener(node, errListen, 'error');
 			callbackObj.onScriptError.apply(this, arguments);
-		};
+		}
 		callbackObj.errListen = errListen;
 		node.addEventListener('error', errListen, true);
 	}
 	node.src = url;
 	appendHeadDom(node);
-}
+};
 
 function __getScriptData(evt, callbackObj) {
 	let node = evt.currentTarget || evt.srcElement;
@@ -168,8 +169,8 @@ function __getScriptData(evt, callbackObj) {
 	};
 }
 
-function appendHeadDom(dom) {
-	if(!xsloader.isDOM(dom)) {
+const appendHeadDom = function(dom) {
+	if(!isDOM(dom)) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
@@ -177,8 +178,6 @@ function appendHeadDom(dom) {
 	//			head.appendChild(dom);
 	lastAppendHeadDom = dom;
 }
-
-/////////////////////////
 
 function loaderScript(moduleName, url, onload, onerror) {
 	let callbackObj = {};
@@ -190,7 +189,7 @@ function loaderScript(moduleName, url, onload, onerror) {
 			callbackObj.removed = true;
 			let scriptData = __getScriptData(evt, callbackObj);
 			if(useDefineQueue) {
-				utils.each(useDefineQueue, (defineObject) => {
+				useDefineQueue.forEach((defineObject) => {
 					defineObject.src = scriptData.src;
 				});
 				theRealDefine.define([...useDefineQueue]);
@@ -208,6 +207,13 @@ function loaderScript(moduleName, url, onload, onerror) {
 		onerror(scriptData);
 	};
 	__browserLoader(moduleName, url, callbackObj);
+}
+
+function throwError(code, info, invoker) {
+	if(xsloader.onError) {
+		xsloader.onError(info, invoker);
+	}
+	throw code + ":" + info;
 }
 
 function doDefine(thiz, args, isRequire) {
@@ -230,27 +236,27 @@ function doDefine(thiz, args, isRequire) {
 		}
 	};
 	if(!useDefineQueue) {
-		defineObject.src = getCurrentScript().src;
+		defineObject.src = getCurrentScript().src
 
 		try { //防止执行其他脚本
 			if(defineObject.src) {
 				var node = document.currentScript;
 				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
 					defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
-					console.error("unknown js script module:" + xsloader.xsJson2String(defineObject.src));
+					console.error("unknown js script module:" + utils.xsJson2String(defineObject.src));
 					console.error(node);
 					return;
 				}
 			}
 		} catch(e) {
-			xsloader.config().error(e);
+			config.error(e);
 		}
 
 	}
 
 	let handle = {
 		then(option) {
-			defineObject.handle = xsloader.extend(defineObject.handle, option);
+			defineObject.handle = utils.extend(defineObject.handle, option);
 			return this;
 		},
 		error(onError) {
@@ -259,7 +265,7 @@ function doDefine(thiz, args, isRequire) {
 		}
 	};
 
-	xsloader.asyncCall(() => {
+	utils.asyncCall(() => {
 		if(useDefineQueue) {
 			useDefineQueue.push(defineObject);
 		} else {
@@ -292,11 +298,15 @@ const initDefine = function(theDefine) {
 	};
 };
 
-export default {
-	defContextName,
+export {
+	DATA_ATTR_MODULE,
+	DATA_ATTR_CONTEXT,
+	appendHeadDom,
 	theLoaderScript,
 	theLoaderUrl,
 	thePageUrl,
-	appendHeadDom,
+	loaderScript,
+	throwError,
 	initDefine,
-};
+	currentDefineModuleQueue,
+}

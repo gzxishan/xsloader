@@ -5,20 +5,25 @@
     "es6": true
   },
   "globals": {
-    "ENV": true
+
   },
   "extends": "eslint:recommended",
   "parserOptions": {
     "sourceType": "module"
   },
   "rules": {
+    "no-inner-declarations": 0,
+    "no-constant-condition": 0,
+    "no-control-regex": 0,
+    "no-useless-escape": 0,
+    "no-console": 0,
     "indent": 0,
     "linebreak-style": [
-      "error",
+      "warn",
       "unix"
     ],
     "semi": [
-      "error",
+      "warn",
       "always"
     ]
   }

@@ -6,7 +6,9 @@
 
 //  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
 //  NOT CONTROL.
-export default JSON = window.JSON || {};
+const JSON = {};
+
+export default JSON;
 
 let rx_one = /^[\],:{}\s]*$/;
 let rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;

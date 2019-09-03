@@ -2941,7 +2941,7 @@ var queryString2ParamsMap;
 				if(_startsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this, urlOrName);
+						value = strfixObj.value.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
@@ -2955,7 +2955,7 @@ var queryString2ParamsMap;
 				if(_endsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this, urlOrName);
+						value = strfixObj.value.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
@@ -3024,7 +3024,7 @@ var queryString2ParamsMap;
 		return obj;
 	};
 
-	xsloader.clearUrlArgs = function(argsObj) {
+	xsloader.clearUrlArgs = function() {
 		argsObject = {};
 	};
 	xsloader.define = define;

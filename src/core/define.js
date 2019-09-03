@@ -1,127 +1,17 @@
-import * as script from './script.js';
-import { xsloader } from './xsloader.js';
-import * as utils from '../utils/index.js';
+import utils from "../util/index.js";
+import script from "./script.js";
+import moduleScript from "./module.js";
 
-import * as moduleObject from './module.js';
-
-function onScriptComplete(defineObject, lastDefineObject) {
-	let aurl = defineObject.src;
-	let module = moduleObject.getModule(defineObject.selfname);
-	if(module && module.state != 'loading' && module.state != 'init') {
-		throwError(-2, "already define '" + defineObject.selfname + "'");
-	}
-
-	thenOption.absUrl = thenOption.absUrl || function() {
-		return this.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
-	}
-
-	let config = script.getConfig();
-
-	let deps = defineObject.deps;
-	let module = ifmodule;
-	if(!module) {
-		module = moduleObject.newModule(defineObject.selfname, null, defineObject.callback,
-			defineObject.thatInvoker, defineObject.handle.absoluteUrl);
-	}
-
-	deps = module.mayAddDeps(deps);
-	if(defineObject.handle.before) {
-		defineObject.handle.before(deps);
-	}
-	if(lastDefineObject && lastDefineObject.then.depBefore) {
-		lastDefineObject.handle.depBefore(lastDefineObject.index, defineObject.selfname, deps, 2);
-	}
-
-	if(module.name && xsloader._ignoreAspect_[module.name] ||
-		defineObject.selfname && xsloader._ignoreAspect_[defineObject.selfname]) {
-		module.ignoreAspect = true;
-	}
-
-	if(module.name && defineObject.selfname != module.name) {
-		let moduleSelf = getModule(defineObject.selfname);
-		if(moduleSelf) {
-			if(moduleSelf.state == "init") {
-				moduleObject.setModule(defineObject.selfname, module);
-				moduleSelf.toOtherModule(module);
-			} else {
-				throwError(-2, "already define '" + cache.selfname + "'");
-			}
-		} else {
-			moduleObject.setModule(defineObject.selfname, module);
-		}
-	}
-	module.setState("loaded");
-	module.callback = defineObject.callback;
-	module.setInstanceType(defineObject.handle.instance || config.instance);
-
-	if(deps.length == 0) {
-		module.finish([]); //递归结束
-	} else {
-		_everyRequired(data, thenOption, module, deps, function(depModules) {
-
-			let args = [];
-			let depModuleArgs = [];
-			each(depModules, function(depModule) {
-				depModuleArgs.push(depModule);
-				args.push(depModule && depModule.moduleObject());
-			});
-			args.push(depModuleArgs);
-			module.finish(args);
-		}, function(err, invoker) {
-			thenOption.onError(err, invoker);
-		});
-	}
-
-};
-
-function _Async_Object_(invoker, asyncDefine) {
-	this.getInvoker = function() {
-		return invoker;
-	}
-	this.isAsyncDefine = function() {
-		return asyncDefine;
-	}
-}
-
-function getThatInvokerForDef_Req(thiz, nullNew) {
-	if(thiz instanceof _Async_Object_) {
-		return thiz.getInvoker();
-	}
-	let invoker = thiz && utils.isFunction(thiz.invoker) &&
-		utils.isFunction(thiz.getName) && utils.isFunction(thiz.getUrl) &&
-		utils.isFunction(thiz.getAbsoluteUrl) ? thiz : null;
-	if(!invoker && nullNew) {
-		let newObj = {
-			module: {
-				name: ""
-			},
-			thiz: {
-				getAbsoluteUrl() {
-					return thePageUrl;
-				},
-				absUrl() {
-					return thePageUrl;
-				},
-				getName() {
-					return "__root__";
-				},
-				invoker() {
-					return this;
-				}
-			}
-		};
-		_buildInvoker(newObj);
-		invoker = newObj.thiz;
-	}
-	return invoker;
-}
+const global = utils.global;
+const xsloader = global.xsloader;
+const theDefinedMap = {};
 
 const defineHandle = script.initDefine(function theRealDefine(defines) {
-	defines.forEach((defineObject) => {
+	utils.eache(defines, (defineObject) => {
 		let {
 			thiz,
 			args,
-			src,
+			src, //必存在src
 			isRequire,
 			parentDefine,
 			handle: {
@@ -156,14 +46,12 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 			xsloader.appendInnerDeps(deps, callback);
 		}
 
-		let context = script.getContext();
-
-		if(utils.isFunction(callback)) {
+		if(xsloader.isFunction(callback)) {
 			let originCallback = callback;
 			callback = function() {
 				let config = script.getConfig();
 				let rt;
-				if(utils.isFunction(config.defineFunction[cache.name])) {
+				if(xsloader.isFunction(config.defineFunction[cache.name])) {
 					let args = [];
 					for(let i = 0; i < arguments.length; i++) {
 						args.push(arguments[i]);
@@ -181,10 +69,104 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 		defineObject.selfname = selfname;
 		defineObject.deps = deps;
 		defineObject.callback = callback;
-		onScriptComplete(defineObject);
+		onModuleLoaded(defineObject);
 
 	});
 });
+
+/**
+ * 当前模块脚本已经完成加载、但其依赖的模块可能需要加载。
+ * 当前模块：src、selfname已经确定。
+ * 若当前模块依赖为0、则可以直接finish；若当前模块存在其他依赖、则设置回调，等待被其他地方依赖时再触发。
+ * @param {Object} defineObject 当前模块
+ * @param {Object} lastDefineObject 第一次加载当前模块的模块
+ */
+function onModuleLoaded(defineObject, lastDefineObject) {
+	//moduleName, cache, aurl, isRequire, lastThenOptionObj
+
+	//判断模块是否已经被定义
+	if(defineObject.selfname) {
+		let ifmodule = moduleScript.getModule(defineObject.selfname);
+		if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
+			let lastModule = ifmodule;
+			if(lastModule.src == defineObject.src) { //已经加载过js模块
+				try {
+					console.warn("already loaded js:" + aurl);
+				} catch(e) {
+					//TODO handle the exception
+				}
+				return;
+			}
+		} else {
+			throw new Error("already define '" + moduleName + "'");
+		}
+	}
+
+	let module = moduleScript.getModule(defineObject.selfname || defineObject.src);
+	if(!module) {
+		module = moduleScript.newModule(defineObject);
+	} else {
+		//defineObject里的deps最初是直接声明的依赖,应该出现在最前面
+		module.mayAddDeps(defineObject.deps);
+	}
+
+	if(defineObject.handle.before) {
+		defineObject.before(module.deps);
+	}
+	if(lastDefineObject && lastDefineObject.handle.depBefore) {
+		lastDefineObject.handle.depBefore(lastDefineObject.index, module.name, module.deps, 2);
+	}
+
+	if(xsloader._ignoreAspect_[module.name]) {
+		module.ignoreAspect = true;
+	}
+
+	if(cache.selfname && cache.selfname != cache.name) {
+		var moduleSelf = getModule(cache.selfname);
+		if(moduleSelf) {
+			if(moduleSelf.state == "init") {
+				setModule(cache.selfname, module);
+				moduleSelf.toOtherModule(module);
+			} else if(moduleSelf.cacheId == cache.id) {
+				return;
+			} else {
+				throwError(-2, "already define '" + cache.selfname + "'");
+			}
+		} else {
+			setModule(cache.selfname, module);
+		}
+	}
+
+	module.setState("loaded");
+	module.setInstanceType(defineObject.handle.instance || xsloader.config().instance);
+
+	if(deps.length == 0) {
+		module.finish([]); //递归结束
+	} else {
+		//在其他模块依赖此模块时进行加载
+		let needCallback = function() {
+			moduleScript.everyRequired(defineObject, module, (depModules) => {
+				let args = [];
+				let depModuleArgs = [];
+				utils.each(depModules, (depModule) => {
+					depModuleArgs.push(depModule);
+					args.push(depModule && depModule.moduleObject());
+				});
+				args.push(depModuleArgs);
+				module.finish(args);
+			}, (err, invoker) => {
+				thenOption.onError(err, invoker);
+			});
+		};
+
+		if(defineObject.isRequire) {
+			needCallback();
+		} else {
+			module.whenNeed(needCallback);
+		}
+	}
+
+};
 
 //定义模块
 export const define = function() {
@@ -198,42 +180,3 @@ export const require = function() {
 xsloader.define = define;
 xsloader.defineAsync = define;
 xsloader.require = require;
-
-xsloader.hasDefine = function(name) {
-	let has = false;
-	let module = getModule(name);
-	if(!module || module.state == "init") {
-		if(globalDefineQueue) {
-			for(let i = 0; i < globalDefineQueue.length; i++) {
-				let cache = globalDefineQueue[i];
-				if(cache.name === name) {
-					has = true;
-					break;
-				}
-			}
-		}
-		if(!has && theContext) {
-			let defQueue = theContext.defQueue;
-			for(let i = 0; i < defQueue.length; i++) {
-				let cache = defQueue[i];
-				if(cache.name === name) {
-					has = true;
-					break;
-				}
-			}
-		}
-	} else {
-		has = true;
-	}
-	return has;
-}
-
-xsloader.clear_module_ = function() {
-	let modules = arguments;
-	for(let i = 0; i < modules.length; i++) {
-		if(modules[i]) {
-			delete modules[i]._module_;
-			delete modules[i]._modules_;
-		}
-	}
-}

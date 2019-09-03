@@ -1,0 +1,210 @@
+一、xsloader基础格式
+{
+	baseUrl:"",//基础参考路径（除绝对路径和相对路径，如./(当前目录),../(上一级目录),//(域名),/(根目录),xx/(baseUrl+)）
+	modulePrefix:{},//
+	urlArgs:{},//
+	autoUrlArgs:false,//是否自动添加地址参数，防止缓存。1）为true或false；2）function,返回true或false
+	jsExts:[".js", ".js+",".es6", ".jsx", ".vue"],
+	paths:{},//用于指定模块的路径(*.js)，不能使用插件
+	depsPaths:{},//用于指定模块的路径(*.js)，并可以为其中的模块配置依赖，不能使用插件。
+	deps:{},//用于配置依赖，map。
+			//（1）*表示对depsPaths(以及加载服务的主文件)中的所有模块加上此依赖。
+			//（2）key的格式path1::path2::path3...
+			//（3）内部的元素为数组的情况、该数组第一个元素orderDep默认为true。
+		
+	defineFunction:{},//map,{moduleName:function(originCallback,originThis,originArgs){}},用于自定义操作模块的回调函数
+	defaultVersion:{},//{'group:project':'versionName'}默认包名配置
+	waitSeconds:10,//加载模块默认等待时间，默认10秒,
+	instance:"single",//对模块对象的默认处理方式，取值为single(默认)或clone
+	properties:{//所有的字符串中都可以使用，格式为${propertyName}
+		name1:anyType,
+		name2:{
+			subName1:anyType
+		},
+		name3:"123",
+		name4:"name${name3}-${name2.subName1}",
+		name5:function(){//注意：this为当前的properties
+		
+		}
+	}
+}
+二、xsloader说明
+ 1、注意：
+ 	（1）当js里只有一个define时，优先使用配置里定义的模块名、同时也保留define提供的名称。
+            （2）匿名define的模块名为对应路径或为配置里定义的模块名。
+            （3）模块路径应该都以".js"为后缀,/*但以"."、"/"、"https:"、"http:"开头的，末尾可以省略".js"*/。  
+ 2、xsloader.onError=function(code,errinfo)回调函数
+                              
+ 3、require基础方法：
+  	（1）require("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常。
+  	（2）require.has(...)是否含有指定的所有模块，如var exists = require.has("a","b","c");
+  	（3）require([deps],function(dep1,dep2,...){})
+  	（4）require.then({onError:function(err,invoker),orderDep:false,absoluteUrl:url,before:function(deps),depBefore:function(index,dep,depDeps)})
+  	（5）require.error(function(err,invoker){})同then的onError
+ 4、define基础方法：
+  	content可以是任何类型。
+  	（1）define([deps],content)
+  	（2）define(callback)
+  	（3）define(moduleName,[deps],content),defineAsync(moduleName,[deps],content)
+  	（4）define(moduleName,content),defineAsync(moduleName,content)
+  	（5）define.then({onError:function(err,invoker),orderDep:false,instance:"single",absoluteUrl:url},before:function(deps),depBefore:function(index,dep,depDeps)}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
+  	（6）define.error(function(err,invoker){})同then的onError
+ 5、1）回调函数(包括plugin函数)的this对象、模块对象(为define(...Object))的_invoker_
+        （1）require(...)与define(...)、defineAsync(...),同require与define,但具有当前js文件的路径信息、从而可以使用相对路径
+        （2）getUrl(relativeUrl,appendArgs,optionalAbsUrl)：appendArgs表示是否加上urlArgs参数,默认为true。
+        								1.当没有提供了relativeUrl时，获取当前模块的url路径；
+        							  2.提供了relativeUrl时，获取相对于absUrl()的url路径、获取path映射路径或绝对路径。
+        							  3.optionalAbsUrl:可选的绝对参考地址
+        （3）getAbsoluteUrl(),获取当前模块的绝对路径
+        （4）getName(),当前模块或插件的名称
+        （5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
+        （6）withAbsUrl(absoluteUrl)，获取一个新的invoker，absUrl()、getAbsoluteUrl()都会变化
+        （7）getId(),获取invoker的id。
+        （6）absUrl(),获取其他模块绝对路径的参考地址,默认等于getAbsoluteUrl(),可通过define或require的then({absoluteUrl:url})进行指定
+    2）模块对象有属性_module_,_module_.setToAll(attrName,attrValue)或_module_.setToAll(obj)给所有模块实例设置属性
+    3）xsloader.clear_module_(modules)：删除_module_,_modules_
+ 6、plugin定义：
+  	pluginObject格式:
+  	{
+  		pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...),
+  		isSingle:true,//当pluginArgs相同时，使用之前的
+  		getCacheKey:function(pluginArgs),//isSingle时有效，获取缓存的key
+  		willCache:function(pluginArgs,cacheResult)//isSingle时有效，是否进行缓存，默认true
+  	}
+  	（1）define([pluginName],[deps],pluginObject)
+  	（2）onload(result，ignoreAspect=true),onerror(err)
+  	调用格式：'moduleX!pluginArgs'
+ 7、[deps]格式[module1,module2,...,moduleX],moduleX格式类型
+  	（1）*******版本模块:moduleX="group:project:version",如"cn.xishan:demo:1.0"。
+  	（2）*******版本模块（默认版本）：moduleX="group:project"(需要配置默认版本,否则会报错)
+  	（3）module名称：moduleX="myModule",其中myModule在paths或depsPaths中定义过、不以".js"结尾。
+  	（4）path路径(不可省略.js后缀)：moduleX="/js/..../myModuleName.js"
+  	（5）内嵌模块：module=[module1,module2],如果有一个为数组，如[[(orderDep),"m1","m2"],"m3","m4"],则[(orderDep),"m1","m2"]里的orderDep（默认为true）为true表示顺序加载
+  
+ 8、xsloader(config)
+  xsloader.config():获取配置
+  xsloader.config().dealProperties(obj),xsloader.dealProperties(obj,properties)替换参数
+    
+ 9、内置简单插件或模块：css!,text!,json!,ready!,name!,window!,withdeps!,exports,xshttp,xsrequest,xsmsg,XsLinkedList,nodeps!
+     （1）name!插件格式:name!moduleName=>>modulePath；作用：用于给模块命名,其中moduleName用逗号隔开、表示多个名字
+     （2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
+     （3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖
+     （4）nodeps!插件用于加载某些js文件，忽略其所有依赖，可用于忽略在加载webpack等打包的模块时自动添加内部require('...')的依赖
+     （5）exists!插件格式：exists!module|windowVar1|windowVar2...
+ 10、config参数详解
+ 
+    1）config.modulePrefix
+ 	类型：对象
+ 	用于替换模块url（或urlArgs中）地址前缀,其中prefix不能以"."、"/"开头
+ 	{
+ 	   "lib/":{
+ 	   		replace:"replacePrefix"
+ 	   },
+ 	   "lib2/":{
+ 	   		replace:"replacePrefix"
+ 	   }
+ 	}
+ 	
+ 	2）urlArgs
+ 	类型：对象或返回对象的函数
+ 	key：
+ 	    (1)key为绝对地址;以"."开头，表示相对于xsloader地址的模块;相对于baseUrl的地址（不以"."开头的相对地址）;含有modulePrefix前缀的地址
+ 	    (2)key以"*["开头，表示指定前缀的地址，支持相对地址（.相对于xsloader地址，以及相对于baseUrl）;key以"*]"开头，表示指定后缀的地址。（支持前缀替换）
+ 	    (3)key为模块名
+ 	    (4)key为"*"时，表示对所有模块，但优先级最低,其他模块的重名地址参数会覆盖*的。
+ 	value:
+ 	    (1)value为字符串，
+ 	    (2)value为函数function(moduleNameOrUrl)，函数this为当前配置对象，返回值为字符串,
+
+    3）autoUrlArgs（优先于urlArgs）
+       类型：boolean，默认为false
+       自动添加当前时间_t=currentTimeMillis
+       
+ 11、内置函数:
+  1）xsloader.extend(target,obj1,obj2,...);
+    xsloader.extendDeep(target,obj1,obj2,...);
+    xsloader.config()得到当前配置对象
+    xsloader.config().dealUrlArgs(url)返回加上参数的地址,url可为相当于当前页面地址的路径
+    xsloader.script()得到xsloader的script对象
+    xsloader.scriptSrc()得到xsloader的script脚本地址
+    xsloader.hasDefine(name)判断是否存在模块定义
+    xsloader.define
+    xsloader.require
+    xsloader.randId
+    xsloader.clone(obj,isDeep)
+    xsloader.isArray(arg)
+    xsloader.isString(arg)
+    xsloader.isObject(arg)
+    xsloader.isFunction(arg)
+    xsloader.isDate(arg);
+    xsloader.isRegExp(arg);
+    xsloader.getObjectAttr(obj, attrNames,defaultValue);
+    xsloader.setObjectAttr(obj, attrNames, value);
+    xsloader.tryCall(fun, defaultReturn,thiz)
+    xsloader.asyncCall(fun,useTimer):异步执行,返回一个对象，包含next
+    xsloader.IE_VERSION:ie版本（-1表示不是ie，其余检测结果为6~11及edge）
+    xsloader.appendHeadDom(dom):往head里添加dom，先调用的在前面（会从xsloader.js后面开始添加）。
+    xsloader.isDOM(mayDom):判断mayDom是否为dom对象。
+    xsloader.queryParam:function(name, otherValue, optionUrl)
+    xsloader.onReady(callback):
+    xsloader.getUrl(relativeUrl,appendArgs,optionalAbsUrl):获取相对地址，相对于当前页面
+    xsloader.putUrlArgs:object,添加全局额外的url参数
+    xsloader.clearUrlArgs:object,清除所有全局额外的url参数
+    xsloader.getUrlArgs:object,获取所有全局额外的url参数
+  2）startsWith()
+    endsWith()
+    xsParseJson(str,option):注意key需要用引号包裹
+    		（1）通过“/*{f}*/”与“/*{f}*/”可包裹function来支持函数，如json字符串{'callback':/*{f*/function(){}/*f}*/}
+    		（2）通过option.fnStart与option.fnEnd来指定（1）中函数的开始与结束的标志,如果没有该标志则不会进行函数的转换。
+    		（3）在function外的json部分，支持“//#//”行注释,可通过option.rcomment修改(正则相关字符需要转义)
+    xsJson2String(obj)
+    randId()
+    indexInArray(array, ele, compare)
+    indexInArrayFrom(array, ele,offset, compare)
+    getPathWithRelative(path, relative, isPathDir)
+    appendArgs2Url()
+    queryString2ParamsMap(argsStr, decode)
+    Array.prototype.indexOf(elem,[fromIndex])
+    Array.pushAll(targetArr,arr)
+三、xsloader配置服务
+1.data-conf相对于当前页面地址的配置路径，data-conf2相对于加载器地址的配置路径。
+2.data-main用于手动指定main.getPath()的返回值，相对于当前页面地址;支持插件。
+3.data-conf-type:json,js,auto.
+4.配置格式:
+{
+	properties:{},
+	main:{
+		name:"main",//入口模块名，默认"main",
+		getPath:function(dataMain){//获取主模块的路径，其中{name}会被替换成"当前网页名"
+			return dataMain || "./main/{name}.js";
+		},
+		localConfigVar:"lconfig",//应用配置的window变量名称
+		globalConfigVar:"gconfig",//服务端配置的window变量名称,
+		before:function(){
+			console.log("before:" + name);
+		},
+		after:function(){
+			console.log("after:" + name);
+		}
+	},
+	service:{
+		confUrl:"",//服务端配置地址，本地配置有效
+		hasGlobal:true,//是否含有服务端的全局配置，默认false
+		resUrl:"",//(group:groupid:version)首选资源地址,get请求格式为添加参数m=encodeURIComponent(groupModule),
+		resUrls:[]//备用资源地址
+	},
+	chooseLoader:function(localConfig){//返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
+		return "default";
+	},
+	loader:{
+		"configName":{}
+	},
+	beforeDealProperties:function(){//处理参数前调用
+	
+	}
+}
+四、properties
+1.properties中属性是function的，会执行(this为当前的properties)得到结果；且函数会在属性引用前处理。
+2.通过${properName}引用字符串属性
+3.通过$[properName]引用属性（对应的属性值可以是任何类型,除了undefined与function）
+4.key中也支持属性引用(除了properties)
