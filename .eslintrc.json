@@ -5,7 +5,8 @@
     "es6": true
   },
   "globals": {
-
+    "opera": true,
+    "ActiveXObject": true
   },
   "extends": "eslint:recommended",
   "parserOptions": {
@@ -17,6 +18,8 @@
     "no-control-regex": 0,
     "no-useless-escape": 0,
     "no-console": 0,
+    "no-unused-vars": "warn",
+    "no-empty": "warn",
     "indent": 0,
     "linebreak-style": [
       "warn",

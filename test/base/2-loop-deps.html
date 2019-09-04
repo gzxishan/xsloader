@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>循环依赖测试</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+
+		<script src="../../dist/xsloader.min.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+
+		<h1>Hello World!</h1>
+		<pre id="logDiv">
+			
+		</pre>
+	</body>
+	<script type="text/javascript">
+		window.divLog = function(obj) {
+			var div = document.getElementById("logDiv");
+			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+			txt = txt.replace(/\\r\\n|\\n/g, "\n");
+			txt = txt.replace(/\\t/g, "    ");
+
+			div.innerText = div.innerText + "\n" + txt;
+		};
+
+		xsloader.onError = function(code, errinfo) {
+			divLog(errinfo);
+		}
+
+		define("A", ["C"], function(C) {
+			divLog(C);
+			var obj = {
+				name: "A",
+				test: function(name) {
+					divLog("delay loop dependency invoke:" + name + "->" + this.name);
+				}
+			};
+			setTimeout(function() {
+				C.test(obj.name);
+			}, 10);
+			return obj;
+		});
+		define("B", ["A"], function(A) {
+			divLog(A);
+			return {
+				name: "B"
+			};
+		});
+		define("C", ["B", "A"], function(B, A) {
+			divLog(B);
+			var obj = {
+				name: "C",
+				test: function(name) {
+					divLog("delay loop dependency invoke:" + name + "->" + this.name);
+				}
+			};
+			setTimeout(function() {
+				A.test(obj.name);
+			}, 10);
+			return obj;
+		});
+		define("D", function() {
+			return {
+				"name":"D"
+			};
+		});
+
+		
+		xsloader({
+			properties: {
+
+			},
+			autoUrlArgs: false,
+			urlArgs: {
+				"*": "v=1.0.0"
+			},
+			paths: {
+				"$": "http://lib.sinaapp.com/js/jquery/2.0.2/jquery-2.0.2.min.js"
+			},
+			depsPaths: {
+
+			},
+			deps: {
+				"*": "$",
+				"D": "E",
+				"E": "D"
+			}
+		});
+		
+
+		require(["C","D","E"], function(C,D,E) {
+			divLog(C);
+			divLog(D);
+			divLog(E);
+		}).then({
+			onError: function(err) {
+				divLog(err);
+			}
+		});
+		
+		define("E", function() {
+			return {
+				"name":"E"
+			};
+		});
+	</script>
+
+</html>

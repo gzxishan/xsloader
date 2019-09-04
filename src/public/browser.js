@@ -1,7 +1,7 @@
 import utils from "../util/index.js";
 
 const global = utils.global;
-const xsloader=global.xsloader;
+const xsloader = global.xsloader;
 
 let isDOM = (typeof HTMLElement === 'object') ?
 	function(obj) {
@@ -30,35 +30,43 @@ let onReadyFun = (function() {
 		}
 		// Mozilla, Opera and webkit nightlies currently support this event
 		if(document.addEventListener) {
-			document.addEventListener("DOMContentLoaded", function() {
-				document.removeEventListener("DOMContentLoaded", arguments.callee);
+			let fun;
+			fun = function() {
+				document.removeEventListener("DOMContentLoaded", fun);
 				ready();
-			});
+			};
+			document.addEventListener("DOMContentLoaded", fun);
 
 		} else if(document.attachEvent) {
 			// ensure firing before onload,
 			// maybe late but safe also for iframes
-			document.attachEvent("onreadystatechange", function() {
+			let fun;
+			fun = function() {
 				if(document.readyState === "complete") {
-					document.detachEvent("onreadystatechange", arguments.callee);
+					document.detachEvent("onreadystatechange", fun);
 					ready();
 				}
-			});
+			};
+			document.attachEvent("onreadystatechange", fun);
 			// If IE and not an iframe
 			// continually check to see if the document is ready
-			if(document.documentElement.doScroll && typeof global.frameElement === "undefined")(function() {
+
+			let fun2;
+			fun2 = function() {
 				if(isReady) return;
 				try {
 					// If IE is used, use the trick by Diego Perini
 					// http://javascript.nwbox.com/IEContentLoaded/
 					document.documentElement.doScroll("left");
 				} catch(error) {
-					setTimeout(arguments.callee, 0);
+					setTimeout(fun2, 0);
 					return;
 				}
 				// and execute any waiting functions
 				ready();
-			})();
+			};
+
+			if(document.documentElement.doScroll && typeof global.frameElement === "undefined")(fun2)();
 		} else {
 			xsloader.asyncCall(null, true).next(function() {
 				ready();

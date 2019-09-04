@@ -3,6 +3,8 @@ import utils from "../../util/index.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
+//内部依赖加载插件
+
 xsloader.define(moduleScript.INNER_DEPS_PLUGIN, {
 	pluginMain(depId, onload, onerror, config) {
 		let depsObj = moduleScript.innerDepsMap[depId];

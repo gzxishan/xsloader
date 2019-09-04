@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>基础测试</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+
+		<script src="../../dist/xsloader.min.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<h1>Hello World!</h1>
+		<pre id="logDiv" style="padding: 10px;width: 100%;white-space: pre-wrap;word-wrap: break-word;*white-space: pre;*word-wrap: break-word;">
+			
+		</pre>
+	</body>
+	<script type="text/javascript">
+		window.divLog = function(obj) {
+			var div = document.getElementById("logDiv");
+			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+			txt = txt.replace(/\\r\\n|\\n/g, "\n");
+			txt = txt.replace(/\\t/g, "    ");
+
+			div.innerText = div.innerText + "\n" + txt;
+		};
+
+		xsloader.onError = function(code, errinfo) {
+			divLog(errinfo);
+		}
+		xsloader({});
+		require(["xsrequest"], function(request) {
+			request({
+				url:"files/test.json"
+			}).then(function(json){
+				divLog(json);
+				return json.name;
+			}).then(function(name){
+				divLog("name:"+name);
+			});
+			
+		});
+	</script>
+
+</html>

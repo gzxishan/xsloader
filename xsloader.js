@@ -3697,11 +3697,11 @@ var queryString2ParamsMap;
 			try {
 				deps = xsParseJson(depsStr);
 				if(!xsloader.isArray(deps)) {
-					onerror("deps is not Array:" + depStr);
+					onerror("deps is not Array:" + depsStr);
 					return;
 				}
 			} catch(e) {
-				onerror("deps error:" + depStr);
+				onerror("deps error:" + depsStr);
 				return;
 			}
 			this.invoker().require([
@@ -3779,7 +3779,7 @@ var queryString2ParamsMap;
 			_async = prop(option, "async", true),
 			_multiPart = prop(option, "multiPart", false),
 			_handleType = prop(option, "handleType", "json");
-		_timeout = option.timeout;
+		var _timeout = option.timeout;
 		putProp(option, "params", _params);
 		putProp(option, "headers", _headers);
 
@@ -4529,7 +4529,7 @@ var queryString2ParamsMap;
 		};
 
 		function LinkedList() {
-			function newNode(element) {　　
+			function newNode(element) {
 				var node = {
 					element: element,
 					next: null,
@@ -4544,17 +4544,17 @@ var queryString2ParamsMap;
 			/**
 			 * 在链表末尾添加元素
 			 */
-			this.append = function(element) {　　
-				var current = newNode(element);　　　　
+			this.append = function(element) {
+				var current = newNode(element);
 
 				lastNode.next = current;
 				current.pre = lastNode;
-				lastNode = current;　　
+				lastNode = current;
 				length++;
 			};
 
 			//在链表的任意位置插入元素
-			this.insert = function(position, element) {　　
+			this.insert = function(position, element) {
 				if(position >= 0 && position <= length) {
 
 					var node = newNode(element);
@@ -4568,11 +4568,11 @@ var queryString2ParamsMap;
 						node.next = pNode.next;
 					}
 					pNode.next = node;
-					node.pre = pNode;　　　　
+					node.pre = pNode;
 					length++;
-					return true;　　
-				} else {　　　　
-					return false;　　
+					return true;
+				} else {
+					return false;
 				}
 			};
 
@@ -4580,7 +4580,7 @@ var queryString2ParamsMap;
 				return getElement(position);
 			};
 
-			function getElement(position, willRemove) {　　
+			function getElement(position, willRemove) {
 				if(position >= 0 && position < length) {
 
 					var pNode = headNode;
@@ -4604,9 +4604,9 @@ var queryString2ParamsMap;
 						return currentNode.element;
 					} else {
 						return undefined;
-					}　
-				} else {　　　　
-					return undefined;　　
+					}
+				} else {
+					return undefined;
 				}
 			};
 
@@ -4635,7 +4635,7 @@ var queryString2ParamsMap;
 			};
 
 			//从链表中移除元素
-			this.removeAt = function(position) {　　
+			this.removeAt = function(position) {
 				return getElement(position, true);
 			};
 
@@ -4651,7 +4651,7 @@ var queryString2ParamsMap;
 			 * 返回元素在链表中的位置
 			 * @param element object|function(elem)
 			 */
-			this.indexOf = function(element) {　　
+			this.indexOf = function(element) {
 				var pNode = headNode.next;
 				var index = 0;
 				while(pNode) {
@@ -4674,14 +4674,14 @@ var queryString2ParamsMap;
 			}
 
 			//移除某个元素
-			this.remove = function(element) {　　
-				var index = this.indexOf(element);　　
+			this.remove = function(element) {
+				var index = this.indexOf(element);
 				return this.removeAt(index);
 			};
 
 			//判断链表是否为空
 
-			this.isEmpty = function() {　　
+			this.isEmpty = function() {
 				return length === 0;
 			};
 
@@ -5331,6 +5331,7 @@ var queryString2ParamsMap;
 
 							loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
 							var conf;
+							var loader;
 							if(loaderName != null) {
 								mainName = globalConfig.main.name;
 								mainPath = getPathWithRelative(location.href, getMainPath(globalConfig));
@@ -5393,7 +5394,7 @@ var queryString2ParamsMap;
 	function initXsloader(pageHref, mainName, mainPath, loader, conf, localConfig) {
 		var resUrls = [];
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
-		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
+		localConfig !== conf && localConfig.service.resUrl && resUrls.push(localConfig.service.resUrl);
 
 		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
 		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
@@ -5401,7 +5402,7 @@ var queryString2ParamsMap;
 		xsloader._resUrlBuilder = function(groupModule) {
 			var as = [];
 			each(resUrls, function(url) {
-				as.push(appendArgs2Url(resUrl, "m=" + encodeURIComponent(groupModule)));
+				as.push(appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
 			});
 			return as;
 		};

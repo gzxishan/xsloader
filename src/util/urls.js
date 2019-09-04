@@ -166,7 +166,7 @@ function getPathWithRelative(path, relative, isPathDir) {
 }
 
 function getNodeAbsolutePath(node) {
-	let src = node.src;
+	let src = node.src || node.getAttribute("src");
 	return getPathWithRelative(location.href, src);
 }
 
@@ -306,8 +306,8 @@ function replaceModulePrefix(config, deps) {
 		let query = index > 0 ? m.substring(index) : "";
 		m = index > 0 ? m.substring(0, index) : m;
 
-		let isJsFile = isJsFile(m);
-		if(!isJsFile && (xsloader.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+		let is = isJsFile(m);
+		if(!is && (xsloader.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
 			deps[i] = m + ".js" + query + pluginParam;
 		}
 	}

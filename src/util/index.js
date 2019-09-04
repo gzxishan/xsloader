@@ -4,6 +4,6 @@ import base from './base.js';
 
 export default {
 	...urls,
-	...global,
+	global,
 	...base
 };

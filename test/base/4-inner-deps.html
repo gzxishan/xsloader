@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>内嵌依赖测试</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=0">
+
+		<script src="../../dist/xsloader.min.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<h1>Hello World!</h1>
+		<pre id="logDiv" style="padding: 10px;width: 100%;white-space: pre-wrap;word-wrap: break-word;*white-space: pre;*word-wrap: break-word;">
+			
+		</pre>
+	</body>
+	<script type="text/javascript">
+		window.divLog = function(obj) {
+			var div = document.getElementById("logDiv");
+			var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+			txt = txt.replace(/\\r\\n|\\n/g, "\n");
+			txt = txt.replace(/\\t/g, "    ");
+
+			div.innerText = div.innerText + "\n" + txt;
+		};
+
+		xsloader.onError = function(code, errinfo) {
+			divLog(errinfo);
+		}
+
+		define("A", function() {
+			return {
+				name: "A"
+			};
+		});
+		define("AB", ["A"], function(A) {
+			divLog(A);
+			return {
+				name: "AB"
+			};
+		});
+		xsloader({
+			properties: {
+				B: "moduleB"
+			},
+			autoUrlArgs: false,
+			urlArgs: {
+				"*": "v=1.0.0",
+				"bootstrap": "v=1.0.1",
+				"moduleC": "v=123"
+			},
+			paths: {
+				"$": "http://lib.sinaapp.com/js/jquery/2.0.2/jquery-2.0.2.min.js",
+				"bootstrap": "https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.js"
+			},
+			depsPaths: {
+				"moduleB": "modules/${B}.js"
+			},
+			deps: {
+				//				"*": "$",
+				//				"moduleB": ["bootstrap","https://cdn.bootcss.com/echarts/4.0.2/echarts.js","https://cdn.bootcss.com/underscore.js/1.8.3/underscore.js"],
+				//				"bootstrap": "css!https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.css"
+			}
+		});
+
+		require([["$","bootstrap"]], function(AB) {
+			divLog(AB);
+		});
+
+	</script>
+
+</html>

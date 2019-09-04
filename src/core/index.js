@@ -1,15 +1,65 @@
+import loader from './loader.js';
+import "../public/index.js";
 import utils from "../util/index.js";
-import script from "./script.js";
-import "./define.js";
-import "./plugins/index.js";
 
 const global = utils.global;
+const xsloader = global.xsloader;
+
+import script from "./script.js";
+import moduleScript from "./module.js";
 
 let theContext;
 let theConfig;
-let globalDefineQueue = []; //在config之前，可以调用define来定义模块
-let requiresQueueBeforeConf = []; //配置前的require
 let argsObject = {};
+
+xsloader.config = function() {
+	return theConfig;
+};
+xsloader.script = function() {
+	return script.theLoaderScript;
+};
+xsloader.scriptSrc = function() {
+	return script.theLoaderUrl;
+};
+
+xsloader.putUrlArgs = function(argsObj) {
+	argsObject = xsloader.extend(argsObject, argsObj);
+};
+
+xsloader.getUrlArgs = function() {
+	let obj = xsloader.extend({}, argsObject);
+	return obj;
+};
+
+xsloader.clearUrlArgs = function() {
+	argsObject = {};
+};
+
+xsloader.hasDefine = function(name) {
+	let has = false;
+	let module = moduleScript.getModule(name);
+	if(!module || module.state == "init") {
+
+	} else {
+		has = true;
+	}
+	return has;
+};
+
+//用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
+xsloader._resUrlBuilder = function(groupName) {
+	throw new Error('resUrlBuilder not found!');
+};
+
+xsloader.clear_module_ = function() {
+	let modules = arguments;
+	for(let i = 0; i < modules.length; i++) {
+		if(modules[i]) {
+			delete modules[i]._module_;
+			delete modules[i]._modules_;
+		}
+	}
+};
 
 function _newContext() {
 	let context = {
@@ -19,7 +69,7 @@ function _newContext() {
 	return context;
 }
 
-let xsloader = global.xsloader = function(option) {
+loader.loaderFun((option) => {
 	if(theContext) {
 		throw new Error("already configed!");
 	}
@@ -171,7 +221,7 @@ let xsloader = global.xsloader = function(option) {
 			let url = k;
 			if(utils.isJsFile(url)) { //处理相对
 				if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/") && !xsloader.startsWith(url, "//")) {
-					url = utils.getPathWithRelative(theLoaderUrl, url);
+					url = utils.getPathWithRelative(script.theLoaderUrl, url);
 				} else {
 					let absolute = utils.dealPathMayAbsolute(url);
 					if(absolute.absolute) {
@@ -222,7 +272,7 @@ let xsloader = global.xsloader = function(option) {
 		if(xsloader.startsWith(url, "*[")) {
 			let strfix = url.substring(2);
 			if(xsloader.startsWith(strfix, ".") || xsloader.startsWith(strfix, "/") && !xsloader.startsWith(strfix, "//")) {
-				strfix = utils.getPathWithRelative(theLoaderUrl, strfix);
+				strfix = utils.getPathWithRelative(script.theLoaderUrl, strfix);
 			} else {
 				let absolute = utils.dealPathMayAbsolute(strfix);
 				if(absolute.absolute) {
@@ -310,35 +360,6 @@ let xsloader = global.xsloader = function(option) {
 
 	theConfig = option;
 	theContext = _newContext();
-
-	let arr = globalDefineQueue;
-	globalDefineQueue = null;
-	//定义config之前的模块
-	utils.each(arr, (elem) => {
-		elem.data.isGlobal = true;
-		__define(elem.data, elem.name, elem.deps, elem.callback, elem.src).then(elem.thenOption);
-	});
-	if(requiresQueueBeforeConf && requiresQueueBeforeConf.length) {
-		while(requiresQueueBeforeConf.length) {
-			requiresQueueBeforeConf.shift()();
-		}
-	}
+	script.onConfigedCallback(); //完成配置回调
 	return theConfig;
-};
-
-xsloader.config = () => theConfig;
-xsloader.script = () => script.theLoaderScript;
-xsloader.scriptSrc = () => script.theLoaderUrl;
-
-xsloader.putUrlArgs = function(argsObj) {
-	argsObject = xsloader.extend(argsObject, argsObj);
-};
-
-xsloader.getUrlArgs = function(argsObj) {
-	let obj = xsloader.extend({}, argsObject);
-	return obj;
-};
-
-xsloader.clearUrlArgs = function() {
-	argsObject = {};
-};
+});

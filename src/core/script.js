@@ -1,11 +1,16 @@
 import utils from "../util/index.js";
+import moduleScript from "./module.js";
+
 const global = utils.global;
 const xsloader = global.xsloader;
 
 const defContextName = "xsloader1.1.x";
 const DATA_ATTR_MODULE = 'data-xsloader-module';
 const DATA_ATTR_CONTEXT = "data-xsloader-context";
+const globalDefineQueue = []; //没有配置前的define
+const hasNoSelfnameSrcMap = {}; //已经存在未定义selfname的define：src:boolean
 
+const head = document.head || document.getElementsByTagName('head')[0];
 const isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
@@ -36,6 +41,9 @@ class Invoker {
 	constructor(moduleMap) {
 		this.moduleMap = moduleMap;
 	}
+	/**
+	 * 获取绝对地址
+	 */
 	getAbsoluteUrl() {
 		return this.moduleMap.src;
 	}
@@ -46,7 +54,29 @@ class Invoker {
 		return this.moduleMap.invoker;
 	}
 	absUrl() { //用于获取其他模块地址的参考路径
-		return this.moduleMap.absoluteUrl;
+		return this.moduleMap.absUrl;
+	}
+}
+
+function getInvoker(thiz) {
+	if(thiz instanceof Invoker) {
+		return thiz;
+	} else if(thiz instanceof DefineObject) {
+		return thiz.thatInvoker;
+	} else {
+		let moduleMap = {
+			module: "",
+			src: thePageUrl,
+			absUrl: thePageUrl,
+			name: "__root__",
+			invoker: null
+		};
+		moduleMap.thiz = new Invoker(moduleMap);
+		moduleScript.buildInvoker(moduleMap);
+		moduleMap.thiz.invoker = function() {
+			return this;
+		};
+		return moduleMap.thiz;
 	}
 }
 
@@ -61,33 +91,37 @@ class DefineObject {
 	deps;
 	callback;
 	thatInvoker;
-	constructor(thiz, args, isRequire = false) {
+	constructor(selfname, thiz, args, isRequire = false) {
+		this.selfname = selfname;
 		this.thiz = thiz;
 		this.args = args;
 		this.isRequire = isRequire;
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.handle = {
-			onError(err) {
-
-			},
+			onError(err) {},
 			before(deps) {},
 			depBefore(index, dep, depDeps) {},
 			orderDep: false,
-			absoluteUrl: undefined,
+			absoluteUrl: undefined, //弃用
+			absUrl: undefined,
 			instance: undefined,
-			absUrl: () => {
-				return this.handle.absoluteUrl || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
-			}
-
 		};
-		if(thiz instanceof Invoker) {
-			this.thatInvoker = thiz;
-		} else if(thiz instanceof DefineObject) {
-			this.thatInvoker = thiz.thatInvoker;
+		this.thatInvoker = getInvoker(thiz);
+
+		if(!selfname && !isRequire && (this.parentDefine || this.thatInvoker) && args && (args.length == 0 || !xsloader.isString(args[0]))) {
+			if(hasNoSelfnameSrcMap[this.src]) {
+				throw new Error("define:expected selfname");
+			} else {
+				hasNoSelfnameSrcMap[this.src] = true;
+			}
 		}
-		if(!isRequire && (this.parentDefine || this.thatInvoker) && (args.length == 0 || !xsloader.isString(args[0]))) {
-			throw new Error("define:expected selfname");
-		}
+	}
+	get absUrl() {
+		return this.getMineAbsUrl() || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
+	}
+
+	getMineAbsUrl() {
+		return this.handle.absUrl || this.handle.absoluteUrl;
 	}
 }
 
@@ -167,7 +201,10 @@ function getCurrentScript(isRemoveQueryHash = true) {
 				}
 			}
 		}
-		rs.src = utils.getNodeAbsolutePath(rs.src);
+
+		if(rs.node) {
+			rs.src = utils.getNodeAbsolutePath(rs.node);
+		}
 		if(isRemoveQueryHash) {
 			rs.src = utils.removeQueryHash(rs.src);
 		}
@@ -227,7 +264,7 @@ function __getScriptData(evt, callbackObj) {
 	return {
 		node: node,
 		name: node && node.getAttribute(DATA_ATTR_MODULE),
-		src: node && utils.getNodeAbsolutePath(node.src || node.getAttribute("src"))
+		src: node && utils.getNodeAbsolutePath(node)
 	};
 }
 
@@ -236,7 +273,7 @@ function appendHeadDom(dom) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
-	utils.head.insertBefore(dom, nextDom);
+	head.insertBefore(dom, nextDom);
 	//			head.appendChild(dom);
 	lastAppendHeadDom = dom;
 }
@@ -256,7 +293,7 @@ function loadScript(moduleName, url, onload, onerror) {
 				utils.each(useDefineQueue, (defineObject) => {
 					defineObject.src = scriptData.src;
 				});
-				theRealDefine.define([...useDefineQueue]);
+				theRealDefine([...useDefineQueue]);
 			}
 			onload(scriptData);
 		}
@@ -274,12 +311,12 @@ function loadScript(moduleName, url, onload, onerror) {
 
 function doDefine(thiz, args, isRequire) {
 
-	let defineObject = new DefineObject(thiz, args, isRequire);
+	let defineObject = new DefineObject(null, thiz, args, isRequire);
 	if(!useDefineQueue) {
 		defineObject.src = getCurrentScript().src;
 		try { //防止执行其他脚本
 			if(defineObject.src) {
-				var node = document.currentScript;
+				let node = document.currentScript;
 				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
 					defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
 					console.error("unknown js script module:" + xsloader.xsJson2String(defineObject.src));
@@ -308,7 +345,7 @@ function doDefine(thiz, args, isRequire) {
 		if(useDefineQueue) {
 			useDefineQueue.push(defineObject);
 		} else {
-			theRealDefine.define([defineObject]);
+			theRealDefine([defineObject]);
 		}
 	});
 
@@ -323,18 +360,99 @@ function predefine() {
 	return doDefine(this, args, false);
 }
 
-function prerequire() {
-	throw 'todo...';
+function prerequire(deps, callback) {
+
+	if(!xsloader.config()) { //require必须是在config之后
+		throw new Error("not config");
+	}
+	let thatInvoker = getInvoker(this, true);
+	if(arguments.length == 1 && xsloader.isString(deps)) { //获取已经加载的模块
+		let originDeps = deps;
+		let pluginArgs = undefined;
+		let pluginIndex = deps.indexOf("!");
+		if(pluginIndex > 0) {
+			pluginArgs = deps.substring(pluginIndex + 1);
+			deps = deps.substring(0, pluginIndex);
+			if(pluginArgs) {
+				let argArr = [pluginArgs];
+				utils.replaceModulePrefix(xsloader.config(), argArr); //前缀替换
+				pluginArgs = argArr[0];
+			}
+		}
+		let module = moduleScript.getModule(deps);
+		if(!module) {
+			deps = thatInvoker.getUrl(deps, false);
+			module = moduleScript.getModule(deps);
+		}
+		if(!module) {
+			throw new Error("the module '" + originDeps + "' is not load!");
+		} else if(module.state != "defined") {
+			throw new Error("the module '" + originDeps + "' is not defined:" + module.state);
+		}
+		let theMod;
+		moduleScript.newModuleInstance(module, thatInvoker, (depModule) => {
+			theMod = depModule.moduleObject();
+		}, pluginArgs).init(true);
+		if(theMod === undefined) {
+			throw Error("the module '" + originDeps + "' is not load!");
+		}
+		return theMod;
+	}
+
+	let selfname = xsloader.randId("_require");
+	if(xsloader.isFunction(deps)) {
+		callback = deps;
+		deps = [];
+	}
+	utils.appendInnerDeps(deps, callback);
+	let timeid;
+	let handle = doDefine(this, [selfname, deps, function() {
+		if(timeid !== undefined) {
+			clearTimeout(timeid);
+		}
+		if(xsloader.isFunction(callback)) {
+			callback.apply(this, arguments);
+		}
+	}], true);
+	//TODO handle.isError处理与抛出异常处理
+	let checkResultFun = function() {
+		let ifmodule = moduleScript.getModule(selfname);
+		if((!ifmodule || ifmodule.state != 'defined') && !handle.isError) {
+			let module = ifmodule;
+			if(module) {
+				utils.each(module.deps, function(dep) {
+					let mod = moduleScript.getModule(dep);
+					mod && mod.printOnNotDefined();
+				});
+			}
+			console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]");
+		}
+	};
+	timeid = setTimeout(checkResultFun, xsloader.config().waitSeconds * 1000);
+	return handle;
 }
 
 //对于safari7-:在脚本加载事件中可获得正确的脚本地址
 
 const initDefine = function(theDefine) {
-	theRealDefine = theDefine;
+	theRealDefine = (defines) => {
+		if(!xsloader.config()) { //还没有配置
+			globalDefineQueue.push(defines);
+		} else {
+			theDefine(defines);
+		}
+	};
 	return {
 		predefine,
 		prerequire,
 	};
+};
+
+const onConfigedCallback = function() {
+	while(globalDefineQueue.length) {
+		let defines = globalDefineQueue.shift();
+		theRealDefine(defines);
+	}
 };
 
 export default {
@@ -347,5 +465,6 @@ export default {
 	Invoker,
 	DefineObject,
 	loadScript,
-	currentDefineModuleQueue
+	currentDefineModuleQueue,
+	onConfigedCallback
 };

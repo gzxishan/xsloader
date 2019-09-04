@@ -1,6 +1,6 @@
 import utils from "../util/index.js";
 
-const global = utils.globa;
+const global = utils.global;
 const xsloader = global.xsloader;
 
 function queryParam(name, otherValue, optionUrl) {

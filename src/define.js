@@ -1,39 +1,23 @@
-import utils from "../util/index.js";
-import script from "./script.js";
-import moduleScript from "./module.js";
+import utils from "./util/index.js";
+import script from "./core/script.js";
+import moduleScript from "./core/module.js";
 
 const global = utils.global;
 const xsloader = global.xsloader;
-const theDefinedMap = {};
 
 const defineHandle = script.initDefine(function theRealDefine(defines) {
 	utils.each(defines, (defineObject) => {
-		let {
-			thiz,
-			args,
-			isRequire,
-			src, //必存在src
-			parentDefine,
-			thatInvoker,
-			handle: {
-				onError,
-				before,
-				depBefore,
-				orderDep,
-				absoluteUrl,
-				instance,
-			},
-		} = defineObject;
-
-		let [selfname, deps, callback] = args;
+		let selfname = defineObject.args[0];
+		let deps = defineObject.args[1];
+		let callback = defineObject.args[2];
 
 		if(typeof selfname !== 'string') {
 			callback = deps;
 			deps = selfname;
-			selfname = src;
+			selfname = defineObject.src;
 		}
 
-		if(!utils.isArray(deps)) {
+		if(!xsloader.isArray(deps)) {
 			callback = deps;
 			deps = null;
 		}
@@ -47,12 +31,12 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 		utils.appendInnerDeps(deps, callback);
 		//}
 		//获取配置里配置的依赖
-		let _deps = xsloader.script().getDeps(src);
+		let _deps = xsloader.config().getDeps(defineObject.src);
 		utils.each(_deps, (dep) => {
 			deps.push(dep);
 		});
-		if(selfname && selfname != src) {
-			deps = xsloader.script().getDeps(selfname);
+		if(selfname && selfname != defineObject.src) {
+			_deps = xsloader.config().getDeps(selfname);
 			utils.each(_deps, (dep) => {
 				deps.push(dep);
 			});
@@ -61,14 +45,24 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 		if(xsloader.isFunction(callback)) {
 			let originCallback = callback;
 			callback = function() {
-				let config = xsloader.script();
+				let config = xsloader.config();
 				let rt;
-				if(xsloader.isFunction(config.defineFunction[cache.name])) {
+
+				let defineFun;
+				utils.each(defineObject.names, (name) => {
+					let fun = config.defineFunction[name];
+					if(xsloader.isFunction(fun)) {
+						defineFun = fun;
+						return false;
+					}
+				});
+
+				if(defineFun) {
 					let args = [];
 					for(let i = 0; i < arguments.length; i++) {
 						args.push(arguments[i]);
 					}
-					rt = config.defineFunction[cache.name].apply(this, [originCallback, this, args]);
+					rt = defineFun.apply(this, [originCallback, this, args]);
 				} else {
 					rt = originCallback.apply(this, arguments);
 				}
@@ -110,6 +104,8 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		ifmodule = moduleScript.newModule(defineObject);
 	}
 
+	let names = [ifmodule.src];
+
 	if(ifmodule.selfname != ifmodule.src) {
 		//此处的名字可能由配置指定
 		let moduleSelf = moduleScript.getModule(ifmodule.selfname);
@@ -125,6 +121,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		} else {
 			moduleScript.setModule(ifmodule.selfname, module);
 		}
+		names.push(ifmodule.selfname);
 	}
 
 	if(defineObject.selfname != defineObject.src && defineObject.selfname != ifmodule.selfname) {
@@ -142,14 +139,16 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		} else {
 			moduleScript.setModule(ifmodule.selfname, module);
 		}
+		names.push(defineObject.selfname);
 	}
+	defineObject.names = names; //一个模块的所有名字，包括src
 
 	let module = ifmodule;
 	//defineObject里的deps最初是直接声明的依赖,应该出现在最前面
 	module.mayAddDeps(defineObject.deps);
 
 	if(defineObject.handle.before) {
-		defineObject.before(module.deps);
+		defineObject.handle.before(module.deps);
 	}
 	if(lastDefineObject && lastDefineObject.handle.depBefore) {
 		lastDefineObject.handle.depBefore(lastDefineObject.index, module.name, module.deps, 2);
@@ -162,7 +161,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	module.setState("loaded");
 	module.setInstanceType(defineObject.handle.instance || xsloader.config().instance);
 
-	if(deps.length == 0) {
+	if(module.deps.length == 0) {
 		module.finish([]); //递归结束
 	} else {
 		//在其他模块依赖此模块时进行加载
@@ -177,7 +176,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 				args.push(depModuleArgs);
 				module.finish(args);
 			}, (err, invoker) => {
-				define.handle.onError(err, invoker);
+				defineObject.handle.onError(err, invoker);
 			});
 		};
 
@@ -188,19 +187,22 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		}
 	}
 
-};
+}
 
 //定义模块
 const define = function() {
 	return defineHandle.predefine.apply(this, arguments);
-}
+};
 
 const require = function() {
 	return defineHandle.prerequire.apply(this, arguments);
-}
+};
 
 xsloader.define = define;
 xsloader.defineAsync = define;
 xsloader.require = require;
 global.define = define;
 global.require = require;
+
+define.amd = true;
+define("exports", function() {});

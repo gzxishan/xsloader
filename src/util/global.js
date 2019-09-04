@@ -9,6 +9,4 @@ if(typeof window !== undefined) {
 	throw new Error("not found global var!");
 }
 
-export default {
-	global:g
-};
+export default g;

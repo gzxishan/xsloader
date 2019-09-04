@@ -95,6 +95,13 @@ function strValue2Arr(obj) {
 	}
 }
 
+/**
+ * 同步模式下，返回false表示终止循环。
+ * @param {Object} ary
+ * @param {Object} func
+ * @param {Object} isSync
+ * @param {Object} fromEnd
+ */
 function each(ary, func, isSync, fromEnd) {
 	if(ary) {
 		if(isSync) {
@@ -114,13 +121,13 @@ function each(ary, func, isSync, fromEnd) {
 		} else {
 			if(fromEnd) {
 				for(let i = ary.length - 1; i >= 0; i--) {
-					if(func(ary[i], i, ary)) {
+					if(func(ary[i], i, ary) === false) {
 						break;
 					}
 				}
 			} else {
 				for(let i = 0; i < ary.length; i++) {
-					if(func(ary[i], i, ary)) {
+					if(func(ary[i], i, ary) === false) {
 						break;
 					}
 				}
@@ -146,8 +153,15 @@ function appendInnerDeps(deps, callback) {
 }
 
 let idCount = 2019;
+
 function getAndIncIdCount() {
 	return idCount++;
+}
+
+class PluginError {
+	constructor(err) {
+		this.err = err;
+	}
 }
 
 export default {
@@ -155,5 +169,6 @@ export default {
 	strValue2Arr,
 	each,
 	appendInnerDeps,
-	getAndIncIdCount
+	getAndIncIdCount,
+	PluginError
 };
