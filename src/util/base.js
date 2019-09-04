@@ -145,9 +145,15 @@ function appendInnerDeps(deps, callback) {
 	}
 }
 
+let idCount = 2019;
+function getAndIncIdCount() {
+	return idCount++;
+}
+
 export default {
 	graphPath: new GraphPath(),
 	strValue2Arr,
 	each,
-	appendInnerDeps
+	appendInnerDeps,
+	getAndIncIdCount
 };

@@ -4,7 +4,7 @@ import {
 import utils from "../util/index.js";
 
 const global = utils.global;
-const xsloader=global.xsloader;
+const xsloader = global.xsloader;
 
 if(!String.prototype.trim) {
 	String.prototype.trim = function() {
@@ -12,10 +12,9 @@ if(!String.prototype.trim) {
 	};
 }
 
-let idCount = 2019;
 //生成一个随机的id，只保证在本页面是唯一的
 function randId(suffix) {
-	let id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + (idCount++);
+	let id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + utils.getAndIncIdCount();
 	if(suffix !== undefined) {
 		id += suffix;
 	}
@@ -116,7 +115,7 @@ function xsJson2String(obj) {
 	return jsonObj.stringify(obj);
 }
 
-const getPathWithRelative=utils.getPathWithRelative;
+const getPathWithRelative = utils.getPathWithRelative;
 
 function _toParamsMap(argsStr, decode = true) {
 	if(xsloader.isObject(argsStr)) {

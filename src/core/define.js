@@ -106,35 +106,47 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 			throw new Error("already define failed '" + ifmodule.selfname + "'(src=" + ifmodule.src + ")");
 		}
 
-		if(ifmodule.selfname != ifmodule.src) {
-			//此处的名字可能由配置指定
-			let moduleSelf = getModule(ifmodule.selfname);
-			if(moduleSelf) {
-				if(moduleSelf != ifmodule) {
-					if(moduleSelf.state == "init") {
-						setModule(ifmodule.selfname, module);
-						moduleSelf.toOtherModule(module);
-					} else {
-						throw Error("already define '" + ifmodule.selfname + "'");
-					}
+	} else {
+		ifmodule = moduleScript.newModule(defineObject);
+	}
+
+	if(ifmodule.selfname != ifmodule.src) {
+		//此处的名字可能由配置指定
+		let moduleSelf = moduleScript.getModule(ifmodule.selfname);
+		if(moduleSelf) { //让配置的名字也最终指向src的
+			if(moduleSelf != ifmodule) {
+				if(moduleSelf.state == "init") {
+					moduleScript.setModule(ifmodule.selfname, module);
+					moduleSelf.toOtherModule(module);
+				} else {
+					throw Error("already define '" + ifmodule.selfname + "'");
 				}
-			} else {
-				setModule(ifmodule.selfname, module);
 			}
-		}
-		if(defineObject.src != defineObject.selfname && ifmodule.selfname != defineObject.selfname) {
-			//此处的名字一定是define时指定
-			//TODO
+		} else {
+			moduleScript.setModule(ifmodule.selfname, module);
 		}
 	}
 
-	let module = moduleScript.getModule(defineObject.selfname || defineObject.src);
-	if(!module) {
-		module = moduleScript.newModule(defineObject);
-	} else {
-		//defineObject里的deps最初是直接声明的依赖,应该出现在最前面
-		module.mayAddDeps(defineObject.deps);
+	if(defineObject.selfname != defineObject.src && defineObject.selfname != ifmodule.selfname) {
+		//此处的名字一定是define时指定
+		let moduleSelf = moduleScript.getModule(defineObject.selfname);
+		if(moduleSelf) { //让define的名字也最终指向src的
+			if(moduleSelf != ifmodule) {
+				if(moduleSelf.state == "init") {
+					moduleScript.setModule(ifmodule.selfname, module);
+					moduleSelf.toOtherModule(module);
+				} else {
+					throw Error("already define '" + ifmodule.selfname + "'");
+				}
+			}
+		} else {
+			moduleScript.setModule(ifmodule.selfname, module);
+		}
 	}
+
+	let module = ifmodule;
+	//defineObject里的deps最初是直接声明的依赖,应该出现在最前面
+	module.mayAddDeps(defineObject.deps);
 
 	if(defineObject.handle.before) {
 		defineObject.before(module.deps);

@@ -3,6 +3,8 @@ import script from "./script.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 const theDefinedMap = {};
+const INNER_DEPS_PLUGIN = "__inner_deps__";
+const innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 
 function getModule(nameOrUrl) {
 	nameOrUrl = utils.removeUrlParam(nameOrUrl);
@@ -75,7 +77,7 @@ function buildInvoker(obj) {
 		buildInvoker(moduleMap);
 		return moduleMap.thiz;
 	};
-};
+}
 
 function _newModule(name, absoluteUrl, thatInvoker, callback) {
 	let defineObject = new script.DefineObject(null, null, false);
@@ -109,7 +111,7 @@ function newModule(defineObject) {
 
 	let instances = []; //所有模块实例
 	let moduleMap = {
-		id: idCount++,
+		id: utils.getAndIncIdCount(),
 		name: defineObject.selfname || defineObject.src,
 		deps: defineObject.deps || [],
 		relys: [],
@@ -156,13 +158,13 @@ function newModule(defineObject) {
 			}
 			this.depModules = args;
 			let obj;
-			if(isFunction(this.callback)) {
+			if(xsloader.isFunction(this.callback)) {
 				try {
-					currentDefineModuleQueue.push(this);
-					obj = this.callback.apply(this.thiz, args);
-					currentDefineModuleQueue.pop();
+					script.currentDefineModuleQueue.push(this);
+					script.obj = this.callback.apply(this.thiz, args);
+					script.currentDefineModuleQueue.pop();
 				} catch(e) {
-					currentDefineModuleQueue.pop();
+					script.currentDefineModuleQueue.pop();
 					console.error("error occured,invoker.url=", this.invoker ? this.invoker.getUrl() : "");
 					console.error(e);
 					this.setState("error", e);
@@ -182,7 +184,7 @@ function newModule(defineObject) {
 				};
 			}
 			if(this.loopObject) {
-				if(!isObject(obj)) {
+				if(!xsloader.isObject(obj)) {
 					throw new Error("循环依赖的模块必须是对象：" + this.name);
 				}
 				for(let x in obj) {
@@ -211,7 +213,7 @@ function newModule(defineObject) {
 					}
 				};
 				//已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
-				let deps = !thiz.loopObject && theConfig.getDeps(thiz.name);
+				let deps = !thiz.loopObject && xsloader.config().getDeps(thiz.name);
 				//console.log(this.name,":",deps);
 				//deps=null;
 				if(deps && deps.length > 0) {
@@ -314,9 +316,9 @@ function newModule(defineObject) {
 				this.opId = opId;
 
 				let obj = {};
-				if(isString(name)) {
+				if(xsloader.isString(name)) {
 					obj[name] = value;
-				} else if(isObject(name)) {
+				} else if(xsloader.isObject(name)) {
 					for(let k in name) {
 						obj[k] = name[k];
 					}
@@ -330,7 +332,7 @@ function newModule(defineObject) {
 						mobj[k] = obj[k];
 					}
 					if(mobj._modules_) {
-						each(mobj._modules_, function(_m_) {
+						utils.each(mobj._modules_, function(_m_) {
 							_m_.setToAll(name, value, opId);
 						});
 					}
@@ -347,7 +349,7 @@ function newModule(defineObject) {
 	moduleMap.mayAddDeps = function(deps) {
 		let moduleDeps = this.deps;
 		utils.each(moduleDeps, function(dep) {
-			if(indexInArray(deps, dep) < 0) {
+			if(xsloader.indexInArray(deps, dep) < 0) {
 				deps.push(dep);
 			}
 		}, false, true);
@@ -364,7 +366,7 @@ function newModule(defineObject) {
 
 		function findLeaf(node) {
 			if(node.nodes.length) {
-				each(node.nodes, function(item) {
+				utils.each(node.nodes, function(item) {
 					findLeaf(item);
 				});
 			} else {
@@ -452,10 +454,6 @@ function newModule(defineObject) {
 	};
 	setModule(moduleMap.name, moduleMap);
 
-	if(module.src != module.name) {
-		setModule(moduleMap.src, moduleMap);
-	}
-
 	buildInvoker(moduleMap);
 	return moduleMap;
 }
@@ -469,7 +467,7 @@ function _getModuleId() {
 function _dealEmbedDeps(deps) {
 	for(let i = 0; i < deps.length; i++) {
 		let dep = deps[i];
-		if(isArray(dep)) {
+		if(xsloader.isArray(dep)) {
 			//内部的模块顺序加载
 			let modName = "inner_order_" + _getModuleId();
 			let isOrderDep = !(dep.length > 0 && dep[0] === false);
@@ -503,7 +501,6 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 	}
 
 	let config = xsloader.config();
-	let context = theContext;
 	const deps = module.deps;
 
 	utils.replaceModulePrefix(config, deps); //前缀替换
@@ -585,7 +582,6 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 			let isJsFile = utils.isJsFile(dep);
 			do {
 
-				let willDelay = false;
 				let urls;
 
 				if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
@@ -612,13 +608,12 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						break;
 					}
 					let _url = xsloader._resUrlBuilder(groupModule);
-					urls = isArray(_url) ? _url : [_url];
+					urls = xsloader.isArray(_url) ? _url : [_url];
 				} else if(config.isInUrls(dep)) {
 					urls = config.getUrls(dep);
 				} else if(isJsFile) {
 					urls = [dep];
 				} else {
-					willDelay = true; //延迟加载
 					urls = [];
 				}
 
@@ -653,7 +648,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					//						loadModule();
 					//					}
 					loadModule();
-				};
+				}
 
 				//加载模块dep:module2
 				function loadModule(index = 0) {
@@ -682,5 +677,6 @@ export default {
 	newModule,
 	getModule,
 	everyRequired,
-	Invoker
+	INNER_DEPS_PLUGIN,
+	innerDepsMap,
 };

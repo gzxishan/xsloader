@@ -346,5 +346,6 @@ export default {
 	initDefine,
 	Invoker,
 	DefineObject,
-	loadScript
+	loadScript,
+	currentDefineModuleQueue
 };

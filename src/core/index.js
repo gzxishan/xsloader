@@ -1,6 +1,7 @@
 import utils from "../util/index.js";
 import script from "./script.js";
 import "./define.js";
+import "./plugins/index.js";
 
 const global = utils.global;
 
