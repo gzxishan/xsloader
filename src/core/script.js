@@ -85,6 +85,9 @@ class DefineObject {
 		} else if(thiz instanceof DefineObject) {
 			this.thatInvoker = thiz.thatInvoker;
 		}
+		if(!isRequire && (this.parentDefine || this.thatInvoker) && (args.length == 0 || !xsloader.isString(args[0]))) {
+			throw new Error("define:expected selfname");
+		}
 	}
 }
 

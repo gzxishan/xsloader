@@ -94,23 +94,37 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
  * @param {Object} lastDefineObject 第一次加载当前模块的模块
  */
 function onModuleLoaded(defineObject, lastDefineObject) {
-	//moduleName, cache, aurl, isRequire, lastThenOptionObj
 
-	//判断模块是否已经被定义
-	if(defineObject.selfname) {
-		let ifmodule = moduleScript.getModule(defineObject.selfname);
-		if(ifmodule && ifmodule.state != 'loading' && ifmodule.state != 'init') {
-			let lastModule = ifmodule;
-			if(lastModule.src == defineObject.src) { //已经加载过js模块
-				try {
-					console.warn("already loaded js:" + aurl);
-				} catch(e) {
-					//TODO handle the exception
-				}
-				return;
-			}
+	//先根据src获取模块
+	let ifmodule = moduleScript.getModule(defineObject.src);
+	if(ifmodule) {
+		if(ifmodule.state != 'loading' && ifmodule.state != 'init') {
+			//正常
+		} else if(ifmodule.state == "defined") {
+			throw new Error("already define '" + ifmodule.selfname + "'(src=" + ifmodule.src + ")");
 		} else {
-			throw new Error("already define '" + moduleName + "'");
+			throw new Error("already define failed '" + ifmodule.selfname + "'(src=" + ifmodule.src + ")");
+		}
+
+		if(ifmodule.selfname != ifmodule.src) {
+			//此处的名字可能由配置指定
+			let moduleSelf = getModule(ifmodule.selfname);
+			if(moduleSelf) {
+				if(moduleSelf != ifmodule) {
+					if(moduleSelf.state == "init") {
+						setModule(ifmodule.selfname, module);
+						moduleSelf.toOtherModule(module);
+					} else {
+						throw Error("already define '" + ifmodule.selfname + "'");
+					}
+				}
+			} else {
+				setModule(ifmodule.selfname, module);
+			}
+		}
+		if(defineObject.src != defineObject.selfname && ifmodule.selfname != defineObject.selfname) {
+			//此处的名字一定是define时指定
+			//TODO
 		}
 	}
 
@@ -131,22 +145,6 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 
 	if(xsloader._ignoreAspect_[module.name]) {
 		module.ignoreAspect = true;
-	}
-
-	if(cache.selfname && cache.selfname != cache.name) {
-		var moduleSelf = getModule(cache.selfname);
-		if(moduleSelf) {
-			if(moduleSelf.state == "init") {
-				setModule(cache.selfname, module);
-				moduleSelf.toOtherModule(module);
-			} else if(moduleSelf.cacheId == cache.id) {
-				return;
-			} else {
-				throwError(-2, "already define '" + cache.selfname + "'");
-			}
-		} else {
-			setModule(cache.selfname, module);
-		}
 	}
 
 	module.setState("loaded");
@@ -181,14 +179,16 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 };
 
 //定义模块
-export const define = function() {
+const define = function() {
 	return defineHandle.predefine.apply(this, arguments);
 }
 
-export const require = function() {
+const require = function() {
 	return defineHandle.prerequire.apply(this, arguments);
 }
 
 xsloader.define = define;
 xsloader.defineAsync = define;
 xsloader.require = require;
+global.define = define;
+global.require = require;

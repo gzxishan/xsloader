@@ -60,7 +60,7 @@ function buildInvoker(obj) {
 		return thenHandle && thenHandle.absUrl() || this.absUrl() || this.getAbsoluteUrl();
 	};
 	invoker.defineAsync = function() {
-		let h = xsloader.define.apply(invoker, arguments);
+		let h = this.define.apply(this, arguments);
 		return h;
 	};
 	invoker.withAbsUrl = function(absoluteUrl) {
@@ -77,11 +77,11 @@ function buildInvoker(obj) {
 	};
 };
 
-function _newModule(name, src, deps, absoluteUrl, thatInvoker, callback) {
+function _newModule(name, absoluteUrl, thatInvoker, callback) {
 	let defineObject = new script.DefineObject(null, null, false);
 	defineObject.selfname = name;
-	defineObject.src = src;
-	defineObject.deps = deps;
+	defineObject.src = null;
+	defineObject.deps = null;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.callback = callback;
 	defineObject.handle = {
@@ -622,13 +622,12 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls = [];
 				}
 
-				let module2 = _newModule(dep, undefined, null, null, module.thiz);
-
+				let module2 = _newModule(dep, module.absoluteUrl, module.thiz);
 				module2.setState("loading");
 				utils.each(urls, function(url, index) {
 					if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
 						if(!module2.thiz.rurl(defineObject.hanle)) {
-							isError = "script url is null:'" + module2.name + "'," + module2.callback;
+							isError = "script url is null:'" + module2.name;
 							throw new Error(isError);
 						}
 						url = utils.getPathWithRelative(module2.thiz.rurl(defineObject.hanle), url);
@@ -664,9 +663,10 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					let url = urls[index];
 					module2.src = url;
 					script.loadScript(module2.name, url, (scriptData) => {
-						
-					}, (err) => {
 
+					}, (err) => {
+						isError = err;
+						errCallback(isError, invoker_the_module);
 					});
 				}
 
