@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 04 Sep 2019 18:27:11 GMT
+ * build time:Wed, 04 Sep 2019 18:37:17 GMT
  */
 (function () {
   'use strict';
@@ -2921,12 +2921,12 @@
     return Invoker;
   }();
 
-  function getInvoker(thiz) {
+  function getInvoker(thiz, nullNew) {
     if (thiz instanceof Invoker) {
       return thiz;
     } else if (thiz instanceof DefineObject) {
       return thiz.thatInvoker;
-    } else {
+    } else if (nullNew) {
       var moduleMap = {
         module: "",
         src: thePageUrl,
@@ -3293,7 +3293,7 @@
       throw new Error("not config");
     }
 
-    var thatInvoker = getInvoker(this);
+    var thatInvoker = getInvoker(this, true);
 
     if (arguments.length == 1 && xsloader$9.isString(deps)) {
       //获取已经加载的模块

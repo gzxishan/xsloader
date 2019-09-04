@@ -58,12 +58,12 @@ class Invoker {
 	}
 }
 
-function getInvoker(thiz) {
+function getInvoker(thiz, nullNew) {
 	if(thiz instanceof Invoker) {
 		return thiz;
 	} else if(thiz instanceof DefineObject) {
 		return thiz.thatInvoker;
-	} else {
+	} else if(nullNew) {
 		let moduleMap = {
 			module: "",
 			src: thePageUrl,
