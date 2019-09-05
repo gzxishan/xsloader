@@ -151,10 +151,10 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		defineObject.handle.before(module.deps);
 	}
 	if(lastDefineObject && lastDefineObject.handle.depBefore) {
-		lastDefineObject.handle.depBefore(lastDefineObject.index, module.name, module.deps, 2);
+		lastDefineObject.handle.depBefore(lastDefineObject.index, module.selfname, module.deps, 2);
 	}
 
-	if(xsloader._ignoreAspect_[module.name]) {
+	if(xsloader._ignoreAspect_[module.selfname]) {
 		module.ignoreAspect = true;
 	}
 

@@ -6,16 +6,96 @@ const theDefinedMap = {};
 const INNER_DEPS_PLUGIN = "__inner_deps__";
 const innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 
-function getModule(nameOrUrl) {
-	nameOrUrl = utils.removeQueryHash(nameOrUrl);
-	let m = theDefinedMap[nameOrUrl];
-	return m ? m.get() : null;
+class ModuleDef {
+	src;
+	defaultModule; //默认模块（ define时未指定selfname的） 只能有一个
+	modules; //define的其他模块（含有selfname）
+	constructor(src) {
+		this.src = src;
+		this.modules = {};
+		this.defaultModule = null;
+	}
 }
 
-function setModule(nameOrUrl, m) {
+function getModule(nameOrUrl) {
 	nameOrUrl = utils.removeQueryHash(nameOrUrl);
-	let last = theDefinedMap[nameOrUrl];
-	theDefinedMap[nameOrUrl] = m;
+	let isSrc = /^[a-zA-Z0-9]+:\/\//.test(nameOrUrl);
+
+	let moduleDef = theDefinedMap[nameOrUrl];
+	if(moduleDef) {
+		let module;
+		if(isSrc) { //如果提供地址、则获取默认模块
+			module = moduleDef.defaultModule;
+		} else {
+			module = moduleDef.modules[nameOrUrl];
+		}
+		return module ? module.get() : null;
+	} else {
+		return null;
+	}
+}
+
+/**
+ * 替换模块的src，用于加载含有多个地址模块的情况（提供多个地址、直到加载成功）
+ * @param {Object} oldSrc
+ * @param {Object} module
+ */
+function replaceModuleSrc(oldSrc, module) {
+	let moduleDef = theDefinedMap[oldSrc];
+	if(!moduleDef) {
+		throw new Error("not found module:src=" + oldSrc);
+	} else if(theDefinedMap[module.src]) {
+		throw new Error("already exists module:src=" + module.src);
+	} else {
+		moduleDef.src = module.src;
+		delete theDefinedMap[oldSrc];
+		theDefinedMap[module.src] = moduleDef;
+	}
+}
+
+/**
+ * 
+ * @param {Object} name 模块名字，多个不同的名字可能指向同一个模块。
+ * @param {Object} module 模块，必须含有src
+ */
+function setModule(name, module) {
+	let src = module.src;
+	if(!src) {
+		throw new Error("expected module src!");
+	}
+	let moduleDef = theDefinedMap[src];
+	if(moduleDef) {
+		if(name) {
+			if(theDefinedMap[name]) {
+				throw new Error("already define module:name=" + name + ",current.src=" + src + ",that.src=" + theDefinedMap[name].src);
+			} else {
+				moduleDef.modules[name] = module;
+				theDefinedMap[name] = moduleDef;
+			}
+		} else {
+			//默认模块
+			if(moduleDef.defaultModule) {
+				throw new Error("already define default module:src=" + src);
+			} else {
+				moduleDef.defaultModule = module;
+			}
+		}
+	} else {
+		moduleDef = new ModuleDef(src);
+		theDefinedMap[src] = moduleDef;
+		if(name) {
+			item.modules[name] = module;
+			if(theDefinedMap[name]) {
+				throw new Error("already define module:name=" + name + ",current.src=" + src + ",that.src=" + theDefinedMap[name].src);
+			} else {
+				theDefinedMap[name] = moduleDef;
+			}
+		} else {
+			//默认模块
+			moduleDef.defaultModule = module;
+		}
+	}
+
 	return last;
 }
 
@@ -157,7 +237,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 			this._setDepModuleObjectGen(this.module.loopObject || this.module.moduleObject);
 			if(pluginArgs !== undefined) {
 				if(!this._object) {
-					throw new Error("pulgin error:" + this.module.name);
+					throw new Error("pulgin error:" + this.module.selfname);
 				}
 				if(this._object.isSingle === undefined) {
 					this._object.isSingle = true; //同样的参数也需要重新调用
@@ -228,9 +308,9 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 	return instanceModule;
 }
 
-function _newModule(name, absUrl, thatInvoker, callback) {
-	let defineObject = new script.DefineObject(name,null, null, false);
-	defineObject.src = null;
+function _newModule(name, src, absUrl, thatInvoker, callback) {
+	let defineObject = new script.DefineObject(name, null, null, false);
+	defineObject.src = src;
 	defineObject.deps = null;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.callback = callback;
@@ -258,14 +338,14 @@ function newModule(defineObject) {
 	let instances = []; //所有模块实例
 	let moduleMap = {
 		id: utils.getAndIncIdCount(),
-		name: defineObject.selfname || defineObject.src,
+		selfname: defineObject.selfname,
 		deps: defineObject.deps || [],
 		relys: [],
 		otherModule: undefined,
 		directDefineIndex: 0, //模块直接声明的依赖开始索引
 		ignoreAspect: false,
 		depModules: null,
-		src: null, //绝对路径,可能等于当前页面路径
+		src: defineObject.src, //绝对路径,可能等于当前页面路径
 		absUrl: defineObject.getMineAbsUrl(),
 		callback: defineObject.callback,
 		_loadCallback: null,
@@ -319,7 +399,7 @@ function newModule(defineObject) {
 			} else {
 				obj = this.callback;
 				if(this.moduleObject !== undefined) {
-					console.log("ignore moudule named '" + moduleMap.name + "':" + obj);
+					console.log("ignore moudule named '" + moduleMap.selfname + "':" + obj);
 				}
 			}
 			let isDefault = false;
@@ -331,7 +411,7 @@ function newModule(defineObject) {
 			}
 			if(this.loopObject) {
 				if(!xsloader.isObject(obj)) {
-					throw new Error("循环依赖的模块必须是对象：" + this.name);
+					throw new Error("循环依赖的模块必须是对象：" + this.selfname);
 				}
 				for(let x in obj) {
 					this.loopObject[x] = obj[x];
@@ -359,14 +439,14 @@ function newModule(defineObject) {
 					}
 				};
 				//已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
-				let deps = !thiz.loopObject && xsloader.config().getDeps(thiz.name);
-				//console.log(this.name,":",deps);
+				let deps = !thiz.loopObject && xsloader.config().getDeps(thiz.selfname);
+				//console.log(this.selfname,":",deps);
 				//deps=null;
 				if(deps && deps.length > 0) {
 					xsloader.require(deps, function() {
 						theCallback();
 					}).then({
-						defined_module_for_deps: thiz.name
+						defined_module_for_deps: thiz.selfname
 					});
 				} else {
 					theCallback();
@@ -552,21 +632,21 @@ function newModule(defineObject) {
 					if(index != -1) {
 						dep = dep.substring(0, index);
 					}
-					let depMod = theDefinedMap[dep];
+					let depMod = getModule(dep);
 					if(depMod) {
 						as.push(dep + ":" + depMod.state);
 					} else {
 						as.push(dep + ":null");
 					}
 				}
-				console.info("failed module '" + errModule.name + "' deps state infos [" + as.join(",") + "]");
+				console.info("failed module '" + errModule.selfname + "' deps state infos [" + as.join(",") + "]");
 			}
 		});
 
 	};
 	moduleMap._printOnNotDefined = function(parentNode) {
 		let node = {
-			err: "[" + this.name + "].state=" + this.state,
+			err: "[" + this.selfname + "].state=" + this.state,
 			module: this,
 			parent: parentNode,
 			nodes: []
@@ -598,7 +678,7 @@ function newModule(defineObject) {
 			}
 		});
 	};
-	setModule(moduleMap.name, moduleMap);
+	setModule(moduleMap.selfname, moduleMap);
 
 	buildInvoker(moduleMap);
 	return moduleMap;
@@ -653,7 +733,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 	_dealEmbedDeps(deps); //处理嵌套依赖
 
 	for(let i = 0; i < deps.length; i++) {
-		//console.log(module.name+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
+		//console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
 		let m = deps[i];
 		let jsFilePath = utils.isJsFile(m);
 
@@ -663,7 +743,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				deps[i] = m;
 			}
 		}
-		let paths = utils.graphPath.tryAddEdge(defineObject.handle.defined_module_for_deps || module.name, m);
+		let paths = utils.graphPath.tryAddEdge(defineObject.handle.defined_module_for_deps || module.selfname, m);
 		if(paths.length > 0) {
 			let moduleLoop = getModule(m); //该模块必定已经被定义过
 			moduleLoop.loopObject = {};
@@ -763,15 +843,13 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls = [];
 				}
 
-				let module2 = _newModule(dep, module.absUrl, module.thiz);
-				module2.setState("loading");
 				utils.each(urls, function(url, index) {
 					if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
-						if(!module2.thiz.rurl(defineObject)) {
-							isError = "script url is null:'" + module2.name;
+						if(!module.thiz.rurl(defineObject)) {
+							isError = "script url is null:'" + module.selfname;
 							throw new Error(isError);
 						}
-						url = utils.getPathWithRelative(module2.thiz.rurl(defineObject), url);
+						url = utils.getPathWithRelative(module.thiz.rurl(defineObject), url);
 					} else {
 						let absolute = utils.dealPathMayAbsolute(url);
 						if(absolute.absolute) {
@@ -780,7 +858,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							url = config.baseUrl + url;
 						}
 					}
-					urls[index] = config.dealUrl(module2, url);
+					urls[index] = config.dealUrl(dep, url);
 				});
 
 				mayAsyncCallLoadModule();
@@ -795,15 +873,22 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					//					}
 					loadModule();
 				}
-
+				let module2;
 				//加载模块dep:module2
 				function loadModule(index = 0) {
 					if(index >= urls.length) {
 						return;
 					}
 					let url = urls[index];
-					module2.src = url;
-					script.loadScript(module2.name, url, (scriptData) => {
+					if(!module2) {
+						module2 = _newModule(dep, url, module.absUrl, module.thiz);
+						module2.setState("loading");
+					} else {
+						let oldSrc=module2.src;
+						module2.src = url;
+						replaceModuleSrc(oldSrc,module2);
+					}
+					script.loadScript(module2.selfname, url, (scriptData) => {
 
 					}, (err) => {
 						isError = err;

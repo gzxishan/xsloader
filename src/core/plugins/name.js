@@ -28,10 +28,11 @@ xsloader.define("name", {
 					existsMods.push(newName);
 					continue;
 				}
+				let module = depModuleArgs[0].module;
 				if(lastM) {
-					lastM.toOtherModule(depModuleArgs[0].module);
+					lastM.toOtherModule(module);
 				} else {
-					moduleScript.setModule(newName, depModuleArgs[0].module);
+					moduleScript.setModule(newName, module);
 				}
 			}
 			if(existsMods.length) {

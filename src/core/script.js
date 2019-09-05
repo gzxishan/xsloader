@@ -48,7 +48,7 @@ class Invoker {
 		return this.moduleMap.src;
 	}
 	getName() {
-		return this.moduleMap.name;
+		return this.moduleMap.selfname;
 	}
 	invoker() {
 		return this.moduleMap.invoker;

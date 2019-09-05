@@ -153,7 +153,7 @@ loader.loaderFun((option) => {
 				}
 
 				if(!urlArg) {
-					nameOrUrl = module.name;
+					nameOrUrl = module.selfname;
 					urlArg = this.urlArgs[nameOrUrl];
 				}
 
