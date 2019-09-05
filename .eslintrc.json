@@ -6,7 +6,8 @@
   },
   "globals": {
     "opera": true,
-    "ActiveXObject": true
+    "ActiveXObject": true,
+    "InVar": true
   },
   "extends": "eslint:recommended",
   "parserOptions": {

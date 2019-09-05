@@ -1,8 +1,8 @@
 import { uglify } from 'rollup-plugin-uglify';
 import { eslint } from 'rollup-plugin-eslint';
-import resolve from 'rollup-plugin-node-resolve';
-import babel from 'rollup-plugin-babel';
-import pkg from '../package.json';
+import babel from 'rollup-plugin-babel'
+import resolve from 'rollup-plugin-node-resolve'
+import pkg from './package.json';
 
 const NODE_ENV = (process.env.NODE_ENV || "").trim();
 const isProduct = NODE_ENV == 'production';
@@ -16,7 +16,7 @@ const banner =
 	` * build time:${new Date().toGMTString()}\n`+
 	' */'
 
-module.exports = {
+export default {
 	input: 'src/main.js',
 	output: {
 		banner,

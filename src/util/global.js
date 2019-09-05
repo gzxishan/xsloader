@@ -9,4 +9,21 @@ if(typeof window !== undefined) {
 	throw new Error("not found global var!");
 }
 
+/**
+ * 用于包装变量，防止JSON.stringify等时输出指定变量。
+ * @param {Object} val
+ */
+function InVar(val) {
+	this.get = function() {
+		return val;
+	};
+
+	this.set = function(newVal) {
+		let old = val;
+		val = newVal;
+		return old;
+	};
+}
+g.InVar = InVar;
+
 export default g;

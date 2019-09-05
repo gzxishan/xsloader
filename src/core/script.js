@@ -8,7 +8,6 @@ const defContextName = "xsloader1.1.x";
 const DATA_ATTR_MODULE = 'data-xsloader-module';
 const DATA_ATTR_CONTEXT = "data-xsloader-context";
 const globalDefineQueue = []; //没有配置前的define
-const hasNoSelfnameSrcMap = {}; //已经存在未定义selfname的define：src:boolean
 
 const head = document.head || document.getElementsByTagName('head')[0];
 const isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
@@ -37,24 +36,24 @@ if(utils.safariVersion > 0 && utils.safariVersion <= 7) {
 /////////////////////////////
 
 class Invoker {
-	moduleMap;
+	_im;
 	constructor(moduleMap) {
-		this.moduleMap = moduleMap;
+		this._im = new InVar(moduleMap);
 	}
 	/**
 	 * 获取绝对地址
 	 */
 	getAbsoluteUrl() {
-		return this.moduleMap.src;
+		return this._im.get().src;
 	}
 	getName() {
-		return this.moduleMap.selfname;
+		return this._im.get().selfname;
 	}
 	invoker() {
-		return this.moduleMap.invoker;
+		return this._im.get().invoker;
 	}
 	absUrl() { //用于获取其他模块地址的参考路径
-		return this.moduleMap.absUrl;
+		return this._im.get().absUrl;
 	}
 }
 
@@ -82,7 +81,6 @@ function getInvoker(thiz, nullNew) {
 
 class DefineObject {
 	thiz;
-	args;
 	isRequire;
 	src;
 	parentDefine;
@@ -91,10 +89,9 @@ class DefineObject {
 	deps;
 	callback;
 	thatInvoker;
-	constructor(selfname, thiz, args, isRequire = false) {
-		this.selfname = selfname;
+	constructor(src, thiz, args, isRequire = false) {
+		this.src = src;
 		this.thiz = thiz;
-		this.args = args;
 		this.isRequire = isRequire;
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.handle = {
@@ -108,13 +105,43 @@ class DefineObject {
 		};
 		this.thatInvoker = getInvoker(thiz);
 
-		if(!selfname && !isRequire && (this.parentDefine || this.thatInvoker) && args && (args.length == 0 || !xsloader.isString(args[0]))) {
-			if(hasNoSelfnameSrcMap[this.src]) {
-				throw new Error("define:expected selfname");
-			} else {
-				hasNoSelfnameSrcMap[this.src] = true;
-			}
+		let selfname = args[0];
+		let deps = args[1];
+		let callback = args[2];
+
+		if(typeof selfname !== 'string') {
+			callback = deps;
+			deps = selfname;
+			selfname = null; //为空的、表示定义默认模块
 		}
+
+		if(!xsloader.isArray(deps)) {
+			callback = deps;
+			deps = null;
+		}
+
+		if(!deps) {
+			deps = [];
+		}
+
+		//获取函数体里直接require('...')的依赖
+		//if(!isRequire) {
+		utils.appendInnerDeps(deps, callback);
+		//}
+		//获取配置里配置的依赖
+		let _deps = xsloader.config().getDeps(src);
+		utils.each(_deps, (dep) => {
+			deps.push(dep);
+		});
+		if(selfname && selfname != src) {
+			_deps = xsloader.config().getDeps(selfname);
+			utils.each(_deps, (dep) => {
+				deps.push(dep);
+			});
+		}
+		this.selfname = selfname;
+		this.deps = deps;
+		this.callback = callback;
 	}
 	get absUrl() {
 		return this.getMineAbsUrl() || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
@@ -264,7 +291,7 @@ function __getScriptData(evt, callbackObj) {
 	return {
 		node: node,
 		name: node && node.getAttribute(DATA_ATTR_MODULE),
-		src: node && utils.getNodeAbsolutePath(node)
+		src: utils.removeQueryHash(node && utils.getNodeAbsolutePath(node))
 	};
 }
 
@@ -291,7 +318,7 @@ function loadScript(moduleName, url, onload, onerror) {
 			let scriptData = __getScriptData(evt, callbackObj);
 			if(useDefineQueue) {
 				utils.each(useDefineQueue, (defineObject) => {
-					defineObject.src = scriptData.src;
+					defineObject.src = scriptData.src; //已经不含参数
 				});
 				theRealDefine([...useDefineQueue]);
 			}
@@ -310,10 +337,9 @@ function loadScript(moduleName, url, onload, onerror) {
 }
 
 function doDefine(thiz, args, isRequire) {
-
-	let defineObject = new DefineObject(null, thiz, args, isRequire);
+	let src = getCurrentScript().src; //已经不含参数
+	let defineObject = new DefineObject(src, thiz, args, isRequire);
 	if(!useDefineQueue) {
-		defineObject.src = getCurrentScript().src;
 		try { //防止执行其他脚本
 			if(defineObject.src) {
 				let node = document.currentScript;
@@ -347,6 +373,9 @@ function doDefine(thiz, args, isRequire) {
 		} else {
 			theRealDefine([defineObject]);
 		}
+	});
+	xsloader.asyncCall().next(() => {
+
 	});
 
 	return handle;
