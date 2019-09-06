@@ -7,7 +7,7 @@ module.exports = function(api) {
 			{
 				"modules": false,
 				"targets": {
-					"browsers": ["ie >=9"]
+					"browsers": ["ie>=9"]
 				},
 				"useBuiltIns": false,
 			},
@@ -16,7 +16,10 @@ module.exports = function(api) {
 	const plugins = [
 		'@babel/plugin-proposal-object-rest-spread',
 		'@babel/plugin-proposal-export-default-from',
-		'@babel/plugin-proposal-class-properties'
+		'@babel/plugin-proposal-class-properties',
+		"transform-es3-property-literals",
+		"transform-es3-member-expression-literals",
+		"@babel/plugin-transform-reserved-words"
 	];
 	return {
 		presets,

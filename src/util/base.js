@@ -159,10 +159,35 @@ function getAndIncIdCount() {
 }
 
 class PluginError {
-	constructor(err) {
-		this.err = err;
+	constructor(err, invoker) {
+		if(err instanceof PluginError) {
+			this.err = err.err;
+			this.invoker = err.invoker;
+		} else {
+			this.err = err;
+			this.invoker = invoker;
+		}
 	}
 }
+
+let isXsLoaderEnd = false;
+const IE_VERSION = (function getIEVersion() {
+	let userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
+	let isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
+	let isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
+	let isIE11 = userAgent.indexOf('Trident') > -1 && userAgent.indexOf("rv:11.0") > -1;
+	if(isIE) {
+		let reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
+		let fIEVersion = parseInt(reIE && reIE[1] || -1);
+		return fIEVersion == -1 ? -1 : fIEVersion;
+	} else if(isEdge) {
+		return 'edge'; //edge
+	} else if(isIE11) {
+		return 11; //IE11  
+	} else {
+		return -1; //不是ie浏览器
+	}
+})();
 
 export default {
 	graphPath: new GraphPath(),
@@ -170,5 +195,12 @@ export default {
 	each,
 	appendInnerDeps,
 	getAndIncIdCount,
-	PluginError
+	PluginError,
+	loaderEnd() {
+		isXsLoaderEnd = true;
+	},
+	isLoaderEnd() {
+		return isXsLoaderEnd;
+	},
+	IE_VERSION,
 };

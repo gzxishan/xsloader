@@ -3,8 +3,6 @@ import script from "./script.js";
 import moduleDef from "./module-def";
 const global = utils.global;
 const xsloader = global.xsloader;
-const INNER_DEPS_PLUGIN = "__inner_deps__";
-const innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 
 function buildInvoker(obj) {
 	let invoker = obj["thiz"];
@@ -46,7 +44,7 @@ function buildInvoker(obj) {
 		return h;
 	};
 	invoker.rurl = function(defineObject) {
-		return defineObject && defineObject.absUrl || this.absUrl() || this.getAbsoluteUrl();
+		return defineObject && defineObject.absUrl() || this.absUrl() || this.getAbsoluteUrl();
 	};
 	invoker.defineAsync = function() {
 		let h = this.define.apply(this, arguments);
@@ -56,7 +54,7 @@ function buildInvoker(obj) {
 		let moduleMap = {
 			module: module,
 			src: absUrl,
-			absUrl: absUrl,
+			absUrl: () => absUrl,
 			name: invoker.getName(),
 			invoker: invoker.invoker()
 		};
@@ -173,7 +171,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 				};
 				let onerror = (err) => {
 					hasFinished = true;
-					relyCallback(this, new xsloader.PluginError(err || false));
+					relyCallback(this, new utils.PluginError(err || false));
 				};
 				let args = [pluginArgs, onload, onerror, xsloader.config()].concat(this.module.depModules);
 				try {
@@ -205,7 +203,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 	let moduleMap = {
 		module: module,
 		src: module.thiz.getAbsoluteUrl(),
-		absUrl: module.thiz.absUrl(),
+		absUrl: () => module.thiz.absUrl(),
 		name: module.thiz.getName(),
 		invoker: instanceModule._invoker
 	};
@@ -217,7 +215,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 
 function _newModule(name, src, absUrl, thatInvoker, callback) {
 	src = utils.removeQueryHash(src);
-	let defineObject = new script.DefineObject(src, [name, null, callback], null, false);
+	let defineObject = new script.DefineObject(src, null, [name, null, callback], false);
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.handle = {
 		absUrl: absUrl
@@ -254,13 +252,18 @@ function newModule(defineObject) {
 		ignoreAspect: false,
 		depModules: null,
 		src: defineObject.src, //绝对路径,可能等于当前页面路径
-		absUrl: defineObject.getMineAbsUrl(),
+		absUrl: () => defineObject.absUrl(),
 		callback: defineObject.callback,
 		_loadCallback: null,
 		moduleObject: undefined, //依赖模块对应的对象
 		loopObject: undefined, //循环依赖对象
 		invoker: defineObject.thatInvoker,
 		instanceType: "single",
+		reinitByDefineObject(defineObject) {
+			this.deps = defineObject.deps || [];
+			//this.absUrl = () => defineObject.absUrl();
+			this.callback = defineObject.callback;
+		},
 		setInstanceType(instanceType) {
 			this.instanceType = instanceType;
 		},
@@ -295,7 +298,7 @@ function newModule(defineObject) {
 			if(xsloader.isFunction(this.callback)) {
 				try {
 					script.currentDefineModuleQueue.push(this);
-					script.obj = this.callback.apply(this.thiz, args);
+					obj = this.callback.apply(this.thiz, args);
 					script.currentDefineModuleQueue.pop();
 				} catch(e) {
 					script.currentDefineModuleQueue.pop();
@@ -307,7 +310,7 @@ function newModule(defineObject) {
 			} else {
 				obj = this.callback;
 				if(this.moduleObject !== undefined) {
-					console.log("ignore moudule:" + moduleMap.description());
+					console.warn("ignore moudule:" + moduleMap.description());
 				}
 			}
 			let isDefault = false;
@@ -446,7 +449,7 @@ function newModule(defineObject) {
 				if(opId !== undefined && opId == this.opId) {
 					return; //防止循环
 				}
-				opId = opId || _getModuleId();
+				opId = opId || getModuleId();
 				this.opId = opId;
 
 				let obj = {};
@@ -478,18 +481,6 @@ function newModule(defineObject) {
 		return _module_;
 	};
 
-	//添加到前面
-	//提供的参数deps为define里声明的
-	moduleMap.mayAddDeps = function(deps) {
-		let moduleDeps = this.deps;
-		utils.each(moduleDeps, function(dep) {
-			if(xsloader.indexInArray(deps, dep) < 0) {
-				deps.push(dep);
-			}
-		}, false, true);
-		this.deps = deps;
-		return deps;
-	};
 	moduleMap.printOnNotDefined = function() {
 		let root = {
 			nodes: []
@@ -525,7 +516,7 @@ function newModule(defineObject) {
 				for(let k = 0; k < 3 && i < infos.length; k++) {
 					as.push(infos[i++]);
 				}
-				console.info(as.join("\n\t--->"));
+				console.warn(as.join("\n\t--->"));
 			}
 			let errModule = leaf.module;
 			if(leaf.module && leaf.module.state == "defined") {
@@ -546,7 +537,7 @@ function newModule(defineObject) {
 						as.push(dep + ":null");
 					}
 				}
-				console.info("failed module:" + errModule.description() + ",\n\tdeps state infos [" + as.join(",") + "]");
+				console.warn("failed module:" + errModule.description() + ",\n\tdeps state infos [" + as.join(",") + "]");
 			}
 		});
 
@@ -593,38 +584,8 @@ function newModule(defineObject) {
 
 let randModuleIndex = 0;
 
-function _getModuleId() {
+function getModuleId() {
 	return "_xs_req_2019_" + randModuleIndex++;
-}
-//处理嵌套依赖
-function _dealEmbedDeps(deps) {
-	for(let i = 0; i < deps.length; i++) {
-		let dep = deps[i];
-		if(xsloader.isArray(dep)) {
-			//内部的模块顺序加载
-			let modName = "inner_order_" + _getModuleId();
-			let isOrderDep = !(dep.length > 0 && dep[0] === false);
-			if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
-				dep = dep.slice(1);
-			}
-			innerDepsMap[modName] = {
-				deps: dep,
-				orderDep: isOrderDep
-			};
-
-			//console.log(innerDepsMap[modName]);
-			deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
-		}
-	}
-}
-
-function _getPluginParam(path) {
-	let pluginIndex = path.indexOf("!");
-	if(pluginIndex > 0) {
-		return path.substring(pluginIndex);
-	} else {
-		return "";
-	}
 }
 
 //everyOkCallback(depModules,module),errCallback(err,invoker)
@@ -633,34 +594,15 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		return;
 	}
 
+	//处理相对路径
+	defineObject.dealRelative(module);
+
 	let config = xsloader.config();
-	const deps = module.deps;
-
-	utils.replaceModulePrefix(config, deps); //前缀替换
-	_dealEmbedDeps(deps); //处理嵌套依赖
-
-	for(let i = 0; i < deps.length; i++) {
-		//console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
-		let m = deps[i];
-		let jsFilePath = utils.isJsFile(m);
-
-		if(module.thiz.rurl(defineObject)) { //替换相对路径为绝对路径
-			if(jsFilePath && xsloader.startsWith(m, ".")) {
-				m = utils.getPathWithRelative(module.thiz.rurl(defineObject), jsFilePath.path) + _getPluginParam(m);
-				deps[i] = m;
-			}
-		}
-		let paths = utils.graphPath.tryAddEdge(defineObject.handle.defined_module_for_deps || module.selfname, m);
-		if(paths.length > 0) {
-			let moduleLoop = moduleDef.getModule(m); //该模块必定已经被定义过
-			moduleLoop.loopObject = {};
-		}
-	}
 
 	let isError = false,
 		hasCallErr = false,
 		theExports;
-	let depCount = deps.length;
+	let depCount = module.deps.length;
 	//module.jsScriptCount = 0;
 	let depModules = new Array(depCount);
 
@@ -684,7 +626,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		}!isError && syncHandle && syncHandle();
 	}
 
-	utils.each(deps, function(dep, index, ary, syncHandle) {
+	utils.each(module.deps, function(dep, index, ary, syncHandle) {
 		let originDep = dep;
 		let pluginArgs = undefined;
 		let pluginIndex = dep.indexOf("!");
@@ -693,22 +635,22 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 			dep = dep.substring(0, pluginIndex);
 		}
 		let relyItFun = function() {
-			moduleDef.getModule(dep).relyIt(invoker_the_module, function(depModule, err) {
-
-				if(!err) {
-					depCount--;
-					if(dep == "exports") {
-						if(theExports) {
-							module.moduleObject = theExports;
-						} else {
-							theExports = module.moduleObject = depModule.genExports();
+			moduleDef.getModule(dep)
+				.relyIt(invoker_the_module, function(depModule, err) {
+					if(!err) {
+						depCount--;
+						if(dep == "exports") {
+							if(theExports) {
+								module.moduleObject = theExports;
+							} else {
+								theExports = module.moduleObject = depModule.genExports();
+							}
 						}
+					} else {
+						isError = err;
 					}
-				} else {
-					isError = err;
-				}
-				checkFinish(index, originDep, depModule, syncHandle);
-			}, pluginArgs);
+					checkFinish(index, originDep, depModule, syncHandle);
+				}, pluginArgs);
 		};
 
 		if(!moduleDef.getModule(dep)) {
@@ -750,9 +692,12 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls = [];
 				}
 
+				//TODO errCallback是否无效??
 				if(urls.length == 0) {
-					isError = "module '" + dep + "' urls is empty.";
-					errCallback(isError, invoker_the_module);
+					//提前依赖模块
+					moduleDef.preDependOn(dep);
+					//					isError = "module '" + dep + "' urls is empty.";
+					//					errCallback(isError, invoker_the_module);
 				} else {
 					utils.each(urls, function(url, index) {
 						if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
@@ -773,8 +718,9 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					});
 				}
 
-				if(!isError) {
-					let module2 = _newModule(dep, urls[0], module.absUrl, module.thiz);
+				if(!isError && urls.length) {
+					let m2Name = isJsFile ? null : dep;
+					let module2 = _newModule(m2Name, urls[0], module.absUrl, module.thiz);
 					module2.setState("loading");
 
 					//加载模块dep:module2
@@ -783,13 +729,27 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							return;
 						}
 						let url = urls[index];
+						moduleDef.setLastDefineObject(url, defineObject);
 						if(index > 0) {
 							let oldSrc = module2.src;
 							module2.src = url;
 							moduleDef.replaceModuleSrc(oldSrc, module2);
 						}
 						script.loadScript(module2.selfname, url, (scriptData) => {
-							console.log(scriptData)
+							//console.log(scriptData);
+							if(module2.state == "loading") { //module2.selfname为配置名称，尝试默认模块
+								let defaultMod = moduleDef.getModule(module2.src);
+								if(defaultMod && module2 != defaultMod) {
+									module2.toOtherModule(defaultMod);
+								}
+							}
+
+							if(module2.state == "loading") {
+								//								isError = "load module err(may not define default):" + module2.description();
+								//								errCallback(isError, invoker_the_module);
+								//？？没有define的情况、直接完成
+								module2.finish([]);
+							}
 						}, (err) => {
 							if(index + 1 < urls.length) {
 								loadModule(index + 1);
@@ -814,8 +774,7 @@ export default {
 	...moduleDef,
 	newModule,
 	everyRequired,
-	INNER_DEPS_PLUGIN,
-	innerDepsMap,
 	buildInvoker,
-	newModuleInstance
+	newModuleInstance,
+	getModuleId
 };

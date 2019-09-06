@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 05 Sep 2019 15:36:53 GMT
+ * build time:Fri, 06 Sep 2019 10:08:24 GMT
  */
 (function () {
   'use strict';
@@ -93,24 +93,340 @@
     return target;
   }
 
-  function _toConsumableArray(arr) {
-    return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread();
+  //https://github.com/douglascrockford/JSON-js
+  //  json2.js
+  //  2017-06-12
+  //  Public Domain.
+  //  NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+  //  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
+  //  NOT CONTROL.
+  var JSON = {};
+  var rx_one = /^[\],:{}\s]*$/;
+  var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
+  var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
+  var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
+  var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+  var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+
+  function f(n) {
+    // Format integers to have at least two digits.
+    return n < 10 ? "0" + n : n;
   }
 
-  function _arrayWithoutHoles(arr) {
-    if (Array.isArray(arr)) {
-      for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) arr2[i] = arr[i];
+  function this_value() {
+    return this.valueOf();
+  }
 
-      return arr2;
+  if (typeof Date.prototype.toJSON !== "function") {
+    Date.prototype.toJSON = function () {
+      return isFinite(this.valueOf()) ? this.getUTCFullYear() + "-" + f(this.getUTCMonth() + 1) + "-" + f(this.getUTCDate()) + "T" + f(this.getUTCHours()) + ":" + f(this.getUTCMinutes()) + ":" + f(this.getUTCSeconds()) + "Z" : null;
+    };
+
+    Boolean.prototype.toJSON = this_value;
+    Number.prototype.toJSON = this_value;
+    String.prototype.toJSON = this_value;
+  }
+
+  var gap;
+  var indent;
+  var meta;
+  var rep;
+
+  function quote(string) {
+    // If the string contains no control characters, no quote characters, and no
+    // backslash characters, then we can safely slap some quotes around it.
+    // Otherwise we must also replace the offending characters with safe escape
+    // sequences.
+    rx_escapable.lastIndex = 0;
+    return rx_escapable.test(string) ? "\"" + string.replace(rx_escapable, function (a) {
+      var c = meta[a];
+      return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+    }) + "\"" : "\"" + string + "\"";
+  }
+
+  function str(key, holder) {
+    // Produce a string from holder[key].
+    var i; // The loop counter.
+
+    var k; // The member key.
+
+    var v; // The member value.
+
+    var length;
+    var mind = gap;
+    var partial;
+    var value = holder[key]; // If the value has a toJSON method, call it to obtain a replacement value.
+
+    if (value && _typeof(value) === "object" && typeof value.toJSON === "function") {
+      value = value.toJSON(key);
+    } // If we were called with a replacer function, then call the replacer to
+    // obtain a replacement value.
+
+
+    if (typeof rep === "function") {
+      value = rep.call(holder, key, value);
+    } // What happens next depends on the value's type.
+
+
+    switch (_typeof(value)) {
+      case "string":
+        return quote(value);
+
+      case "number":
+        // JSON numbers must be finite. Encode non-finite numbers as null.
+        return isFinite(value) ? String(value) : "null";
+
+      case "boolean":
+      case "null":
+        // If the value is a boolean or null, convert it to a string. Note:
+        // typeof null does not produce "null". The case is included here in
+        // the remote chance that this gets fixed someday.
+        return String(value);
+      // If the type is "object", we might be dealing with an object or an array or
+      // null.
+
+      case "object":
+        // Due to a specification blunder in ECMAScript, typeof null is "object",
+        // so watch out for that case.
+        if (!value) {
+          return "null";
+        } // Make an array to hold the partial results of stringifying this object value.
+
+
+        gap += indent;
+        partial = []; // Is the value an array?
+
+        if (Object.prototype.toString.apply(value) === "[object Array]") {
+          // The value is an array. Stringify every element. Use null as a placeholder
+          // for non-JSON values.
+          length = value.length;
+
+          for (i = 0; i < length; i += 1) {
+            partial[i] = str(i, value) || "null";
+          } // Join all of the elements together, separated with commas, and wrap them in
+          // brackets.
+
+
+          v = partial.length === 0 ? "[]" : gap ? "[\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "]" : "[" + partial.join(",") + "]";
+          gap = mind;
+          return v;
+        } // If the replacer is an array, use it to select the members to be stringified.
+
+
+        if (rep && _typeof(rep) === "object") {
+          length = rep.length;
+
+          for (i = 0; i < length; i += 1) {
+            if (typeof rep[i] === "string") {
+              k = rep[i];
+              v = str(k, value);
+
+              if (v) {
+                partial.push(quote(k) + (gap ? ": " : ":") + v);
+              }
+            }
+          }
+        } else {
+          // Otherwise, iterate through all of the keys in the object.
+          for (k in value) {
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+              v = str(k, value);
+
+              if (v) {
+                partial.push(quote(k) + (gap ? ": " : ":") + v);
+              }
+            }
+          }
+        } // Join all of the member texts together, separated with commas,
+        // and wrap them in braces.
+
+
+        v = partial.length === 0 ? "{}" : gap ? "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" : "{" + partial.join(",") + "}";
+        gap = mind;
+        return v;
     }
+  } // If the JSON object does not yet have a stringify method, give it one.
+
+
+  if (typeof JSON.stringify !== "function") {
+    meta = {
+      // table of character substitutions
+      "\b": "\\b",
+      "\t": "\\t",
+      "\n": "\\n",
+      "\f": "\\f",
+      "\r": "\\r",
+      "\"": "\\\"",
+      "\\": "\\\\"
+    };
+
+    JSON.stringify = function (value, replacer, space) {
+      // The stringify method takes a value and an optional replacer, and an optional
+      // space parameter, and returns a JSON text. The replacer can be a function
+      // that can replace values, or an array of strings that will select the keys.
+      // A default replacer method can be provided. Use of the space parameter can
+      // produce text that is more easily readable.
+      var i;
+      gap = "";
+      indent = ""; // If the space parameter is a number, make an indent string containing that
+      // many spaces.
+
+      if (typeof space === "number") {
+        for (i = 0; i < space; i += 1) {
+          indent += " ";
+        } // If the space parameter is a string, it will be used as the indent string.
+
+      } else if (typeof space === "string") {
+        indent = space;
+      } // If there is a replacer, it must be a function or an array.
+      // Otherwise, throw an error.
+
+
+      rep = replacer;
+
+      if (replacer && typeof replacer !== "function" && (_typeof(replacer) !== "object" || typeof replacer.length !== "number")) {
+        throw new Error("JSON.stringify");
+      } // Make a fake root object containing our value under the key of "".
+      // Return the result of stringifying the value.
+
+
+      return str("", {
+        "": value
+      });
+    };
+  } // If the JSON object does not yet have a parse method, give it one.
+
+
+  if (typeof JSON.parse !== "function") {
+    JSON.parse = function (text, reviver) {
+      // The parse method takes a text and an optional reviver function, and returns
+      // a JavaScript value if the text is a valid JSON text.
+      var j;
+
+      function walk(holder, key) {
+        // The walk method is used to recursively walk the resulting structure so
+        // that modifications can be made.
+        var k;
+        var v;
+        var value = holder[key];
+
+        if (value && _typeof(value) === "object") {
+          for (k in value) {
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+              v = walk(value, k);
+
+              if (v !== undefined) {
+                value[k] = v;
+              } else {
+                delete value[k];
+              }
+            }
+          }
+        }
+
+        return reviver.call(holder, key, value);
+      } // Parsing happens in four stages. In the first stage, we replace certain
+      // Unicode characters with escape sequences. JavaScript handles many characters
+      // incorrectly, either silently deleting them, or treating them as line endings.
+
+
+      text = String(text);
+      rx_dangerous.lastIndex = 0;
+
+      if (rx_dangerous.test(text)) {
+        text = text.replace(rx_dangerous, function (a) {
+          return "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+        });
+      } // In the second stage, we run the text against regular expressions that look
+      // for non-JSON patterns. We are especially concerned with "()" and "new"
+      // because they can cause invocation, and "=" because it can cause mutation.
+      // But just to be safe, we want to reject all unexpected forms.
+      // We split the second stage into 4 regexp operations in order to work around
+      // crippling inefficiencies in IE's and Safari's regexp engines. First we
+      // replace the JSON backslash pairs with "@" (a non-JSON character). Second, we
+      // replace all simple value tokens with "]" characters. Third, we delete all
+      // open brackets that follow a colon or comma or that begin the text. Finally,
+      // we look to see that the remaining characters are only whitespace or "]" or
+      // "," or ":" or "{" or "}". If that is so, then the text is safe for eval.
+
+
+      if (rx_one.test(text.replace(rx_two, "@").replace(rx_three, "]").replace(rx_four, ""))) {
+        // In the third stage we use the eval function to compile the text into a
+        // JavaScript structure. The "{" operator is subject to a syntactic ambiguity
+        // in JavaScript: it can begin a block or an object literal. We wrap the text
+        // in parens to eliminate the ambiguity.
+        j = eval("(" + text + ")"); // In the optional fourth stage, we recursively walk the new structure, passing
+        // each name/value pair to a reviver function for possible transformation.
+
+        return typeof reviver === "function" ? walk({
+          "": j
+        }, "") : j;
+      } // If the text is not JSON parseable, then a SyntaxError is thrown.
+
+
+      throw new SyntaxError("JSON.parse");
+    };
   }
 
-  function _iterableToArray(iter) {
-    if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter);
+  if (!Object.keys) {
+    Object.keys = function () {
+      var hasOwnProperty = Object.prototype.hasOwnProperty,
+          hasDontEnumBug = !{
+        toString: null
+      }.propertyIsEnumerable('toString'),
+          dontEnums = ['toString', 'toLocaleString', 'valueOf', 'hasOwnProperty', 'isPrototypeOf', 'propertyIsEnumerable', 'constructor'],
+          dontEnumsLength = dontEnums.length;
+      return function (obj) {
+        if (_typeof(obj) !== 'object' && typeof obj !== 'function' || obj === null) throw new TypeError('Object.keys called on non-object');
+        var result = [];
+
+        for (var prop in obj) {
+          if (hasOwnProperty.call(obj, prop)) result.push(prop);
+        }
+
+        if (hasDontEnumBug) {
+          for (var i = 0; i < dontEnumsLength; i++) {
+            if (hasOwnProperty.call(obj, dontEnums[i])) result.push(dontEnums[i]);
+          }
+        }
+
+        return result;
+      };
+    }();
   }
 
-  function _nonIterableSpread() {
-    throw new TypeError("Invalid attempt to spread non-iterable instance");
+  if (!Array.prototype.forEach) {
+    Array.prototype.forEach = function forEach(callback, thisArg) {
+      var T, k;
+
+      if (this == null) {
+        throw new TypeError("this is null or not defined");
+      }
+
+      var O = Object(this);
+      var len = O.length >>> 0;
+
+      if (typeof callback !== "function") {
+        throw new TypeError(callback + " is not a function");
+      }
+
+      if (arguments.length > 1) {
+        T = thisArg;
+      }
+
+      k = 0;
+
+      while (k < len) {
+        var kValue = void 0;
+
+        if (k in O) {
+          kValue = O[k];
+          callback.call(T, kValue, k, O);
+        }
+
+        k++;
+      }
+    };
   }
 
   var g;
@@ -743,11 +1059,41 @@
     return idCount++;
   }
 
-  var PluginError = function PluginError(err) {
+  var PluginError = function PluginError(err, invoker) {
     _classCallCheck(this, PluginError);
 
-    this.err = err;
+    if (err instanceof PluginError) {
+      this.err = err.err;
+      this.invoker = err.invoker;
+    } else {
+      this.err = err;
+      this.invoker = invoker;
+    }
   };
+
+  var isXsLoaderEnd = false;
+
+  var IE_VERSION = function getIEVersion() {
+    var userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
+
+    var isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
+
+    var isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
+
+    var isIE11 = userAgent.indexOf('Trident') > -1 && userAgent.indexOf("rv:11.0") > -1;
+
+    if (isIE) {
+      var reIE = new RegExp("MSIE[\\s]+([0-9.]+);").exec(userAgent);
+      var fIEVersion = parseInt(reIE && reIE[1] || -1);
+      return fIEVersion == -1 ? -1 : fIEVersion;
+    } else if (isEdge) {
+      return 'edge'; //edge
+    } else if (isIE11) {
+      return 11; //IE11  
+    } else {
+      return -1; //不是ie浏览器
+    }
+  }();
 
   var base = {
     graphPath: new GraphPath(),
@@ -755,7 +1101,14 @@
     each: each,
     appendInnerDeps: appendInnerDeps,
     getAndIncIdCount: getAndIncIdCount,
-    PluginError: PluginError
+    PluginError: PluginError,
+    loaderEnd: function loaderEnd() {
+      isXsLoaderEnd = true;
+    },
+    isLoaderEnd: function isLoaderEnd() {
+      return isXsLoaderEnd;
+    },
+    IE_VERSION: IE_VERSION
   };
 
   var utils = _objectSpread2({}, urls, {
@@ -871,283 +1224,9 @@
     indexInArrayFrom: indexInArrayFrom
   };
 
-  //https://github.com/douglascrockford/JSON-js
-  //  json2.js
-  //  2017-06-12
-  //  Public Domain.
-  //  NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
-  //  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
-  //  NOT CONTROL.
-  var JSON = {};
-  var rx_one = /^[\],:{}\s]*$/;
-  var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
-  var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
-  var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
-  var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-  var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-
-  function f(n) {
-    // Format integers to have at least two digits.
-    return n < 10 ? "0" + n : n;
-  }
-
-  function this_value() {
-    return this.valueOf();
-  }
-
-  if (typeof Date.prototype.toJSON !== "function") {
-    Date.prototype.toJSON = function () {
-      return isFinite(this.valueOf()) ? this.getUTCFullYear() + "-" + f(this.getUTCMonth() + 1) + "-" + f(this.getUTCDate()) + "T" + f(this.getUTCHours()) + ":" + f(this.getUTCMinutes()) + ":" + f(this.getUTCSeconds()) + "Z" : null;
-    };
-
-    Boolean.prototype.toJSON = this_value;
-    Number.prototype.toJSON = this_value;
-    String.prototype.toJSON = this_value;
-  }
-
-  var gap;
-  var indent;
-  var meta;
-  var rep;
-
-  function quote(string) {
-    // If the string contains no control characters, no quote characters, and no
-    // backslash characters, then we can safely slap some quotes around it.
-    // Otherwise we must also replace the offending characters with safe escape
-    // sequences.
-    rx_escapable.lastIndex = 0;
-    return rx_escapable.test(string) ? "\"" + string.replace(rx_escapable, function (a) {
-      var c = meta[a];
-      return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-    }) + "\"" : "\"" + string + "\"";
-  }
-
-  function str(key, holder) {
-    // Produce a string from holder[key].
-    var i; // The loop counter.
-
-    var k; // The member key.
-
-    var v; // The member value.
-
-    var length;
-    var mind = gap;
-    var partial;
-    var value = holder[key]; // If the value has a toJSON method, call it to obtain a replacement value.
-
-    if (value && _typeof(value) === "object" && typeof value.toJSON === "function") {
-      value = value.toJSON(key);
-    } // If we were called with a replacer function, then call the replacer to
-    // obtain a replacement value.
-
-
-    if (typeof rep === "function") {
-      value = rep.call(holder, key, value);
-    } // What happens next depends on the value's type.
-
-
-    switch (_typeof(value)) {
-      case "string":
-        return quote(value);
-
-      case "number":
-        // JSON numbers must be finite. Encode non-finite numbers as null.
-        return isFinite(value) ? String(value) : "null";
-
-      case "boolean":
-      case "null":
-        // If the value is a boolean or null, convert it to a string. Note:
-        // typeof null does not produce "null". The case is included here in
-        // the remote chance that this gets fixed someday.
-        return String(value);
-      // If the type is "object", we might be dealing with an object or an array or
-      // null.
-
-      case "object":
-        // Due to a specification blunder in ECMAScript, typeof null is "object",
-        // so watch out for that case.
-        if (!value) {
-          return "null";
-        } // Make an array to hold the partial results of stringifying this object value.
-
-
-        gap += indent;
-        partial = []; // Is the value an array?
-
-        if (Object.prototype.toString.apply(value) === "[object Array]") {
-          // The value is an array. Stringify every element. Use null as a placeholder
-          // for non-JSON values.
-          length = value.length;
-
-          for (i = 0; i < length; i += 1) {
-            partial[i] = str(i, value) || "null";
-          } // Join all of the elements together, separated with commas, and wrap them in
-          // brackets.
-
-
-          v = partial.length === 0 ? "[]" : gap ? "[\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "]" : "[" + partial.join(",") + "]";
-          gap = mind;
-          return v;
-        } // If the replacer is an array, use it to select the members to be stringified.
-
-
-        if (rep && _typeof(rep) === "object") {
-          length = rep.length;
-
-          for (i = 0; i < length; i += 1) {
-            if (typeof rep[i] === "string") {
-              k = rep[i];
-              v = str(k, value);
-
-              if (v) {
-                partial.push(quote(k) + (gap ? ": " : ":") + v);
-              }
-            }
-          }
-        } else {
-          // Otherwise, iterate through all of the keys in the object.
-          for (k in value) {
-            if (Object.prototype.hasOwnProperty.call(value, k)) {
-              v = str(k, value);
-
-              if (v) {
-                partial.push(quote(k) + (gap ? ": " : ":") + v);
-              }
-            }
-          }
-        } // Join all of the member texts together, separated with commas,
-        // and wrap them in braces.
-
-
-        v = partial.length === 0 ? "{}" : gap ? "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" : "{" + partial.join(",") + "}";
-        gap = mind;
-        return v;
-    }
-  } // If the JSON object does not yet have a stringify method, give it one.
-
-
-  if (typeof JSON.stringify !== "function") {
-    meta = {
-      // table of character substitutions
-      "\b": "\\b",
-      "\t": "\\t",
-      "\n": "\\n",
-      "\f": "\\f",
-      "\r": "\\r",
-      "\"": "\\\"",
-      "\\": "\\\\"
-    };
-
-    JSON.stringify = function (value, replacer, space) {
-      // The stringify method takes a value and an optional replacer, and an optional
-      // space parameter, and returns a JSON text. The replacer can be a function
-      // that can replace values, or an array of strings that will select the keys.
-      // A default replacer method can be provided. Use of the space parameter can
-      // produce text that is more easily readable.
-      var i;
-      gap = "";
-      indent = ""; // If the space parameter is a number, make an indent string containing that
-      // many spaces.
-
-      if (typeof space === "number") {
-        for (i = 0; i < space; i += 1) {
-          indent += " ";
-        } // If the space parameter is a string, it will be used as the indent string.
-
-      } else if (typeof space === "string") {
-        indent = space;
-      } // If there is a replacer, it must be a function or an array.
-      // Otherwise, throw an error.
-
-
-      rep = replacer;
-
-      if (replacer && typeof replacer !== "function" && (_typeof(replacer) !== "object" || typeof replacer.length !== "number")) {
-        throw new Error("JSON.stringify");
-      } // Make a fake root object containing our value under the key of "".
-      // Return the result of stringifying the value.
-
-
-      return str("", {
-        "": value
-      });
-    };
-  } // If the JSON object does not yet have a parse method, give it one.
-
-
-  if (typeof JSON.parse !== "function") {
-    JSON.parse = function (text, reviver) {
-      // The parse method takes a text and an optional reviver function, and returns
-      // a JavaScript value if the text is a valid JSON text.
-      var j;
-
-      function walk(holder, key) {
-        // The walk method is used to recursively walk the resulting structure so
-        // that modifications can be made.
-        var k;
-        var v;
-        var value = holder[key];
-
-        if (value && _typeof(value) === "object") {
-          for (k in value) {
-            if (Object.prototype.hasOwnProperty.call(value, k)) {
-              v = walk(value, k);
-
-              if (v !== undefined) {
-                value[k] = v;
-              } else {
-                delete value[k];
-              }
-            }
-          }
-        }
-
-        return reviver.call(holder, key, value);
-      } // Parsing happens in four stages. In the first stage, we replace certain
-      // Unicode characters with escape sequences. JavaScript handles many characters
-      // incorrectly, either silently deleting them, or treating them as line endings.
-
-
-      text = String(text);
-      rx_dangerous.lastIndex = 0;
-
-      if (rx_dangerous.test(text)) {
-        text = text.replace(rx_dangerous, function (a) {
-          return "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-        });
-      } // In the second stage, we run the text against regular expressions that look
-      // for non-JSON patterns. We are especially concerned with "()" and "new"
-      // because they can cause invocation, and "=" because it can cause mutation.
-      // But just to be safe, we want to reject all unexpected forms.
-      // We split the second stage into 4 regexp operations in order to work around
-      // crippling inefficiencies in IE's and Safari's regexp engines. First we
-      // replace the JSON backslash pairs with "@" (a non-JSON character). Second, we
-      // replace all simple value tokens with "]" characters. Third, we delete all
-      // open brackets that follow a colon or comma or that begin the text. Finally,
-      // we look to see that the remaining characters are only whitespace or "]" or
-      // "," or ":" or "{" or "}". If that is so, then the text is safe for eval.
-
-
-      if (rx_one.test(text.replace(rx_two, "@").replace(rx_three, "]").replace(rx_four, ""))) {
-        // In the third stage we use the eval function to compile the text into a
-        // JavaScript structure. The "{" operator is subject to a syntactic ambiguity
-        // in JavaScript: it can begin a block or an object literal. We wrap the text
-        // in parens to eliminate the ambiguity.
-        j = eval("(" + text + ")"); // In the optional fourth stage, we recursively walk the new structure, passing
-        // each name/value pair to a reviver function for possible transformation.
-
-        return typeof reviver === "function" ? walk({
-          "": j
-        }, "") : j;
-      } // If the text is not JSON parseable, then a SyntaxError is thrown.
-
-
-      throw new SyntaxError("JSON.parse");
-    };
-  }
-
   var global$3 = utils.global;
   var xsloader$4 = global$3.xsloader;
+  var IE_VERSION$1 = utils.IE_VERSION;
 
   if (!String.prototype.trim) {
     String.prototype.trim = function () {
@@ -1168,7 +1247,7 @@
 
   function xsEval(scriptString) {
     try {
-      var rs = xsloader$4.IE_VERSION > 0 && xsloader$4.IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
+      var rs = IE_VERSION$1 > 0 && IE_VERSION$1 < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
       return rs;
     } catch (e) {
       throw e;
@@ -1386,7 +1465,8 @@
     xsJson2String: xsJson2String,
     getPathWithRelative: getPathWithRelative$1,
     appendArgs2Url: appendArgs2Url,
-    queryString2ParamsMap: queryString2ParamsMap
+    queryString2ParamsMap: queryString2ParamsMap,
+    IE_VERSION: IE_VERSION$1
   };
 
   var ostring = Object.prototype.toString;
@@ -1904,26 +1984,94 @@
 
   var global$7 = utils.global;
   var theDefinedMap = {};
+  var lastDefinObjectMap = {};
 
-  var ModuleDef = //默认模块（ define时未指定selfname的） 只能有一个
-  //define的其他模块（含有selfname）
-  function ModuleDef(src) {
-    _classCallCheck(this, ModuleDef);
+  var ModuleDef =
+  /*#__PURE__*/
+  function () {
+    //默认模块（ define时未指定selfname的） 只能有一个
+    //define的其他模块（含有selfname）
+    //用于提前依赖
+    //用于提前依赖
+    function ModuleDef(src) {
+      var isPreDependOn = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
-    _defineProperty(this, "src", void 0);
+      _classCallCheck(this, ModuleDef);
 
-    _defineProperty(this, "defaultModule", void 0);
+      _defineProperty(this, "src", void 0);
 
-    _defineProperty(this, "modules", void 0);
+      _defineProperty(this, "defaultModule", void 0);
 
-    this.src = src;
-    this.modules = {};
-    this.defaultModule = null;
-  };
+      _defineProperty(this, "modules", void 0);
+
+      _defineProperty(this, "isPreDependOn", void 0);
+
+      _defineProperty(this, "_preModule", void 0);
+
+      _defineProperty(this, "targetDef", void 0);
+
+      this.src = src;
+      this.isPreDependOn = isPreDependOn;
+      this.modules = {};
+      this.defaultModule = null;
+      this.targetDef = null;
+
+      if (isPreDependOn) {
+        this._preModule = {
+          relyQueue: [],
+          get: function get() {
+            return this;
+          },
+          relyIt: function relyIt() {
+            var args = [];
+
+            for (var i = 0; i < arguments.length; i++) {
+              args.push(arguments[i]);
+            }
+
+            this.relyQueue.push(args);
+          }
+        };
+      }
+    }
+
+    _createClass(ModuleDef, [{
+      key: "giveRelys",
+      value: function giveRelys(module) {
+        var queue = this._preModule.relyQueue;
+        this._preModule = null;
+
+        while (queue.length) {
+          var args = queue.shift();
+          module.relyIt.apply(module, args);
+        }
+      }
+    }]);
+
+    return ModuleDef;
+  }();
+
+  function _isSrc(nameOrUrl) {
+    var isSrc = /^[a-zA-Z0-9]+:\/\//.test(nameOrUrl);
+    return isSrc;
+  }
+
+  function setLastDefineObject(src, defineObject) {
+    src = utils.removeQueryHash(src);
+    lastDefinObjectMap[src] = defineObject;
+  }
+
+  function getLastDefineObject(src) {
+    src = utils.removeQueryHash(src);
+    return lastDefinObjectMap[src];
+  }
 
   function getModule(nameOrUrl) {
+    var selfname = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
     nameOrUrl = utils.removeQueryHash(nameOrUrl);
-    var isSrc = /^[a-zA-Z0-9]+:\/\//.test(nameOrUrl);
+
+    var isSrc = _isSrc(nameOrUrl);
+
     var moduleDef = theDefinedMap[nameOrUrl];
 
     if (moduleDef) {
@@ -1931,14 +2079,36 @@
 
       if (isSrc) {
         //如果提供地址、则获取默认模块
-        module = moduleDef.defaultModule;
+        if (selfname) {
+          module = moduleDef.modules[selfname];
+        } else {
+          module = moduleDef.defaultModule;
+        }
       } else {
-        module = moduleDef.modules[nameOrUrl];
+        if (moduleDef.isPreDependOn) {
+          module = moduleDef._preModule;
+        } else {
+          module = moduleDef.modules[nameOrUrl];
+        }
       }
 
       return module ? module.get() : null;
     } else {
       return null;
+    }
+  } //提前依赖不存在的模块
+
+
+  function preDependOn(name) {
+    var isSrc = _isSrc(name);
+
+    if (isSrc) {
+      throw new Error("expected name,but src:" + name);
+    } else if (theDefinedMap[name]) {
+      throw new Error("already defined:" + name);
+    } else {
+      var def = new ModuleDef(null, !!name);
+      theDefinedMap[name] = def;
     }
   }
   /**
@@ -1995,11 +2165,17 @@
 
     if (moduleDef) {
       if (name) {
-        if (theDefinedMap[name] && theDefinedMap[name] != moduleDef) {
+        var lasfDef = theDefinedMap[name];
+
+        if (theDefinedMap[name] && lasfDef != moduleDef && !lasfDef.isPreDependOn) {
           throw new Error("already define module:\n\tname=" + name + ",current.src=" + src + ",\n\tthat.src=" + theDefinedMap[name].src);
         } else {
           moduleDef.modules[name] = module;
           theDefinedMap[name] = moduleDef;
+
+          if (lasfDef && lasfDef.isPreDependOn) {
+            lasfDef.giveRelys(module);
+          }
         }
       } else {
         //默认模块
@@ -2015,11 +2191,16 @@
 
       if (name) {
         moduleDef.modules[name] = module;
+        var _lasfDef = theDefinedMap[name];
 
-        if (theDefinedMap[name]) {
+        if (_lasfDef && !_lasfDef.isPreDependOn) {
           throw new Error("already define module:\n\tname=" + name + ",current.src=" + src + ",\n\tthat.src=" + theDefinedMap[name].src);
         } else {
           theDefinedMap[name] = moduleDef;
+
+          if (_lasfDef && _lasfDef.isPreDependOn) {
+            _lasfDef.giveRelys(module);
+          }
         }
       } else {
         //默认模块
@@ -2032,13 +2213,14 @@
     getModule: getModule,
     setModule: setModule,
     replaceModuleSrc: replaceModuleSrc,
-    clearEmptyModuleBySrc: clearEmptyModuleBySrc
+    clearEmptyModuleBySrc: clearEmptyModuleBySrc,
+    preDependOn: preDependOn,
+    setLastDefineObject: setLastDefineObject,
+    getLastDefineObject: getLastDefineObject
   };
 
   var global$8 = utils.global;
   var xsloader$8 = global$8.xsloader;
-  var INNER_DEPS_PLUGIN = "__inner_deps__";
-  var innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
 
   function buildInvoker(obj) {
     var invoker = obj["thiz"];
@@ -2091,7 +2273,7 @@
     };
 
     invoker.rurl = function (defineObject) {
-      return defineObject && defineObject.absUrl || this.absUrl() || this.getAbsoluteUrl();
+      return defineObject && defineObject.absUrl() || this.absUrl() || this.getAbsoluteUrl();
     };
 
     invoker.defineAsync = function () {
@@ -2099,11 +2281,13 @@
       return h;
     };
 
-    invoker.withAbsUrl = function (absUrl) {
+    invoker.withAbsUrl = function (_absUrl) {
       var moduleMap = {
         module: module,
-        src: absUrl,
-        absUrl: absUrl,
+        src: _absUrl,
+        absUrl: function absUrl() {
+          return _absUrl;
+        },
         name: invoker.getName(),
         invoker: invoker.invoker()
       };
@@ -2246,7 +2430,7 @@
 
           var onerror = function onerror(err) {
             hasFinished = true;
-            relyCallback(_this2, new xsloader$8.PluginError(err || false));
+            relyCallback(_this2, new utils.PluginError(err || false));
           };
 
           var args = [pluginArgs, onload, onerror, xsloader$8.config()].concat(this.module.depModules);
@@ -2280,7 +2464,9 @@
     var moduleMap = {
       module: module,
       src: module.thiz.getAbsoluteUrl(),
-      absUrl: module.thiz.absUrl(),
+      absUrl: function absUrl() {
+        return module.thiz.absUrl();
+      },
       name: module.thiz.getName(),
       invoker: instanceModule._invoker
     };
@@ -2291,7 +2477,7 @@
 
   function _newModule(name, src, absUrl, thatInvoker, callback) {
     src = utils.removeQueryHash(src);
-    var defineObject = new script.DefineObject(src, [name, null, callback], null, false);
+    var defineObject = new script.DefineObject(src, null, [name, null, callback], false);
     defineObject.thatInvoker = thatInvoker;
     defineObject.handle = {
       absUrl: absUrl
@@ -2331,7 +2517,9 @@
       depModules: null,
       src: defineObject.src,
       //绝对路径,可能等于当前页面路径
-      absUrl: defineObject.getMineAbsUrl(),
+      absUrl: function absUrl() {
+        return defineObject.absUrl();
+      },
       callback: defineObject.callback,
       _loadCallback: null,
       moduleObject: undefined,
@@ -2340,6 +2528,11 @@
       //循环依赖对象
       invoker: defineObject.thatInvoker,
       instanceType: "single",
+      reinitByDefineObject: function reinitByDefineObject(defineObject) {
+        this.deps = defineObject.deps || []; //this.absUrl = () => defineObject.absUrl();
+
+        this.callback = defineObject.callback;
+      },
       setInstanceType: function setInstanceType(instanceType) {
         this.instanceType = instanceType;
       },
@@ -2379,7 +2572,7 @@
         if (xsloader$8.isFunction(this.callback)) {
           try {
             script.currentDefineModuleQueue.push(this);
-            script.obj = this.callback.apply(this.thiz, args);
+            obj = this.callback.apply(this.thiz, args);
             script.currentDefineModuleQueue.pop();
           } catch (e) {
             script.currentDefineModuleQueue.pop();
@@ -2392,7 +2585,7 @@
           obj = this.callback;
 
           if (this.moduleObject !== undefined) {
-            console.log("ignore moudule:" + moduleMap.description());
+            console.warn("ignore moudule:" + moduleMap.description());
           }
         }
 
@@ -2555,7 +2748,7 @@
             return; //防止循环
           }
 
-          opId = opId || _getModuleId();
+          opId = opId || getModuleId();
           this.opId = opId;
           var obj = {};
 
@@ -2585,19 +2778,6 @@
         }
       };
       return _module_;
-    }; //添加到前面
-    //提供的参数deps为define里声明的
-
-
-    moduleMap.mayAddDeps = function (deps) {
-      var moduleDeps = this.deps;
-      utils.each(moduleDeps, function (dep) {
-        if (xsloader$8.indexInArray(deps, dep) < 0) {
-          deps.push(dep);
-        }
-      }, false, true);
-      this.deps = deps;
-      return deps;
     };
 
     moduleMap.printOnNotDefined = function () {
@@ -2642,7 +2822,7 @@
             as.push(infos[i++]);
           }
 
-          console.info(as.join("\n\t--->"));
+          console.warn(as.join("\n\t--->"));
         }
 
         var errModule = leaf.module;
@@ -2671,7 +2851,7 @@
             }
           }
 
-          console.info("failed module:" + errModule.description() + ",\n\tdeps state infos [" + _as.join(",") + "]");
+          console.warn("failed module:" + errModule.description() + ",\n\tdeps state infos [" + _as.join(",") + "]");
         }
       });
     };
@@ -2724,84 +2904,23 @@
 
   var randModuleIndex = 0;
 
-  function _getModuleId() {
+  function getModuleId() {
     return "_xs_req_2019_" + randModuleIndex++;
-  } //处理嵌套依赖
-
-
-  function _dealEmbedDeps(deps) {
-    for (var i = 0; i < deps.length; i++) {
-      var dep = deps[i];
-
-      if (xsloader$8.isArray(dep)) {
-        //内部的模块顺序加载
-        var modName = "inner_order_" + _getModuleId();
-
-        var isOrderDep = !(dep.length > 0 && dep[0] === false);
-
-        if (dep.length > 0 && (dep[0] === false || dep[0] === true)) {
-          dep = dep.slice(1);
-        }
-
-        innerDepsMap[modName] = {
-          deps: dep,
-          orderDep: isOrderDep
-        }; //console.log(innerDepsMap[modName]);
-
-        deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
-      }
-    }
-  }
-
-  function _getPluginParam(path) {
-    var pluginIndex = path.indexOf("!");
-
-    if (pluginIndex > 0) {
-      return path.substring(pluginIndex);
-    } else {
-      return "";
-    }
   } //everyOkCallback(depModules,module),errCallback(err,invoker)
 
 
   function everyRequired(defineObject, module, everyOkCallback, errCallback) {
     if (defineObject.isError) {
       return;
-    }
+    } //处理相对路径
 
+
+    defineObject.dealRelative(module);
     var config = xsloader$8.config();
-    var deps = module.deps;
-    utils.replaceModulePrefix(config, deps); //前缀替换
-
-    _dealEmbedDeps(deps); //处理嵌套依赖
-
-
-    for (var i = 0; i < deps.length; i++) {
-      //console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
-      var m = deps[i];
-      var jsFilePath = utils.isJsFile(m);
-
-      if (module.thiz.rurl(defineObject)) {
-        //替换相对路径为绝对路径
-        if (jsFilePath && xsloader$8.startsWith(m, ".")) {
-          m = utils.getPathWithRelative(module.thiz.rurl(defineObject), jsFilePath.path) + _getPluginParam(m);
-          deps[i] = m;
-        }
-      }
-
-      var paths = utils.graphPath.tryAddEdge(defineObject.handle.defined_module_for_deps || module.selfname, m);
-
-      if (paths.length > 0) {
-        var moduleLoop = moduleDef.getModule(m); //该模块必定已经被定义过
-
-        moduleLoop.loopObject = {};
-      }
-    }
-
     var isError = false,
         hasCallErr = false,
         theExports;
-    var depCount = deps.length; //module.jsScriptCount = 0;
+    var depCount = module.deps.length; //module.jsScriptCount = 0;
 
     var depModules = new Array(depCount);
     var invoker_the_module = module.thiz;
@@ -2829,7 +2948,7 @@
       !isError && syncHandle && syncHandle();
     }
 
-    utils.each(deps, function (dep, index, ary, syncHandle) {
+    utils.each(module.deps, function (dep, index, ary, syncHandle) {
       var originDep = dep;
       var pluginArgs = undefined;
       var pluginIndex = dep.indexOf("!");
@@ -2902,11 +3021,13 @@
             urls = [dep];
           } else {
             urls = [];
-          }
+          } //TODO errCallback是否无效??
+
 
           if (urls.length == 0) {
-            isError = "module '" + dep + "' urls is empty.";
-            errCallback(isError, invoker_the_module);
+            //提前依赖模块
+            moduleDef.preDependOn(dep); //					isError = "module '" + dep + "' urls is empty.";
+            //					errCallback(isError, invoker_the_module);
           } else {
             utils.each(urls, function (url, index) {
               if (xsloader$8.startsWith(url, ".") || xsloader$8.startsWith(url, "/")) {
@@ -2930,7 +3051,7 @@
             });
           }
 
-          if (!isError) {
+          if (!isError && urls.length) {
             //加载模块dep:module2
             var loadModule = function loadModule() {
               var index = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
@@ -2940,6 +3061,7 @@
               }
 
               var url = urls[index];
+              moduleDef.setLastDefineObject(url, defineObject);
 
               if (index > 0) {
                 var oldSrc = module2.src;
@@ -2948,7 +3070,22 @@
               }
 
               script.loadScript(module2.selfname, url, function (scriptData) {
-                console.log(scriptData);
+                //console.log(scriptData);
+                if (module2.state == "loading") {
+                  //module2.selfname为配置名称，尝试默认模块
+                  var defaultMod = moduleDef.getModule(module2.src);
+
+                  if (defaultMod && module2 != defaultMod) {
+                    module2.toOtherModule(defaultMod);
+                  }
+                }
+
+                if (module2.state == "loading") {
+                  //								isError = "load module err(may not define default):" + module2.description();
+                  //								errCallback(isError, invoker_the_module);
+                  //？？没有define的情况、直接完成
+                  module2.finish([]);
+                }
               }, function (err) {
                 if (index + 1 < urls.length) {
                   loadModule(index + 1);
@@ -2959,7 +3096,9 @@
               });
             };
 
-            var module2 = _newModule(dep, urls[0], module.absUrl, module.thiz);
+            var m2Name = isJsFile ? null : dep;
+
+            var module2 = _newModule(m2Name, urls[0], module.absUrl, module.thiz);
 
             module2.setState("loading");
             loadModule();
@@ -2982,10 +3121,9 @@
   var moduleScript = _objectSpread2({}, moduleDef, {
     newModule: newModule,
     everyRequired: everyRequired,
-    INNER_DEPS_PLUGIN: INNER_DEPS_PLUGIN,
-    innerDepsMap: innerDepsMap,
     buildInvoker: buildInvoker,
-    newModuleInstance: newModuleInstance
+    newModuleInstance: newModuleInstance,
+    getModuleId: getModuleId
   });
 
   var global$9 = utils.global;
@@ -2993,10 +3131,19 @@
   var defContextName = "xsloader1.1.x";
   var DATA_ATTR_MODULE = 'data-xsloader-module';
   var DATA_ATTR_CONTEXT = "data-xsloader-context";
+  var INNER_DEPS_PLUGIN = "__inner_deps__";
+  var innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
+
   var globalDefineQueue = []; //没有配置前的define
 
-  var head = document.head || document.getElementsByTagName('head')[0];
   var isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
+
+  var safariVersion = function () {
+    var ua = navigator.userAgent.toLowerCase();
+    var s = ua.match(/version\/([\d.]+).*safari/);
+    return s ? parseInt(s[1]) : -1;
+  }();
+
   var readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
   var theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
   var theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
@@ -3007,6 +3154,7 @@
     return url;
   }();
 
+  var head = document.head || document.getElementsByTagName('head')[0];
   var currentDefineModuleQueue = []; //当前回调的模块
 
   currentDefineModuleQueue.peek = function () {
@@ -3016,11 +3164,47 @@
   };
 
   var lastAppendHeadDom = theLoaderScript;
-  var useDefineQueue;
+  var isSrcFromScriptLoad; //获取脚本的src是否在load事件阶段
+
+  var lastScriptSrc = thePageUrl;
   var theRealDefine;
 
-  if (utils.safariVersion > 0 && utils.safariVersion <= 7) {
-    useDefineQueue = [];
+  if (safariVersion > 0 && safariVersion <= 7) {
+    isSrcFromScriptLoad = true;
+  } //处理嵌套依赖
+
+
+  function _dealEmbedDeps(deps) {
+    for (var i = 0; i < deps.length; i++) {
+      var dep = deps[i];
+
+      if (xsloader$9.isArray(dep)) {
+        //内部的模块顺序加载
+        var modName = "inner_order_" + moduleScript.getModuleId();
+        var isOrderDep = !(dep.length > 0 && dep[0] === false);
+
+        if (dep.length > 0 && (dep[0] === false || dep[0] === true)) {
+          dep = dep.slice(1);
+        }
+
+        innerDepsMap[modName] = {
+          deps: dep,
+          orderDep: isOrderDep
+        }; //console.log(innerDepsMap[modName]);
+
+        deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
+      }
+    }
+  }
+
+  function _getPluginParam(path) {
+    var pluginIndex = path.indexOf("!");
+
+    if (pluginIndex > 0) {
+      return path.substring(pluginIndex);
+    } else {
+      return "";
+    }
   } /////////////////////////////
 
 
@@ -3058,14 +3242,16 @@
       key: "absUrl",
       value: function absUrl() {
         //用于获取其他模块地址的参考路径
-        return this._im.get().absUrl;
+        return this._im.get().absUrl();
       }
     }]);
 
     return Invoker;
   }();
 
-  function getInvoker(thiz, nullNew) {
+  function getInvoker(thiz) {
+    var nullNew = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+
     if (thiz instanceof Invoker) {
       return thiz;
     } else if (thiz instanceof DefineObject) {
@@ -3074,7 +3260,9 @@
       var moduleMap = {
         module: "",
         src: thePageUrl,
-        absUrl: thePageUrl,
+        absUrl: function absUrl() {
+          return thePageUrl;
+        },
         name: "__root__",
         invoker: null
       };
@@ -3092,8 +3280,10 @@
   var DefineObject =
   /*#__PURE__*/
   function () {
-    function DefineObject(src, thiz, args) {
+    function DefineObject(src, thiz) {
+      var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
       var isRequire = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
+      var willDealConfigDeps = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : true;
 
       _classCallCheck(this, DefineObject);
 
@@ -3120,7 +3310,9 @@
       this.isRequire = isRequire;
       this.parentDefine = currentDefineModuleQueue.peek();
       this.handle = {
-        onError: function onError(err) {},
+        onError: function onError(err) {
+          console.warn(err);
+        },
         before: function before(deps) {},
         depBefore: function depBefore(index, dep, depDeps) {},
         orderDep: false,
@@ -3134,13 +3326,18 @@
       var deps = args[1];
       var callback = args[2];
 
-      if (typeof selfname !== 'string') {
+      if (args.length == 1) {
+        //直接定义模块，且没有依赖
+        callback = selfname;
+        selfname = null;
+        deps = null;
+      } else if (typeof selfname !== 'string') {
         callback = deps;
         deps = selfname;
         selfname = null; //为空的、表示定义默认模块
       }
 
-      if (!xsloader$9.isArray(deps)) {
+      if (deps && !xsloader$9.isArray(deps)) {
         callback = deps;
         deps = null;
       }
@@ -3152,35 +3349,83 @@
 
 
       utils.appendInnerDeps(deps, callback); //}
-      //获取配置里配置的依赖
-
-      var _deps = xsloader$9.config().getDeps(src);
-
-      utils.each(_deps, function (dep) {
-        deps.push(dep);
-      });
-
-      if (selfname && selfname != src) {
-        _deps = xsloader$9.config().getDeps(selfname);
-        utils.each(_deps, function (dep) {
-          deps.push(dep);
-        });
-      }
 
       this.selfname = selfname;
       this.deps = deps;
       this.callback = callback;
+
+      if (willDealConfigDeps) {
+        //处理配置依赖及嵌套依赖
+        this.dealConfigDeps();
+      }
     }
 
     _createClass(DefineObject, [{
-      key: "getMineAbsUrl",
-      value: function getMineAbsUrl() {
-        return this.handle.absUrl || this.handle.absoluteUrl;
+      key: "dealConfigDeps",
+      value: function dealConfigDeps() {
+        var src = this.src;
+        var selfname = this.selfname;
+        var deps = this.deps;
+        var config = xsloader$9.config();
+
+        if (config) {
+          //获取配置里配置的依赖
+          var _deps = config.getDeps(src);
+
+          utils.each(_deps, function (dep) {
+            deps.push(dep);
+          });
+
+          if (selfname && selfname != src) {
+            _deps = config.getDeps(selfname);
+            utils.each(_deps, function (dep) {
+              deps.push(dep);
+            });
+          } //前缀替换
+
+
+          utils.replaceModulePrefix(config, deps);
+        } //处理嵌套依赖
+
+
+        _dealEmbedDeps(deps);
+      }
+    }, {
+      key: "dealRelative",
+      value: function dealRelative(module) {
+        var deps = this.deps; //处理相对路径
+
+        for (var i = 0; i < deps.length; i++) {
+          //console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
+          var m = deps[i];
+          var jsFilePath = utils.isJsFile(m);
+
+          if (module.thiz.rurl(this)) {
+            //替换相对路径为绝对路径
+            if (jsFilePath && xsloader$9.startsWith(m, ".")) {
+              m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
+              deps[i] = m;
+            }
+          }
+
+          var paths = utils.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
+
+          if (paths.length > 0) {
+            var moduleLoop = moduleScript.getModule(m); //该模块必定已经被定义过
+
+            moduleLoop.loopObject = {};
+          }
+        }
       }
     }, {
       key: "absUrl",
-      get: function get() {
-        return this.getMineAbsUrl() || (this.thatInvoker ? this.thatInvoker.absUrl() : null);
+      value: function absUrl() {
+        return this.getMineAbsUrl() || this.src; //(this.thatInvoker ? this.thatInvoker.absUrl() : null);
+      }
+    }, {
+      key: "getMineAbsUrl",
+      value: function getMineAbsUrl() {
+        return this.handle.absUrl || this.handle.absoluteUrl;
       }
     }]);
 
@@ -3220,10 +3465,16 @@
           var _node = nodes[i];
 
           if (_node.readyState === "interactive") {
-            return {
-              node: _node,
-              src: _node.src
-            };
+            if (_node.src) {
+              return {
+                node: _node,
+                src: _node.src
+              };
+            } else {
+              return {
+                src: thePageUrl
+              };
+            }
           }
         }
       }
@@ -3267,28 +3518,37 @@
 
     var rs = _getCurrentScriptOrSrc();
 
-    if (rs) {
-      if (!rs.node) {
-        var src = utils.removeQueryHash(rs.src);
-        var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+    if (!rs) {
+      rs = {
+        src: thePageUrl
+      };
+    }
 
-        for (var i = 0; i < nodes.length; i++) {
-          var node = nodes[i];
+    if (utils.isLoaderEnd() && rs.src == theLoaderUrl) {
+      rs.src = thePageUrl;
+      rs.node = null;
+    }
 
-          if (src == utils.removeQueryHash(node.src)) {
-            rs.node = node;
-            break;
-          }
+    if (!rs.node && rs.src != thePageUrl) {
+      var src = utils.removeQueryHash(rs.src);
+      var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+
+      for (var i = 0; i < nodes.length; i++) {
+        var node = nodes[i];
+
+        if (src == utils.removeQueryHash(node.src)) {
+          rs.node = node;
+          break;
         }
       }
+    }
 
-      if (rs.node) {
-        rs.src = utils.getNodeAbsolutePath(rs.node);
-      }
+    if (rs.node) {
+      rs.src = utils.getNodeAbsolutePath(rs.node);
+    }
 
-      if (isRemoveQueryHash) {
-        rs.src = utils.removeQueryHash(rs.src);
-      }
+    if (isRemoveQueryHash) {
+      rs.src = utils.removeQueryHash(rs.src);
     }
 
     return rs;
@@ -3321,10 +3581,11 @@
   function __browserLoader(moduleName, url, callbackObj) {
     var node = __createNode();
 
-    node.setAttribute(DATA_ATTR_MODULE, moduleName);
+    moduleName && node.setAttribute(DATA_ATTR_MODULE, moduleName);
     node.setAttribute(DATA_ATTR_CONTEXT, defContextName);
+    var useAttach = !xsloader$9.isFunction(node.addEventListener) && node.attachEvent && !(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) && !isOpera;
 
-    if (node.attachEvent && !(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) && !isOpera) {
+    if (useAttach) {
       node.attachEvent('onreadystatechange', callbackObj.onScriptLoad);
     } else {
       node.addEventListener('load', callbackObj.onScriptLoad, true);
@@ -3382,14 +3643,22 @@
 
         var scriptData = __getScriptData(evt, callbackObj);
 
-        if (useDefineQueue) {
-          utils.each(useDefineQueue, function (defineObject) {
-            defineObject.src = scriptData.src; //已经不含参数
-          });
-          theRealDefine(_toConsumableArray(useDefineQueue));
-        }
+        if (isSrcFromScriptLoad) {
+          lastScriptSrc = scriptData.src; //已经不含参数
 
-        onload(scriptData);
+          xsloader$9.asyncCall(function () {
+            onload(scriptData);
+          });
+        } else {
+          if (utils.IE_VERSION > 0) {
+            //ie下确保此事件在脚本之后执行。
+            xsloader$9.asyncCall(function () {
+              onload(scriptData);
+            });
+          } else {
+            onload(scriptData);
+          }
+        }
       }
     };
 
@@ -3411,9 +3680,9 @@
   function doDefine(thiz, args, isRequire) {
     var src = getCurrentScript().src; //已经不含参数
 
-    var defineObject = new DefineObject(src, thiz, args, isRequire);
+    var defineObject = new DefineObject(src, thiz, args, isRequire, !isSrcFromScriptLoad);
 
-    if (!useDefineQueue) {
+    if (!isSrcFromScriptLoad) {
       try {
         //防止执行其他脚本
         if (defineObject.src) {
@@ -3440,14 +3709,17 @@
         return this;
       }
     };
+    var isLoaderEnd = utils.isLoaderEnd();
     xsloader$9.asyncCall(function () {
-      if (useDefineQueue) {
-        useDefineQueue.push(defineObject);
+      if (isSrcFromScriptLoad && isLoaderEnd) {
+        //执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
+        defineObject.src = lastScriptSrc;
+        defineObject.dealConfigDeps();
+        theRealDefine([defineObject]);
       } else {
         theRealDefine([defineObject]);
       }
     });
-    xsloader$9.asyncCall().next(function () {});
     return handle;
   }
 
@@ -3524,23 +3796,50 @@
     var handle = doDefine(this, [selfname, deps, function () {
       if (timeid !== undefined) {
         clearTimeout(timeid);
+        timeid = undefined;
       }
 
       if (xsloader$9.isFunction(callback)) {
         callback.apply(this, arguments);
       }
-    }], true); //TODO handle.isError处理与抛出异常处理
+    }], true);
+    var customerErrCallback;
+    var isErr;
+    handle.error(function (err, invoker) {
+      isErr = err;
+
+      if (timeid !== undefined) {
+        clearTimeout(timeid);
+        timeid = undefined;
+      }
+
+      if (customerErrCallback) {
+        customerErrCallback(err, invoker);
+      } else {
+        console.warn("invoker.url:" + invoker.getUrl());
+        console.warn(err);
+      }
+    });
+
+    handle.error = function (errCallback) {
+      customerErrCallback = errCallback;
+      return this;
+    };
 
     var checkResultFun = function checkResultFun() {
+      timeid = undefined;
       var ifmodule = moduleScript.getModule(selfname);
 
-      if ((!ifmodule || ifmodule.state != 'defined') && !handle.isError) {
+      if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
         var _module = ifmodule;
 
         if (_module) {
           utils.each(_module.deps, function (dep) {
             var mod = moduleScript.getModule(dep);
-            mod && mod.printOnNotDefined();
+
+            if (mod && mod.printOnNotDefined) {
+              mod.printOnNotDefined();
+            }
           });
         }
 
@@ -3554,12 +3853,12 @@
 
 
   var initDefine = function initDefine(theDefine) {
-    theRealDefine = function theRealDefine(defines) {
+    theRealDefine = function theRealDefine(defines, loaded) {
       if (!xsloader$9.config()) {
         //还没有配置
         globalDefineQueue.push(defines);
       } else {
-        theDefine(defines);
+        theDefine(defines, loaded);
       }
     };
 
@@ -3587,7 +3886,9 @@
     DefineObject: DefineObject,
     loadScript: loadScript,
     currentDefineModuleQueue: currentDefineModuleQueue,
-    onConfigedCallback: onConfigedCallback
+    onConfigedCallback: onConfigedCallback,
+    INNER_DEPS_PLUGIN: INNER_DEPS_PLUGIN,
+    innerDepsMap: innerDepsMap
   };
 
   var global$a = utils.global;
@@ -3620,6 +3921,8 @@
   xsloader$a.clearUrlArgs = function () {
     argsObject = {};
   };
+
+  xsloader$a.appendHeadDom = script.appendHeadDom;
 
   xsloader$a.hasDefine = function (name) {
     var has = false;
@@ -3993,41 +4296,12 @@
   var global$b = utils.global;
   var xsloader$b = global$b.xsloader;
   var defineHandle = script.initDefine(function theRealDefine(defines) {
+    var loaded = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : function () {};
     utils.each(defines, function (defineObject) {
-      /*let selfname = defineObject.args[0];
-      let deps = defineObject.args[1];
-      let callback = defineObject.args[2];
-      	if(typeof selfname !== 'string') {
-      	callback = deps;
-      	deps = selfname;
-      	selfname = null;//为空的、表示定义默认模块
-      }
-      	if(!xsloader.isArray(deps)) {
-      	callback = deps;
-      	deps = null;
-      }
-      	if(!deps) {
-      	deps = [];
-      }
-      	//获取函数体里直接require('...')的依赖
-      //if(!isRequire) {
-      utils.appendInnerDeps(deps, callback);
-      //}
-      //获取配置里配置的依赖
-      let _deps = xsloader.config().getDeps(defineObject.src);
-      utils.each(_deps, (dep) => {
-      	deps.push(dep);
-      });
-      if(selfname && selfname != defineObject.src) {
-      	_deps = xsloader.config().getDeps(selfname);
-      	utils.each(_deps, (dep) => {
-      		deps.push(dep);
-      	});
-      }*/
       if (xsloader$b.isFunction(defineObject.callback)) {
         var originCallback = defineObject.callback;
 
-        callback = function callback() {
+        defineObject.callback = function () {
           var config = xsloader$b.config();
           var rt;
           var defineFun;
@@ -4059,7 +4333,8 @@
         defineObject.callback.originCallback = originCallback;
       }
 
-      onModuleLoaded(defineObject);
+      onModuleLoaded(defineObject, moduleScript.getLastDefineObject(defineObject.src));
+      loaded();
     });
   });
   /**
@@ -4072,13 +4347,17 @@
 
   function onModuleLoaded(defineObject, lastDefineObject) {
     //先根据src获取模块
-    var ifmodule = moduleScript.getModule(defineObject.src);
+    var ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
 
-    if (ifmodule) ; else {
+    if (ifmodule) {
+      if (ifmodule.state == "loading") {
+        ifmodule.reinitByDefineObject(defineObject);
+      }
+    } else {
       ifmodule = moduleScript.newModule(defineObject);
     }
 
-    var names = [defineObject.src];
+    var names = []; //[defineObject.src];
 
     if (defineObject.selfname && defineObject.selfname != defineObject.src) {
       names.push(defineObject.selfname);
@@ -4093,43 +4372,12 @@
 
     utils.each(names, function (name) {
       moduleScript.setModule(name, ifmodule);
+
+      if (xsloader$b._ignoreAspect_[name]) {
+        ifmodule.ignoreAspect = true;
+      }
     });
-    /*if(ifmodule.selfname != ifmodule.src) {
-    	//此处的名字可能由配置指定
-    	let moduleSelf = moduleScript.getModule(ifmodule.selfname);
-    	if(moduleSelf) { //让配置的名字也最终指向src的
-    		if(moduleSelf != ifmodule) {
-    			if(moduleSelf.state == "init") {
-    				moduleScript.setModule(ifmodule.selfname, module);
-    				moduleSelf.toOtherModule(module);
-    			} else {
-    				throw Error("already define:" + ifmodule.description());
-    			}
-    		}
-    	} else {
-    		moduleScript.setModule(ifmodule.selfname, module);
-    	}
-    }
-    	if(defineObject.selfname != defineObject.src && defineObject.selfname != ifmodule.selfname) {
-    	//此处的名字一定是define时指定
-    	let moduleSelf = moduleScript.getModule(defineObject.selfname);
-    	if(moduleSelf) { //让define的名字也最终指向src的
-    		if(moduleSelf != ifmodule) {
-    			if(moduleSelf.state == "init") {
-    				moduleScript.setModule(ifmodule.selfname, module);
-    				moduleSelf.toOtherModule(module);
-    			} else {
-    				throw Error("already define:" + ifmodule.description());
-    			}
-    		}
-    	} else {
-    		moduleScript.setModule(ifmodule.selfname, module);
-    	}
-    }*/
-
-    var module = ifmodule; //defineObject里的deps最初是直接声明的依赖,应该出现在最前面
-
-    module.mayAddDeps(defineObject.deps);
+    var module = ifmodule;
 
     if (defineObject.handle.before) {
       defineObject.handle.before(module.deps);
@@ -4137,10 +4385,6 @@
 
     if (lastDefineObject && lastDefineObject.handle.depBefore) {
       lastDefineObject.handle.depBefore(lastDefineObject.index, module.selfname, module.deps, 2);
-    }
-
-    if (xsloader$b._ignoreAspect_[module.selfname]) {
-      module.ignoreAspect = true;
     }
 
     module.setState("loaded");
@@ -4182,6 +4426,24 @@
     return defineHandle.prerequire.apply(this, arguments);
   };
 
+  require.has = function () {
+    var args = arguments;
+
+    if (args.length == 0) {
+      return false;
+    }
+
+    for (var i = 0; i < args.length; i++) {
+      var module = moduleScript.getModule(args[i]);
+
+      if (!module || module.state != "defined") {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   xsloader$b.define = define;
   xsloader$b.defineAsync = define;
   xsloader$b.require = require;
@@ -4193,9 +4455,9 @@
   var global$c = utils.global;
   var xsloader$c = global$c.xsloader; //内部依赖加载插件
 
-  xsloader$c.define(moduleScript.INNER_DEPS_PLUGIN, {
+  xsloader$c.define(script.INNER_DEPS_PLUGIN, {
     pluginMain: function pluginMain(depId, onload, onerror, config) {
-      var depsObj = moduleScript.innerDepsMap[depId];
+      var depsObj = script.innerDepsMap[depId];
       var deps = depsObj.deps; //delete innerDepsMap[depId];
 
       this.invoker().require(deps, function () {
@@ -4207,7 +4469,10 @@
 
         onload(args);
       }).then({
-        orderDep: depsObj.orderDep
+        orderDep: depsObj.orderDep,
+        error: function error(err, invoker) {
+          onerror(new utils.PluginError(err, invoker));
+        }
       });
     },
     getCacheKey: function getCacheKey(depId) {
@@ -6047,6 +6312,8 @@
   }
 
   initFun && initFun();
+
+  utils.loaderEnd();
 
 }());
 //# sourceMappingURL=xsloader.js.map

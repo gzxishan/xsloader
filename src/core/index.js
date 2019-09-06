@@ -35,6 +35,8 @@ xsloader.clearUrlArgs = function() {
 	argsObject = {};
 };
 
+xsloader.appendHeadDom=script.appendHeadDom;
+
 xsloader.hasDefine = function(name) {
 	let has = false;
 	let module = moduleScript.getModule(name);

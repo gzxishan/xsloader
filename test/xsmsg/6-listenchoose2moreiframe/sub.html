@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>子页面</title>
+		<script src="../../../dist/xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<p>这是子页面</p>
+		<div id="logDiv">
+
+		</div>
+		<script type="text/javascript">
+			window.divLog = function(obj) {
+				var div = document.getElementById("logDiv");
+				var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+				txt = txt.replace(/\\r\\n|\\n/g, "\n");
+				txt = txt.replace(/\\t/g, "    ");
+
+				div.innerText = div.innerText + "\n" + txt;
+			};
+			xsloader({});
+			require(["xsmsg"], function(xsmsg) {
+				xsmsg.connectParent({
+					conndata: "sub-main",
+					connected: function(sender, data) {
+						divLog(data);
+						sender({
+							text: "sub send:"+xsJson2String(data)
+						});
+					},
+					listener: function(data) {
+						divLog(data);
+					}
+				});
+				
+				xsmsg.connectParent({
+					conndata: "sub-main2",
+					connected: function(sender, data) {
+						divLog(data);
+						sender({
+							text: "sub2 send:"+xsJson2String(data)
+						});
+					},
+					listener: function(data) {
+						divLog(data);
+					}
+				});
+			});
+		</script>
+	</body>
+
+</html>

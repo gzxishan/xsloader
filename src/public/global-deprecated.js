@@ -7,7 +7,7 @@ const xsloader = global.xsloader;
 try {
 	if(Function.prototype.bind && console && (typeof console['log'] == "object")) {
 		utils.each(["log", "info", "warn", "error", "assert", "dir", "clear", "profile", "profileEnd"], (method) => {
-			var thiz = Function.prototype.bind;
+			let thiz = Function.prototype.bind;
 			console[method] = thiz.call(console[method], console);
 		});
 	}

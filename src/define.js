@@ -5,46 +5,11 @@ import moduleScript from "./core/module.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
-const defineHandle = script.initDefine(function theRealDefine(defines) {
+const defineHandle = script.initDefine(function theRealDefine(defines, loaded = () => {}) {
 	utils.each(defines, (defineObject) => {
-		/*let selfname = defineObject.args[0];
-		let deps = defineObject.args[1];
-		let callback = defineObject.args[2];
-
-		if(typeof selfname !== 'string') {
-			callback = deps;
-			deps = selfname;
-			selfname = null;//为空的、表示定义默认模块
-		}
-
-		if(!xsloader.isArray(deps)) {
-			callback = deps;
-			deps = null;
-		}
-
-		if(!deps) {
-			deps = [];
-		}
-
-		//获取函数体里直接require('...')的依赖
-		//if(!isRequire) {
-		utils.appendInnerDeps(deps, callback);
-		//}
-		//获取配置里配置的依赖
-		let _deps = xsloader.config().getDeps(defineObject.src);
-		utils.each(_deps, (dep) => {
-			deps.push(dep);
-		});
-		if(selfname && selfname != defineObject.src) {
-			_deps = xsloader.config().getDeps(selfname);
-			utils.each(_deps, (dep) => {
-				deps.push(dep);
-			});
-		}*/
-
 		if(xsloader.isFunction(defineObject.callback)) {
 			let originCallback = defineObject.callback;
-			callback = function() {
+			defineObject.callback = function() {
 				let config = xsloader.config();
 				let rt;
 
@@ -72,8 +37,8 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 			};
 			defineObject.callback.originCallback = originCallback;
 		}
-		onModuleLoaded(defineObject);
-
+		onModuleLoaded(defineObject, moduleScript.getLastDefineObject(defineObject.src));
+		loaded();
 	});
 });
 
@@ -87,21 +52,16 @@ const defineHandle = script.initDefine(function theRealDefine(defines) {
 function onModuleLoaded(defineObject, lastDefineObject) {
 
 	//先根据src获取模块
-	let ifmodule = moduleScript.getModule(defineObject.src);
+	let ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
 	if(ifmodule) {
-		/*if(ifmodule.state != 'loading' && ifmodule.state != 'init') {
-			//正常
-		} else if(ifmodule.state == "defined") {
-			throw new Error("already define:" + ifmodule.description());
-		} else {
-			throw new Error("already define failed:" + ifmodule.description());
-		}*/
-
+		if(ifmodule.state == "loading") {
+			ifmodule.reinitByDefineObject(defineObject);
+		}
 	} else {
 		ifmodule = moduleScript.newModule(defineObject);
 	}
 
-	let names = [defineObject.src];
+	let names = []; //[defineObject.src];
 	if(defineObject.selfname && defineObject.selfname != defineObject.src) {
 		names.push(defineObject.selfname);
 	}
@@ -113,55 +73,18 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	defineObject.names = names; //一个模块的所有名字，包括src
 	utils.each(names, (name) => {
 		moduleScript.setModule(name, ifmodule);
+		if(xsloader._ignoreAspect_[name]) {
+			ifmodule.ignoreAspect = true;
+		}
 	});
 
-	/*if(ifmodule.selfname != ifmodule.src) {
-		//此处的名字可能由配置指定
-		let moduleSelf = moduleScript.getModule(ifmodule.selfname);
-		if(moduleSelf) { //让配置的名字也最终指向src的
-			if(moduleSelf != ifmodule) {
-				if(moduleSelf.state == "init") {
-					moduleScript.setModule(ifmodule.selfname, module);
-					moduleSelf.toOtherModule(module);
-				} else {
-					throw Error("already define:" + ifmodule.description());
-				}
-			}
-		} else {
-			moduleScript.setModule(ifmodule.selfname, module);
-		}
-	}
-
-	if(defineObject.selfname != defineObject.src && defineObject.selfname != ifmodule.selfname) {
-		//此处的名字一定是define时指定
-		let moduleSelf = moduleScript.getModule(defineObject.selfname);
-		if(moduleSelf) { //让define的名字也最终指向src的
-			if(moduleSelf != ifmodule) {
-				if(moduleSelf.state == "init") {
-					moduleScript.setModule(ifmodule.selfname, module);
-					moduleSelf.toOtherModule(module);
-				} else {
-					throw Error("already define:" + ifmodule.description());
-				}
-			}
-		} else {
-			moduleScript.setModule(ifmodule.selfname, module);
-		}
-	}*/
-
 	let module = ifmodule;
-	//defineObject里的deps最初是直接声明的依赖,应该出现在最前面
-	module.mayAddDeps(defineObject.deps);
 
 	if(defineObject.handle.before) {
 		defineObject.handle.before(module.deps);
 	}
 	if(lastDefineObject && lastDefineObject.handle.depBefore) {
 		lastDefineObject.handle.depBefore(lastDefineObject.index, module.selfname, module.deps, 2);
-	}
-
-	if(xsloader._ignoreAspect_[module.selfname]) {
-		module.ignoreAspect = true;
 	}
 
 	module.setState("loaded");
@@ -202,6 +125,20 @@ const define = function() {
 
 const require = function() {
 	return defineHandle.prerequire.apply(this, arguments);
+};
+
+require.has = function() {
+	var args = arguments;
+	if(args.length == 0) {
+		return false;
+	}
+	for(var i = 0; i < args.length; i++) {
+		var module = moduleScript.getModule(args[i]);
+		if(!module || module.state != "defined") {
+			return false;
+		}
+	}
+	return true;
 };
 
 xsloader.define = define;

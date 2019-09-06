@@ -5,6 +5,7 @@ import utils from "../util/index.js";
 
 const global = utils.global;
 const xsloader = global.xsloader;
+const IE_VERSION = utils.IE_VERSION;
 
 if(!String.prototype.trim) {
 	String.prototype.trim = function() {
@@ -23,7 +24,7 @@ function randId(suffix) {
 
 function xsEval(scriptString) {
 	try {
-		let rs = xsloader.IE_VERSION > 0 && xsloader.IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
+		let rs = IE_VERSION > 0 && IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
 		return rs;
 	} catch(e) {
 		throw e;
@@ -208,5 +209,6 @@ export default {
 	xsJson2String,
 	getPathWithRelative,
 	appendArgs2Url,
-	queryString2ParamsMap
+	queryString2ParamsMap,
+	IE_VERSION
 };
