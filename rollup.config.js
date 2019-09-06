@@ -37,6 +37,16 @@ export default {
 		babel({
 			exclude: 'node_modules/**'
 		}),
-		(isProduct && uglify()),
+		(isProduct && uglify(
+		{output: {
+            comments: function(node, comment) {
+              if (comment.type === "comment2") {
+                return /@preserve|@license|Released under the/i.test(comment.value);
+              }
+              return false;
+            }
+          }
+		})),
+
 	],
 };

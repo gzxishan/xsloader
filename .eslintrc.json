@@ -23,7 +23,7 @@
     "no-empty": "warn",
     "indent": 0,
     "linebreak-style": [
-      "warn",
+      0,
       "unix"
     ],
     "semi": [
