@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Fri, 06 Sep 2019 10:08:24 GMT
+ * build time:Fri, 06 Sep 2019 10:20:02 GMT
  */
 (function () {
   'use strict';
@@ -3650,7 +3650,7 @@
             onload(scriptData);
           });
         } else {
-          if (utils.IE_VERSION > 0) {
+          if (utils.IE_VERSION > 0 || utils.IE_VERSION == "edge") {
             //ie下确保此事件在脚本之后执行。
             xsloader$9.asyncCall(function () {
               onload(scriptData);

@@ -431,7 +431,7 @@ function loadScript(moduleName, url, onload, onerror) {
 					onload(scriptData);
 				});
 			} else {
-				if(utils.IE_VERSION > 0) { //ie下确保此事件在脚本之后执行。
+				if(utils.IE_VERSION > 0 || utils.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
 					xsloader.asyncCall(() => {
 						onload(scriptData);
 					});
