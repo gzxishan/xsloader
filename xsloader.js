@@ -5,7 +5,7 @@
 
 /**
  * 溪山科技浏览器端js模块加载器。
- * latest:2019-06-06 12:50
+ * latest:2019-08-14 17:50
  * version:1.0.0
  * date:2018-1-25
  * 
@@ -444,14 +444,24 @@ var queryString2ParamsMap;
 			return argsStr;
 		}
 		if(!argsStr) {
-			return {};
+			argsStr = location.search;
 		}
 		if(decode === undefined) {
 			decode = true;
 		}
-		if(argsStr.length > 0 && argsStr.charAt(0) == "?") {
-			argsStr = argsStr.substring(1);
+		var index = argsStr.indexOf("?");
+		if(index >= 0) {
+			argsStr = argsStr.substring(index + 1);
+		} else {
+			if(_dealAbsolute(argsStr).absolute) {
+				return {};
+			}
 		}
+		index = argsStr.lastIndexOf("#");
+		if(index >= 0) {
+			argsStr = argsStr.substring(0, index);
+		}
+
 		var ret = {},
 			seg = argsStr.split('&'),
 			len = seg.length,
@@ -574,7 +584,7 @@ var queryString2ParamsMap;
 	var theLoaderUrl = _getAbsolutePath(theLoaderScript);
 	var lastAppendHeadDom = theLoaderScript;
 	var loadScriptMap = {}; //已经加载成功的脚本
-	var defaultJsExts = [".js", ".js+", "es6", ".jsx", ".vue"];
+	var defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue"];
 
 	//去掉模块url的参数
 	function removeUrlParam(nameOrUrl) {
@@ -1024,6 +1034,7 @@ var queryString2ParamsMap;
 			module.cacheId = cache.id;
 		}
 
+		//cache里的deps最初是直接声明的依赖
 		deps = cache.deps = module.mayAddDeps(deps);
 		if(thenOption.before) {
 			thenOption.before(deps);
@@ -1063,19 +1074,27 @@ var queryString2ParamsMap;
 		if(deps.length == 0) {
 			module.finish([]); //递归结束
 		} else {
-			_everyRequired(data, thenOption, module, deps, function(depModules) {
-
-				var args = [];
-				var depModuleArgs = [];
-				each(depModules, function(depModule) {
-					depModuleArgs.push(depModule);
-					args.push(depModule && depModule.moduleObject());
+			//在其他模块依赖此模块时进行加载
+			var needCallback = function() {
+				_everyRequired(data, thenOption, module, deps, function(depModules) {
+					var args = [];
+					var depModuleArgs = [];
+					each(depModules, function(depModule) {
+						depModuleArgs.push(depModule);
+						args.push(depModule && depModule.moduleObject());
+					});
+					args.push(depModuleArgs);
+					module.finish(args);
+				}, function(err, invoker) {
+					thenOption.onError(err, invoker);
 				});
-				args.push(depModuleArgs);
-				module.finish(args);
-			}, function(err, invoker) {
-				thenOption.onError(err, invoker);
-			});
+			};
+
+			if(isRequire) {
+				needCallback();
+			} else {
+				module.whenNeed(needCallback);
+			}
 		}
 
 	};
@@ -1097,7 +1116,7 @@ var queryString2ParamsMap;
 			m = index > 0 ? m.substring(0, index) : m;
 
 			var isJsFile = _isJsFile(m);
-			if(!isJsFile && (_startsWith(m, ".") || _dealAbsolute(m).absolute)) {
+			if(!isJsFile && !/\.[^\/\s]*$/.test(m) && (_startsWith(m, ".") || _dealAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
@@ -1425,11 +1444,11 @@ var queryString2ParamsMap;
 						module2.setState("loading");
 						each(urls, function(url, index) {
 							if(_startsWith(url, ".") || _startsWith(url, "/")) {
-								if(!module2.rurl(thenOption)) {
+								if(!module2.thiz.rurl(thenOption)) {
 									isError = "script url is null:'" + module2.name + "'," + module2.callback;
 									throwError(-11, isError);
 								}
-								url = _getPathWithRelative(module2.rurl(thenOption), url);
+								url = _getPathWithRelative(module2.thiz.rurl(thenOption), url);
 							} else {
 								var absolute = _dealAbsolute(url);
 								if(absolute.absolute) {
@@ -1739,6 +1758,7 @@ var queryString2ParamsMap;
 			depModules: null,
 			aurl: null, //绝对路径,可能等于当前页面路径
 			callback: callback,
+			_loadCallback: null,
 			moduleObject: undefined, //依赖模块对应的对象
 			loopObject: undefined, //循环依赖对象
 			invoker: thatInvoker,
@@ -1864,11 +1884,15 @@ var queryString2ParamsMap;
 			},
 			get: function() {
 				if(this.otherModule) {
-					this.state = this.otherModule.state; //状态同步
+					this.state = this.otherModule.state; //状态同步,保持与otherModule状态相同
 					return this.otherModule;
 				}
 				return this;
 			},
+			/**
+			 * 依赖当前模块、表示依赖otherModule模块，当前模块为别名或引用。
+			 * @param {Object} otherModule
+			 */
 			toOtherModule: function(otherModule) {
 				this.otherModule = otherModule;
 				this.get(); //状态同步
@@ -1877,6 +1901,13 @@ var queryString2ParamsMap;
 				while(theRelys.length) {
 					var fun = theRelys.shift();
 					otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+				}
+			},
+			whenNeed: function(loadCallback) {
+				if(this.relys.length || this.otherModule && this.otherModule.relys.length) {
+					loadCallback(); //已经被依赖了
+				} else {
+					this._loadCallback = loadCallback;
 				}
 			},
 			/**
@@ -1888,7 +1919,7 @@ var queryString2ParamsMap;
 			relyIt: function(thatInvoker, callbackFun, pluginArgs) {
 				if(this.otherModule) {
 					this.get(); //状态同步
-					this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs);
+					this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给otherModule
 					return;
 				}
 				var fun = {
@@ -1898,6 +1929,11 @@ var queryString2ParamsMap;
 				};
 				if(this._callback(fun)) {
 					this.relys.push(fun);
+				}
+				if(this._loadCallback) { //将会加载此模块及其依赖的模块
+					var loadCallback = this._loadCallback;
+					this._loadCallback = null;
+					loadCallback();
 				}
 			},
 			thiz: {
@@ -1963,12 +1999,13 @@ var queryString2ParamsMap;
 			var insertCount = 0;
 			each(moduleDeps, function(dep) {
 				if(indexInArray(deps, dep) < 0) {
-					deps.splice(0, 0, dep);
+					//					deps.splice(0, 0, dep);
+					deps.push(dep);
 					insertCount++;
 				}
 			}, false, true);
 			this.deps = deps;
-			this.directDefineIndex += insertCount;
+			//this.directDefineIndex += insertCount;
 			return deps;
 		};
 		moduleMap.printOnNotDefined = function() {
@@ -2533,6 +2570,11 @@ var queryString2ParamsMap;
 			if(pluginIndex > 0) {
 				pluginArgs = deps.substring(pluginIndex + 1);
 				deps = deps.substring(0, pluginIndex);
+				if(pluginArgs) {
+					var argArr = [pluginArgs];
+					_replaceModulePrefix(theConfig, argArr); //前缀替换
+					pluginArgs = argArr[0];
+				}
 			}
 			var module = getModule(deps);
 			if(!module) {
@@ -2899,7 +2941,7 @@ var queryString2ParamsMap;
 				if(_startsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this, urlOrName);
+						value = strfixObj.value.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
@@ -2913,7 +2955,7 @@ var queryString2ParamsMap;
 				if(_endsWith(urlOrName, strfixObj.strfix)) {
 					var value;
 					if(isFunction(strfixObj.value)) {
-						value = urlArg.call(this, urlOrName);
+						value = strfixObj.value.call(this, urlOrName);
 					} else {
 						value = strfixObj.value;
 					}
@@ -2982,7 +3024,7 @@ var queryString2ParamsMap;
 		return obj;
 	};
 
-	xsloader.clearUrlArgs = function(argsObj) {
+	xsloader.clearUrlArgs = function() {
 		argsObject = {};
 	};
 	xsloader.define = define;
@@ -3314,13 +3356,68 @@ var queryString2ParamsMap;
 		});
 	})();
 
+	(function() {
+		xsloader.define("nodeps", {
+			isSingle: true,
+			pluginMain: function(arg, onload, onerror, config) {
+				this.invoker().require([arg], function(mod, depModuleArgs) {
+					onload(mod);
+				}).then({
+					depBefore: function(index, dep, depDeps) {
+						depDeps.splice(0, depDeps.length);
+					}
+				}).error(function(e) {
+					onerror(e);
+				});
+			}
+		});
+	})();
+
+	(function() {
+		xsloader.define("exists", {
+			isSingle: true,
+			pluginMain: function(arg, onload, onerror, config) {
+				var vars = arg.split("|");
+				for(var i = 0; i < vars.length; i++) {
+					vars[i] = vars[i].trim();
+				}
+				if(vars.length == 0) {
+					onerror("args error for exists!");
+				} else {
+					var moduleName = vars[0];
+					var module = getModule(moduleName);
+					if(module) {
+						this.invoker().require([moduleName], function(mod, depModuleArgs) {
+							onload(mod);
+						}).error(function(e) {
+							onerror(e);
+						});
+					} else {
+						var obj = undefined;
+						for(var i = 1; i < vars.length; i++) {
+							if(window[vars[i]]) {
+								obj = window[vars[i]];
+								break;
+							}
+						}
+						if(obj === undefined) {
+							onerror("not found:" + arg);
+						} else {
+							onload(obj);
+						}
+					}
+				}
+			}
+		});
+	})();
+
 	/**
 	 * 格式:name!moduleName=>>modulePath
 	 */
 	(function() { //TODO STRONG name插件
 		xsloader.define("name", {
 			isSingle: true,
-			pluginMain: function(arg, onload, onerror, config, http) {
+			pluginMain: function(arg, onload, onerror, config) {
 				var index = arg.indexOf("=>>");
 				if(index == -1) {
 					onerror("expected:=>>");
@@ -3600,11 +3697,11 @@ var queryString2ParamsMap;
 			try {
 				deps = xsParseJson(depsStr);
 				if(!xsloader.isArray(deps)) {
-					onerror("deps is not Array:" + depStr);
+					onerror("deps is not Array:" + depsStr);
 					return;
 				}
 			} catch(e) {
-				onerror("deps error:" + depStr);
+				onerror("deps error:" + depsStr);
 				return;
 			}
 			this.invoker().require([
@@ -3682,7 +3779,7 @@ var queryString2ParamsMap;
 			_async = prop(option, "async", true),
 			_multiPart = prop(option, "multiPart", false),
 			_handleType = prop(option, "handleType", "json");
-		_timeout = option.timeout;
+		var _timeout = option.timeout;
 		putProp(option, "params", _params);
 		putProp(option, "headers", _headers);
 
@@ -4432,7 +4529,7 @@ var queryString2ParamsMap;
 		};
 
 		function LinkedList() {
-			function newNode(element) {　　
+			function newNode(element) {
 				var node = {
 					element: element,
 					next: null,
@@ -4447,17 +4544,17 @@ var queryString2ParamsMap;
 			/**
 			 * 在链表末尾添加元素
 			 */
-			this.append = function(element) {　　
-				var current = newNode(element);　　　　
+			this.append = function(element) {
+				var current = newNode(element);
 
 				lastNode.next = current;
 				current.pre = lastNode;
-				lastNode = current;　　
+				lastNode = current;
 				length++;
 			};
 
 			//在链表的任意位置插入元素
-			this.insert = function(position, element) {　　
+			this.insert = function(position, element) {
 				if(position >= 0 && position <= length) {
 
 					var node = newNode(element);
@@ -4471,11 +4568,11 @@ var queryString2ParamsMap;
 						node.next = pNode.next;
 					}
 					pNode.next = node;
-					node.pre = pNode;　　　　
+					node.pre = pNode;
 					length++;
-					return true;　　
-				} else {　　　　
-					return false;　　
+					return true;
+				} else {
+					return false;
 				}
 			};
 
@@ -4483,7 +4580,7 @@ var queryString2ParamsMap;
 				return getElement(position);
 			};
 
-			function getElement(position, willRemove) {　　
+			function getElement(position, willRemove) {
 				if(position >= 0 && position < length) {
 
 					var pNode = headNode;
@@ -4507,9 +4604,9 @@ var queryString2ParamsMap;
 						return currentNode.element;
 					} else {
 						return undefined;
-					}　
-				} else {　　　　
-					return undefined;　　
+					}
+				} else {
+					return undefined;
 				}
 			};
 
@@ -4538,7 +4635,7 @@ var queryString2ParamsMap;
 			};
 
 			//从链表中移除元素
-			this.removeAt = function(position) {　　
+			this.removeAt = function(position) {
 				return getElement(position, true);
 			};
 
@@ -4554,7 +4651,7 @@ var queryString2ParamsMap;
 			 * 返回元素在链表中的位置
 			 * @param element object|function(elem)
 			 */
-			this.indexOf = function(element) {　　
+			this.indexOf = function(element) {
 				var pNode = headNode.next;
 				var index = 0;
 				while(pNode) {
@@ -4577,14 +4674,14 @@ var queryString2ParamsMap;
 			}
 
 			//移除某个元素
-			this.remove = function(element) {　　
-				var index = this.indexOf(element);　　
+			this.remove = function(element) {
+				var index = this.indexOf(element);
 				return this.removeAt(index);
 			};
 
 			//判断链表是否为空
 
-			this.isEmpty = function() {　　
+			this.isEmpty = function() {
 				return length === 0;
 			};
 
@@ -4917,10 +5014,9 @@ var queryString2ParamsMap;
 
 			function sendTop() {
 				if(isConnected) {
-					var msg = msgQueue.pop();
-					if(msg) {
+					var msg;
+					while((msg = msgQueue.pop())) {
 						postMessageBridge.send(msg.data, handleId, msg.id);
-						postMessageBridge.runAfter(SLEEP, init);
 					}
 				}
 			}
@@ -5151,6 +5247,9 @@ var queryString2ParamsMap;
 		if(endsWith(name, ".html")) {
 			name = name.substring(0, name.length - 5);
 		}
+		if(!mainPath) {
+			mainPath = "./main/{name}.js";
+		}
 		mainPath = mainPath.replace("{name}", name);
 		return mainPath;
 	}
@@ -5216,6 +5315,9 @@ var queryString2ParamsMap;
 				}
 
 				conf = extendConfig(conf);
+				if(conf.beforeDealProperties) {
+					conf.beforeDealProperties();
+				}
 				conf = xsloader.dealProperties(conf, conf.properties); //参数处理
 
 				if(isLocal && conf.service.hasGlobal) {
@@ -5229,6 +5331,7 @@ var queryString2ParamsMap;
 
 							loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
 							var conf;
+							var loader;
 							if(loaderName != null) {
 								mainName = globalConfig.main.name;
 								mainPath = getPathWithRelative(location.href, getMainPath(globalConfig));
@@ -5291,7 +5394,7 @@ var queryString2ParamsMap;
 	function initXsloader(pageHref, mainName, mainPath, loader, conf, localConfig) {
 		var resUrls = [];
 		conf.service.resUrl && resUrls.push(conf.service.resUrl);
-		localConfig !== conf && localConfig.service.resUrl && resurls.push(localConfig.service.resUrl);
+		localConfig !== conf && localConfig.service.resUrl && resUrls.push(localConfig.service.resUrl);
 
 		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
 		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
@@ -5299,7 +5402,7 @@ var queryString2ParamsMap;
 		xsloader._resUrlBuilder = function(groupModule) {
 			var as = [];
 			each(resUrls, function(url) {
-				as.push(appendArgs2Url(resUrl, "m=" + encodeURIComponent(groupModule)));
+				as.push(appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
 			});
 			return as;
 		};
