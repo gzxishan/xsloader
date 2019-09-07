@@ -489,10 +489,8 @@ function doDefine(thiz, args, isRequire) {
 			//执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
 			defineObject.src = lastScriptSrc;
 			defineObject.dealConfigDeps();
-			theRealDefine([defineObject]);
-		} else {
-			theRealDefine([defineObject]);
 		}
+		theRealDefine([defineObject]);
 	});
 	return handle;
 }

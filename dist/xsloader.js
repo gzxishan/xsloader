@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Fri, 06 Sep 2019 14:11:48 GMT
+ * build time:Sat, 07 Sep 2019 03:20:21 GMT
  */
 (function () {
   'use strict';
@@ -93,13 +93,6 @@
     return target;
   }
 
-  //https://github.com/douglascrockford/JSON-js
-  //  json2.js
-  //  2017-06-12
-  //  Public Domain.
-  //  NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
-  //  USE YOUR OWN COPY. IT IS EXTREMELY UNWISE TO LOAD CODE FROM SERVERS YOU DO
-  //  NOT CONTROL.
   var JSON = {};
   var rx_one = /^[\],:{}\s]*$/;
   var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
@@ -109,7 +102,6 @@
   var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
 
   function f(n) {
-    // Format integers to have at least two digits.
     return n < 10 ? "0" + n : n;
   }
 
@@ -133,10 +125,6 @@
   var rep;
 
   function quote(string) {
-    // If the string contains no control characters, no quote characters, and no
-    // backslash characters, then we can safely slap some quotes around it.
-    // Otherwise we must also replace the offending characters with safe escape
-    // sequences.
     rx_escapable.lastIndex = 0;
     return rx_escapable.test(string) ? "\"" + string.replace(rx_escapable, function (a) {
       var c = meta[a];
@@ -145,73 +133,52 @@
   }
 
   function str(key, holder) {
-    // Produce a string from holder[key].
-    var i; // The loop counter.
-
-    var k; // The member key.
-
-    var v; // The member value.
-
+    var i;
+    var k;
+    var v;
     var length;
     var mind = gap;
     var partial;
-    var value = holder[key]; // If the value has a toJSON method, call it to obtain a replacement value.
+    var value = holder[key];
 
     if (value && _typeof(value) === "object" && typeof value.toJSON === "function") {
       value = value.toJSON(key);
-    } // If we were called with a replacer function, then call the replacer to
-    // obtain a replacement value.
-
+    }
 
     if (typeof rep === "function") {
       value = rep.call(holder, key, value);
-    } // What happens next depends on the value's type.
-
+    }
 
     switch (_typeof(value)) {
       case "string":
         return quote(value);
 
       case "number":
-        // JSON numbers must be finite. Encode non-finite numbers as null.
         return isFinite(value) ? String(value) : "null";
 
       case "boolean":
       case "null":
-        // If the value is a boolean or null, convert it to a string. Note:
-        // typeof null does not produce "null". The case is included here in
-        // the remote chance that this gets fixed someday.
         return String(value);
-      // If the type is "object", we might be dealing with an object or an array or
-      // null.
 
       case "object":
-        // Due to a specification blunder in ECMAScript, typeof null is "object",
-        // so watch out for that case.
         if (!value) {
           return "null";
-        } // Make an array to hold the partial results of stringifying this object value.
-
+        }
 
         gap += indent;
-        partial = []; // Is the value an array?
+        partial = [];
 
         if (Object.prototype.toString.apply(value) === "[object Array]") {
-          // The value is an array. Stringify every element. Use null as a placeholder
-          // for non-JSON values.
           length = value.length;
 
           for (i = 0; i < length; i += 1) {
             partial[i] = str(i, value) || "null";
-          } // Join all of the elements together, separated with commas, and wrap them in
-          // brackets.
-
+          }
 
           v = partial.length === 0 ? "[]" : gap ? "[\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "]" : "[" + partial.join(",") + "]";
           gap = mind;
           return v;
-        } // If the replacer is an array, use it to select the members to be stringified.
-
+        }
 
         if (rep && _typeof(rep) === "object") {
           length = rep.length;
@@ -227,7 +194,6 @@
             }
           }
         } else {
-          // Otherwise, iterate through all of the keys in the object.
           for (k in value) {
             if (Object.prototype.hasOwnProperty.call(value, k)) {
               v = str(k, value);
@@ -237,20 +203,16 @@
               }
             }
           }
-        } // Join all of the member texts together, separated with commas,
-        // and wrap them in braces.
-
+        }
 
         v = partial.length === 0 ? "{}" : gap ? "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" : "{" + partial.join(",") + "}";
         gap = mind;
         return v;
     }
-  } // If the JSON object does not yet have a stringify method, give it one.
-
+  }
 
   if (typeof JSON.stringify !== "function") {
     meta = {
-      // table of character substitutions
       "\b": "\\b",
       "\t": "\\t",
       "\n": "\\n",
@@ -261,51 +223,35 @@
     };
 
     JSON.stringify = function (value, replacer, space) {
-      // The stringify method takes a value and an optional replacer, and an optional
-      // space parameter, and returns a JSON text. The replacer can be a function
-      // that can replace values, or an array of strings that will select the keys.
-      // A default replacer method can be provided. Use of the space parameter can
-      // produce text that is more easily readable.
       var i;
       gap = "";
-      indent = ""; // If the space parameter is a number, make an indent string containing that
-      // many spaces.
+      indent = "";
 
       if (typeof space === "number") {
         for (i = 0; i < space; i += 1) {
           indent += " ";
-        } // If the space parameter is a string, it will be used as the indent string.
-
+        }
       } else if (typeof space === "string") {
         indent = space;
-      } // If there is a replacer, it must be a function or an array.
-      // Otherwise, throw an error.
-
+      }
 
       rep = replacer;
 
       if (replacer && typeof replacer !== "function" && (_typeof(replacer) !== "object" || typeof replacer.length !== "number")) {
         throw new Error("JSON.stringify");
-      } // Make a fake root object containing our value under the key of "".
-      // Return the result of stringifying the value.
-
+      }
 
       return str("", {
         "": value
       });
     };
-  } // If the JSON object does not yet have a parse method, give it one.
-
+  }
 
   if (typeof JSON.parse !== "function") {
     JSON.parse = function (text, reviver) {
-      // The parse method takes a text and an optional reviver function, and returns
-      // a JavaScript value if the text is a valid JSON text.
       var j;
 
       function walk(holder, key) {
-        // The walk method is used to recursively walk the resulting structure so
-        // that modifications can be made.
         var k;
         var v;
         var value = holder[key];
@@ -325,10 +271,7 @@
         }
 
         return reviver.call(holder, key, value);
-      } // Parsing happens in four stages. In the first stage, we replace certain
-      // Unicode characters with escape sequences. JavaScript handles many characters
-      // incorrectly, either silently deleting them, or treating them as line endings.
-
+      }
 
       text = String(text);
       rx_dangerous.lastIndex = 0;
@@ -337,32 +280,14 @@
         text = text.replace(rx_dangerous, function (a) {
           return "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
         });
-      } // In the second stage, we run the text against regular expressions that look
-      // for non-JSON patterns. We are especially concerned with "()" and "new"
-      // because they can cause invocation, and "=" because it can cause mutation.
-      // But just to be safe, we want to reject all unexpected forms.
-      // We split the second stage into 4 regexp operations in order to work around
-      // crippling inefficiencies in IE's and Safari's regexp engines. First we
-      // replace the JSON backslash pairs with "@" (a non-JSON character). Second, we
-      // replace all simple value tokens with "]" characters. Third, we delete all
-      // open brackets that follow a colon or comma or that begin the text. Finally,
-      // we look to see that the remaining characters are only whitespace or "]" or
-      // "," or ":" or "{" or "}". If that is so, then the text is safe for eval.
-
+      }
 
       if (rx_one.test(text.replace(rx_two, "@").replace(rx_three, "]").replace(rx_four, ""))) {
-        // In the third stage we use the eval function to compile the text into a
-        // JavaScript structure. The "{" operator is subject to a syntactic ambiguity
-        // in JavaScript: it can begin a block or an object literal. We wrap the text
-        // in parens to eliminate the ambiguity.
-        j = eval("(" + text + ")"); // In the optional fourth stage, we recursively walk the new structure, passing
-        // each name/value pair to a reviver function for possible transformation.
-
+        j = eval("(" + text + ")");
         return typeof reviver === "function" ? walk({
           "": j
         }, "") : j;
-      } // If the text is not JSON parseable, then a SyntaxError is thrown.
-
+      }
 
       throw new SyntaxError("JSON.parse");
     };
@@ -379,11 +304,6 @@
   } else {
     throw new Error("not found global var!");
   }
-  /**
-   * 用于包装变量，防止JSON.stringify等时输出指定变量。
-   * @param {Object} val
-   */
-
 
   function InVar$1(val) {
     this.get = function () {
@@ -606,8 +526,7 @@
   function getNodeAbsolutePath(node) {
     var src = node.src || node.getAttribute("src");
     return getPathWithRelative(location.href, src);
-  } //去掉url的query参数和#参数
-
+  }
 
   function removeQueryHash(url) {
     if (url) {
@@ -675,8 +594,7 @@
       }
 
       return result;
-    } //处理属性引用
-
+    }
 
     function replaceProperties(obj, property, enableKeyAttr) {
       if (!obj) {
@@ -768,7 +686,6 @@
     }
 
     if (config.modulePrefixCount) {
-      //模块地址的前缀替换
       for (var prefix in config.modulePrefix) {
         var replaceStr = config.modulePrefix[prefix].replace;
         var len = prefix.length;
@@ -826,7 +743,7 @@
 
   var xsloader$2 = global$1.xsloader;
   var commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
-  var cjsRequireRegExp = /[^.]require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g; //基于有向图进行循环依赖检测
+  var cjsRequireRegExp = /[^.]require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
 
   function GraphPath() {
     var pathEdges = {};
@@ -918,8 +835,7 @@
       recursionStack[v] = false;
       return false;
     }
-  } //使得内部的字符串变成数组
-
+  }
 
   function strValue2Arr(obj) {
     if (!obj || xsloader$2.isArray(obj)) {
@@ -932,14 +848,6 @@
       }
     }
   }
-  /**
-   * 同步模式下，返回false表示终止循环。
-   * @param {Object} ary
-   * @param {Object} func
-   * @param {Object} isSync
-   * @param {Object} fromEnd
-   */
-
 
   function each(ary, func, isSync, fromEnd) {
     if (ary) {
@@ -981,8 +889,7 @@
 
   function __commentReplace(match, singlePrefix) {
     return singlePrefix || '';
-  } //添加内部直接require('...')的模块
-
+  }
 
   function appendInnerDeps(deps, callback) {
     if (xsloader$2.isFunction(callback)) {
@@ -1013,12 +920,9 @@
   var isXsLoaderEnd = false;
 
   var IE_VERSION = function getIEVersion() {
-    var userAgent = navigator.userAgent; //取得浏览器的userAgent字符串  
-
-    var isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1; //判断是否IE<11浏览器  
-
-    var isEdge = userAgent.indexOf("Edge") > -1 && !isIE; //判断是否IE的Edge浏览器  
-
+    var userAgent = navigator.userAgent;
+    var isIE = userAgent.indexOf("compatible") > -1 && userAgent.indexOf("MSIE") > -1;
+    var isEdge = userAgent.indexOf("Edge") > -1 && !isIE;
     var isIE11 = userAgent.indexOf('Trident') > -1 && userAgent.indexOf("rv:11.0") > -1;
 
     if (isIE) {
@@ -1026,11 +930,11 @@
       var fIEVersion = parseInt(reIE && reIE[1] || -1);
       return fIEVersion == -1 ? -1 : fIEVersion;
     } else if (isEdge) {
-      return 'edge'; //edge
+      return 'edge';
     } else if (isIE11) {
-      return 11; //IE11  
+      return 11;
     } else {
-      return -1; //不是ie浏览器
+      return -1;
     }
   }();
 
@@ -1055,7 +959,7 @@
   }, base);
 
   var global$2 = utils.global;
-  var xsloader$3 = global$2.xsloader; //ie9
+  var xsloader$3 = global$2.xsloader;
 
   try {
     if (Function.prototype.bind && console && _typeof(console['log']) == "object") {
@@ -1171,8 +1075,7 @@
     String.prototype.trim = function () {
       return this.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
     };
-  } //生成一个随机的id，只保证在本页面是唯一的
-
+  }
 
   function randId(suffix) {
     var id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + utils.getAndIncIdCount();
@@ -1192,12 +1095,6 @@
       throw e;
     }
   }
-  /**
-   * 注意key需要用引号包裹
-   * @param {Object} str
-   * @param {Object} option
-   */
-
 
   function xsParseJson(str, option) {
     if (str === "" || str === null || str === undefined || !xsloader$4.isString(str)) {
@@ -1206,9 +1103,7 @@
 
     option = xsloader$4.extend({
       fnStart: "",
-      //"/*{f}*/",
       fnEnd: "",
-      //"/*{f}*/",
       rcomment: "\\/\\/#\\/\\/"
     }, option);
     var fnMap = {};
@@ -1259,9 +1154,8 @@
     }
 
     if (option.rcomment) {
-      str = str.replace(/(\r\n)|\r/g, "\n"); //统一换行符号
-
-      str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), ""); //去除行注释
+      str = str.replace(/(\r\n)|\r/g, "\n");
+      str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), "");
     }
 
     try {
@@ -1364,7 +1258,7 @@
     }
 
     if (!has) {
-      return url; //参数没有变化直接返回
+      return url;
     }
 
     var paramKeys = [];
@@ -1378,7 +1272,6 @@
     var params = [];
 
     for (var i = 0; i < paramKeys.length; i++) {
-      //保证参数按照顺序
       var _k2 = paramKeys[i];
       params.push(_k2 + "=" + oldParams[_k2]);
     }
@@ -1668,12 +1561,6 @@
       return theAsyncCall.pushTask(callback);
     }
   };
-  /**
-   * 得到属性
-   * @param {Object} obj
-   * @param {Object} attrNames "rs"、"rs.total"等
-   */
-
 
   function getObjectAttr(obj, attrNames, defaultValue) {
     if (!obj || !attrNames) {
@@ -1695,12 +1582,6 @@
 
     return rs;
   }
-  /**
-   * 设置属性
-   * @param {Object} obj
-   * @param {Object} attrNames "rs"、"rs.total"等
-   */
-
 
   function setObjectAttr(obj, attrNames, value) {
     var _obj = obj;
@@ -1728,20 +1609,17 @@
   }
 
   function clone(obj, isDeep) {
-    // Handle the 3 simple types, and null or undefined or function
     if (!obj || xsloader$5.isFunction(obj) || xsloader$5.isString(obj)) return obj;
 
     if (xsloader$5.isRegExp(obj)) {
       return new RegExp(obj.source, obj.flags);
-    } // Handle Date
-
+    }
 
     if (xsloader$5.isDate(obj)) {
       var copy = new Date();
       copy.setTime(obj.getTime());
       return copy;
-    } // Handle Array or Object
-
+    }
 
     if (xsloader$5.isArray(obj) || xsloader$5.isObject(obj)) {
       var _copy = xsloader$5.isArray(obj) ? [] : {};
@@ -1794,8 +1672,7 @@
         isReady = true;
         isGlobalReady = true;
         callback();
-      } // Mozilla, Opera and webkit nightlies currently support this event
-
+      }
 
       if (document.addEventListener) {
         var _fun;
@@ -1807,8 +1684,6 @@
 
         document.addEventListener("DOMContentLoaded", _fun);
       } else if (document.attachEvent) {
-        // ensure firing before onload,
-        // maybe late but safe also for iframes
         var _fun2;
 
         _fun2 = function fun() {
@@ -1818,8 +1693,7 @@
           }
         };
 
-        document.attachEvent("onreadystatechange", _fun2); // If IE and not an iframe
-        // continually check to see if the document is ready
+        document.attachEvent("onreadystatechange", _fun2);
 
         var _fun3;
 
@@ -1827,14 +1701,11 @@
           if (isReady) return;
 
           try {
-            // If IE is used, use the trick by Diego Perini
-            // http://javascript.nwbox.com/IEContentLoaded/
             document.documentElement.doScroll("left");
           } catch (error) {
             setTimeout(_fun3, 0);
             return;
-          } // and execute any waiting functions
-
+          }
 
           ready();
         };
@@ -1925,13 +1796,7 @@
   var theDefinedMap = {};
   var lastDefinObjectMap = {};
 
-  var ModuleDef =
-  /*#__PURE__*/
-  function () {
-    //默认模块（ define时未指定selfname的） 只能有一个
-    //define的其他模块（含有selfname）
-    //用于提前依赖
-    //用于提前依赖
+  var ModuleDef = function () {
     function ModuleDef(src) {
       var isPreDependOn = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
@@ -2017,7 +1882,6 @@
       var module;
 
       if (isSrc) {
-        //如果提供地址、则获取默认模块
         if (selfname) {
           module = moduleDef.modules[selfname];
         } else {
@@ -2035,8 +1899,7 @@
     } else {
       return null;
     }
-  } //提前依赖不存在的模块
-
+  }
 
   function preDependOn(name) {
     var isSrc = _isSrc(name);
@@ -2050,12 +1913,6 @@
       theDefinedMap[name] = def;
     }
   }
-  /**
-   * 替换模块的src，用于加载含有多个地址模块的情况（提供多个地址、直到加载成功）
-   * @param {Object} oldSrc
-   * @param {Object} module
-   */
-
 
   function replaceModuleSrc(oldSrc, module) {
     var moduleDef = theDefinedMap[oldSrc];
@@ -2086,12 +1943,6 @@
       delete theDefinedMap[src];
     }
   }
-  /**
-   * 同一个模块可重复设置。
-   * @param {Object} name 模块名字，若为空则表示模块模块。多个不同的名字可能指向同一个模块。
-   * @param {Object} module 模块，必须含有src
-   */
-
 
   function setModule(name, module) {
     var src = module.src;
@@ -2117,7 +1968,6 @@
           }
         }
       } else {
-        //默认模块
         if (moduleDef.defaultModule && moduleDef.defaultModule != module) {
           throw new Error("already define default module:src=" + src);
         } else {
@@ -2142,7 +1992,6 @@
           }
         }
       } else {
-        //默认模块
         moduleDef.defaultModule = module;
       }
     }
@@ -2234,9 +2083,7 @@
       buildInvoker(moduleMap);
       return moduleMap.thiz;
     };
-  } //新建模块实例
-  //relyCallback(depModuleThis)
-
+  }
 
   function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
     var instanceModule = {
@@ -2246,7 +2093,6 @@
       initInvoker: function initInvoker() {
         var _this = this;
 
-        //确保正确的invoker
         if (module.ignoreAspect) {
           return;
         }
@@ -2335,7 +2181,7 @@
           }
 
           if (this._object.isSingle === undefined) {
-            this._object.isSingle = true; //同样的参数也需要重新调用
+            this._object.isSingle = true;
           }
 
           if (justForSingle && !this._object.isSingle) {
@@ -2422,25 +2268,10 @@
       absUrl: absUrl
     };
     return newModule(defineObject);
-  } //
-  //模块依赖来源：(另见module.js:mayAddDeps,define.js:theRealDefine)
-  //1、define里声明的
-  //2、define或require里直接require('...')
-  //3、config里配置的
-  //4、手动通过handle.before或depBefore进行修改的
-
-  /*
-   *模块的名字来源：(另见define.js:onModuleLoaded)
-   * 1、模块url地址:一定存在
-   * 2、模块define时提供的：可选
-   * 3、paths或depsPaths提供的：可选，且可能为默认模块
-   * 4、name!提供的：可选
-   */
-
+  }
 
   function newModule(defineObject) {
-    var instances = []; //所有模块实例
-
+    var instances = [];
     var moduleMap = {
       id: utils.getAndIncIdCount(),
       selfname: defineObject.selfname,
@@ -2451,25 +2282,20 @@
       relys: [],
       otherModule: undefined,
       directDefineIndex: 0,
-      //模块直接声明的依赖开始索引
       ignoreAspect: false,
       depModules: null,
       src: defineObject.src,
-      //绝对路径,可能等于当前页面路径
       absUrl: function absUrl() {
         return defineObject.absUrl();
       },
       callback: defineObject.callback,
       _loadCallback: null,
       moduleObject: undefined,
-      //依赖模块对应的对象
       loopObject: undefined,
-      //循环依赖对象
       invoker: defineObject.thatInvoker,
       instanceType: "single",
       reinitByDefineObject: function reinitByDefineObject(defineObject) {
-        this.deps = defineObject.deps || []; //this.absUrl = () => defineObject.absUrl();
-
+        this.deps = defineObject.deps || [];
         this.callback = defineObject.callback;
       },
       setInstanceType: function setInstanceType(instanceType) {
@@ -2547,18 +2373,15 @@
           }
 
           obj = this.loopObject;
-        } //this.moduleObject不为undefined，则使用了exports
+        }
 
-
-        if (this.moduleObject === undefined || !isDefault && obj !== undefined //如果使用了return、则优先使用
-        ) {
+        if (this.moduleObject === undefined || !isDefault && obj !== undefined) {
             this.moduleObject = obj;
           }
 
         this.setState("defined");
       },
       state: "init",
-      //init,loading,loaded,defined,error,
       errinfo: null,
       _callback: function _callback(fun) {
         var thiz = this;
@@ -2570,11 +2393,9 @@
               var depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
               depModule.init();
             }
-          }; //已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
+          };
 
-
-          var deps = !thiz.loopObject && xsloader$8.config().getDeps(thiz.selfname); //console.log(this.selfname,":",deps);
-          //deps=null;
+          var deps = !thiz.loopObject && xsloader$8.config().getDeps(thiz.selfname);
 
           if (deps && deps.length > 0) {
             xsloader$8.require(deps, function () {
@@ -2611,22 +2432,15 @@
       },
       get: function get() {
         if (this.otherModule) {
-          this.state = this.otherModule.state; //状态同步,保持与otherModule状态相同
-
+          this.state = this.otherModule.state;
           return this.otherModule;
         }
 
         return this;
       },
-
-      /**
-       * 依赖当前模块、表示依赖otherModule模块，当前模块为别名或引用。
-       * @param {Object} otherModule
-       */
       toOtherModule: function toOtherModule(otherModule) {
         this.otherModule = otherModule;
-        this.get(); //状态同步
-
+        this.get();
         var theRelys = this.relys;
         this.relys = [];
 
@@ -2637,24 +2451,15 @@
       },
       whenNeed: function whenNeed(loadCallback) {
         if (this.relys.length || this.otherModule && this.otherModule.relys.length) {
-          loadCallback(); //已经被依赖了
+          loadCallback();
         } else {
           this._loadCallback = loadCallback;
         }
       },
-
-      /**
-       * 
-       * @param {Object} thatInvoker
-       * @param {Object} callbackFun function(depModule,err)
-       * @param {Object} pluginArgs
-       */
       relyIt: function relyIt(thatInvoker, callbackFun, pluginArgs) {
         if (this.otherModule) {
-          this.get(); //状态同步
-
-          this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给otherModule
-
+          this.get();
+          this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs);
           return;
         }
 
@@ -2669,14 +2474,13 @@
         }
 
         if (this._loadCallback) {
-          //将会加载此模块及其依赖的模块
           var loadCallback = this._loadCallback;
           this._loadCallback = null;
           loadCallback();
         }
       }
     };
-    moduleMap.thiz = new script.Invoker(moduleMap); //返回_module_
+    moduleMap.thiz = new script.Invoker(moduleMap);
 
     moduleMap.dealInstance = function (moduleInstance) {
       instances.push(moduleInstance);
@@ -2684,7 +2488,7 @@
         opId: null,
         setToAll: function setToAll(name, value, opId) {
           if (opId !== undefined && opId == this.opId) {
-            return; //防止循环
+            return;
           }
 
           opId = opId || getModuleId();
@@ -2821,8 +2625,7 @@
           mod._printOnNotDefined(node);
 
           return;
-        } //只打印一个错误栈
-
+        }
 
         if (mod) {
           mod._printOnNotDefined(node);
@@ -2845,31 +2648,26 @@
 
   function getModuleId() {
     return "_xs_req_2019_" + randModuleIndex++;
-  } //everyOkCallback(depModules,module),errCallback(err,invoker)
-
+  }
 
   function everyRequired(defineObject, module, everyOkCallback, errCallback) {
     if (defineObject.isError) {
       return;
-    } //处理相对路径
-
+    }
 
     defineObject.dealRelative(module);
     var config = xsloader$8.config();
     var isError = false,
         hasCallErr = false,
         theExports;
-    var depCount = module.deps.length; //module.jsScriptCount = 0;
-
+    var depCount = module.deps.length;
     var depModules = new Array(depCount);
     var invoker_the_module = module.thiz;
 
     function checkFinish(index, dep_name, depModule, syncHandle) {
       depModules[index] = depModule;
 
-      if (
-      /*(depCount == 0 || depCount - module.jsScriptCount == 0)*/
-      depCount <= 0 && !isError) {
+      if (depCount <= 0 && !isError) {
         everyOkCallback(depModules, module);
       } else if (isError) {
         module.setState('error', isError);
@@ -2960,13 +2758,10 @@
             urls = [dep];
           } else {
             urls = [];
-          } //TODO errCallback是否无效??
-
+          }
 
           if (urls.length == 0) {
-            //提前依赖模块
-            moduleDef.preDependOn(dep); //					isError = "module '" + dep + "' urls is empty.";
-            //					errCallback(isError, invoker_the_module);
+            moduleDef.preDependOn(dep);
           } else {
             utils.each(urls, function (url, index) {
               if (xsloader$8.startsWith(url, ".") || xsloader$8.startsWith(url, "/")) {
@@ -2991,7 +2786,6 @@
           }
 
           if (!isError && urls.length) {
-            //加载模块dep:module2
             var loadModule = function loadModule() {
               var index = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 0;
 
@@ -3009,9 +2803,7 @@
               }
 
               script.loadScript(module2.selfname, url, function (scriptData) {
-                //console.log(scriptData);
                 if (module2.state == "loading") {
-                  //module2.selfname为配置名称，尝试默认模块
                   var defaultMod = moduleDef.getModule(module2.src);
 
                   if (defaultMod && module2 != defaultMod) {
@@ -3020,9 +2812,6 @@
                 }
 
                 if (module2.state == "loading") {
-                  //								isError = "load module err(may not define default):" + module2.description();
-                  //								errCallback(isError, invoker_the_module);
-                  //？？没有define的情况、直接完成
                   module2.finish([]);
                 }
               }, function (err) {
@@ -3054,7 +2843,7 @@
       if (!isError) {
         relyItFun();
       }
-    }, defineObject.handle.orderDep); //TODO STRONG ????ie10及以下版本，js文件一个一个加载，从而解决缓存等造成的混乱问题
+    }, defineObject.handle.orderDep);
   }
 
   var moduleScript = _objectSpread2({}, moduleDef, {
@@ -3071,10 +2860,8 @@
   var DATA_ATTR_MODULE = 'data-xsloader-module';
   var DATA_ATTR_CONTEXT = "data-xsloader-context";
   var INNER_DEPS_PLUGIN = "__inner_deps__";
-  var innerDepsMap = {}; //内部依赖加载插件用于保存依赖的临时map
-
-  var globalDefineQueue = []; //没有配置前的define
-
+  var innerDepsMap = {};
+  var globalDefineQueue = [];
   var isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
 
   var safariVersion = function () {
@@ -3094,7 +2881,7 @@
   }();
 
   var head = document.head || document.getElementsByTagName('head')[0];
-  var currentDefineModuleQueue = []; //当前回调的模块
+  var currentDefineModuleQueue = [];
 
   currentDefineModuleQueue.peek = function () {
     if (this.length > 0) {
@@ -3103,22 +2890,19 @@
   };
 
   var lastAppendHeadDom = theLoaderScript;
-  var isSrcFromScriptLoad; //获取脚本的src是否在load事件阶段
-
+  var isSrcFromScriptLoad;
   var lastScriptSrc = thePageUrl;
   var theRealDefine;
 
   if (safariVersion > 0 && safariVersion <= 7) {
     isSrcFromScriptLoad = true;
-  } //处理嵌套依赖
-
+  }
 
   function _dealEmbedDeps(deps) {
     for (var i = 0; i < deps.length; i++) {
       var dep = deps[i];
 
       if (xsloader$9.isArray(dep)) {
-        //内部的模块顺序加载
         var modName = "inner_order_" + moduleScript.getModuleId();
         var isOrderDep = !(dep.length > 0 && dep[0] === false);
 
@@ -3129,8 +2913,7 @@
         innerDepsMap[modName] = {
           deps: dep,
           orderDep: isOrderDep
-        }; //console.log(innerDepsMap[modName]);
-
+        };
         deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
       }
     }
@@ -3144,12 +2927,9 @@
     } else {
       return "";
     }
-  } /////////////////////////////
+  }
 
-
-  var Invoker =
-  /*#__PURE__*/
-  function () {
+  var Invoker = function () {
     function Invoker(moduleMap) {
       _classCallCheck(this, Invoker);
 
@@ -3157,10 +2937,6 @@
 
       this._im = new InVar(moduleMap);
     }
-    /**
-     * 获取绝对地址
-     */
-
 
     _createClass(Invoker, [{
       key: "getAbsoluteUrl",
@@ -3180,7 +2956,6 @@
     }, {
       key: "absUrl",
       value: function absUrl() {
-        //用于获取其他模块地址的参考路径
         return this._im.get().absUrl();
       }
     }]);
@@ -3216,9 +2991,7 @@
     }
   }
 
-  var DefineObject =
-  /*#__PURE__*/
-  function () {
+  var DefineObject = function () {
     function DefineObject(src, thiz) {
       var args = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
       var isRequire = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : false;
@@ -3256,7 +3029,6 @@
         depBefore: function depBefore(index, dep, depDeps) {},
         orderDep: false,
         absoluteUrl: undefined,
-        //弃用
         absUrl: undefined,
         instance: undefined
       };
@@ -3266,14 +3038,13 @@
       var callback = args[2];
 
       if (args.length == 1) {
-        //直接定义模块，且没有依赖
         callback = selfname;
         selfname = null;
         deps = null;
       } else if (typeof selfname !== 'string') {
         callback = deps;
         deps = selfname;
-        selfname = null; //为空的、表示定义默认模块
+        selfname = null;
       }
 
       if (deps && !xsloader$9.isArray(deps)) {
@@ -3283,18 +3054,14 @@
 
       if (!deps) {
         deps = [];
-      } //获取函数体里直接require('...')的依赖
-      //if(!isRequire) {
+      }
 
-
-      utils.appendInnerDeps(deps, callback); //}
-
+      utils.appendInnerDeps(deps, callback);
       this.selfname = selfname;
       this.deps = deps;
       this.callback = callback;
 
       if (willDealConfigDeps) {
-        //处理配置依赖及嵌套依赖
         this.dealConfigDeps();
       }
     }
@@ -3308,7 +3075,6 @@
         var config = xsloader$9.config();
 
         if (config) {
-          //获取配置里配置的依赖
           var _deps = config.getDeps(src);
 
           utils.each(_deps, function (dep) {
@@ -3320,27 +3086,23 @@
             utils.each(_deps, function (dep) {
               deps.push(dep);
             });
-          } //前缀替换
-
+          }
 
           utils.replaceModulePrefix(config, deps);
-        } //处理嵌套依赖
-
+        }
 
         _dealEmbedDeps(deps);
       }
     }, {
       key: "dealRelative",
       value: function dealRelative(module) {
-        var deps = this.deps; //处理相对路径
+        var deps = this.deps;
 
         for (var i = 0; i < deps.length; i++) {
-          //console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
           var m = deps[i];
           var jsFilePath = utils.isJsFile(m);
 
           if (module.thiz.rurl(this)) {
-            //替换相对路径为绝对路径
             if (jsFilePath && xsloader$9.startsWith(m, ".")) {
               m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
               deps[i] = m;
@@ -3350,8 +3112,7 @@
           var paths = utils.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
 
           if (paths.length > 0) {
-            var moduleLoop = moduleScript.getModule(m); //该模块必定已经被定义过
-
+            var moduleLoop = moduleScript.getModule(m);
             moduleLoop.loopObject = {};
           }
         }
@@ -3359,7 +3120,7 @@
     }, {
       key: "absUrl",
       value: function absUrl() {
-        return this.getMineAbsUrl() || this.src; //(this.thatInvoker ? this.thatInvoker.absUrl() : null);
+        return this.getMineAbsUrl() || this.src;
       }
     }, {
       key: "getMineAbsUrl",
@@ -3369,24 +3130,13 @@
     }]);
 
     return DefineObject;
-  }(); ////////////////////////
-
-  /**
-   * 获取当前脚本，返回对象：
-   * src:脚本绝对地址，不含参数
-   * node:脚本dom对象
-   * @param {Object} isRemoveQueryHash
-   */
-
+  }();
 
   function getCurrentScript() {
     var isRemoveQueryHash = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
 
     function _getCurrentScriptOrSrc() {
-      //兼容获取正在运行的js
-      //取得正在解析的script节点
       if (document.currentScript !== undefined) {
-        //firefox 4+
         var node = document.currentScript && document.currentScript.src && document.currentScript;
 
         if (node) {
@@ -3398,7 +3148,7 @@
       }
 
       if (utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
-        var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+        var nodes = document.getElementsByTagName("script");
 
         for (var i = 0; i < nodes.length; i++) {
           var _node = nodes[i];
@@ -3422,33 +3172,19 @@
 
       try {
         var a = undefined;
-        a.b.c(); //强制报错,以便捕获e.stack
+        a.b.c();
       } catch (e) {
-        //safari的错误对象只有line,sourceId,sourceURL
         stack = e.stack || e.sourceURL || e.stacktrace || '';
 
         if (!stack && window.opera) {
-          //opera 9没有e.stack,但有e.Backtrace,但不能直接取得,需要对e对象转字符串进行抽取
           stack = (String(e).match(/of linked script \S+/g) || []).join(" ");
         }
       }
 
       if (stack) {
-        /**e.stack最后一行在所有支持的浏览器大致如下:
-         *chrome23:
-         * at http://113.93.50.63/data.js:4:1
-         *firefox17:
-         *@http://113.93.50.63/query.js:4
-         *opera12:
-         *@http://113.93.50.63/data.js:4
-         *IE10:
-         *  at Global code (http://113.93.50.63/data.js:4:1)
-         */
-        stack = stack.split(/[@ ]/g).pop(); //取得最后一行,最后一个空格或@之后的部分
-
+        stack = stack.split(/[@ ]/g).pop();
         stack = stack[0] == "(" ? stack.slice(1, -1) : stack;
-        var s = stack.replace(/(:\d+)?:\d+$/i, ""); //去掉行号与或许存在的出错字符起始位置
-
+        var s = stack.replace(/(:\d+)?:\d+$/i, "");
         return {
           src: s
         };
@@ -3470,7 +3206,7 @@
 
     if (!rs.node && rs.src != thePageUrl) {
       var src = utils.removeQueryHash(rs.src);
-      var nodes = document.getElementsByTagName("script"); //只在head标签中寻找
+      var nodes = document.getElementsByTagName("script");
 
       for (var i = 0; i < nodes.length; i++) {
         var node = nodes[i];
@@ -3510,12 +3246,6 @@
       node.removeEventListener(name, func, false);
     }
   }
-  /**
-   * callbackObj.onScriptLoad
-   * callbackObj.onScriptError
-   *
-   */
-
 
   function __browserLoader(moduleName, url, callbackObj) {
     var node = __createNode();
@@ -3563,11 +3293,9 @@
     }
 
     var nextDom = lastAppendHeadDom.nextSibling;
-    head.insertBefore(dom, nextDom); //			head.appendChild(dom);
-
+    head.insertBefore(dom, nextDom);
     lastAppendHeadDom = dom;
-  } /////////////////////////
-
+  }
 
   function loadScript(moduleName, url, onload, onerror) {
     var callbackObj = {};
@@ -3583,14 +3311,12 @@
         var scriptData = __getScriptData(evt, callbackObj);
 
         if (isSrcFromScriptLoad) {
-          lastScriptSrc = scriptData.src; //已经不含参数
-
+          lastScriptSrc = scriptData.src;
           xsloader$9.asyncCall(function () {
             onload(scriptData);
           });
         } else {
           if (utils.IE_VERSION > 0 || utils.IE_VERSION == "edge") {
-            //ie下确保此事件在脚本之后执行。
             xsloader$9.asyncCall(function () {
               onload(scriptData);
             });
@@ -3617,13 +3343,11 @@
   }
 
   function doDefine(thiz, args, isRequire) {
-    var src = getCurrentScript().src; //已经不含参数
-
+    var src = getCurrentScript().src;
     var defineObject = new DefineObject(src, thiz, args, isRequire, !isSrcFromScriptLoad);
 
     if (!isSrcFromScriptLoad) {
       try {
-        //防止执行其他脚本
         if (defineObject.src) {
           var node = document.currentScript;
 
@@ -3651,13 +3375,11 @@
     var isLoaderEnd = utils.isLoaderEnd();
     xsloader$9.asyncCall(function () {
       if (isSrcFromScriptLoad && isLoaderEnd) {
-        //执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
         defineObject.src = lastScriptSrc;
         defineObject.dealConfigDeps();
-        theRealDefine([defineObject]);
-      } else {
-        theRealDefine([defineObject]);
       }
+
+      theRealDefine([defineObject]);
     });
     return handle;
   }
@@ -3674,14 +3396,12 @@
 
   function prerequire(deps, callback) {
     if (!xsloader$9.config()) {
-      //require必须是在config之后
       throw new Error("not config");
     }
 
     var thatInvoker = getInvoker(this, true);
 
     if (arguments.length == 1 && xsloader$9.isString(deps)) {
-      //获取已经加载的模块
       var originDeps = deps;
       var pluginArgs = undefined;
       var pluginIndex = deps.indexOf("!");
@@ -3692,8 +3412,7 @@
 
         if (pluginArgs) {
           var argArr = [pluginArgs];
-          utils.replaceModulePrefix(xsloader$9.config(), argArr); //前缀替换
-
+          utils.replaceModulePrefix(xsloader$9.config(), argArr);
           pluginArgs = argArr[0];
         }
       }
@@ -3788,13 +3507,11 @@
 
     timeid = setTimeout(checkResultFun, xsloader$9.config().waitSeconds * 1000);
     return handle;
-  } //对于safari7-:在脚本加载事件中可获得正确的脚本地址
-
+  }
 
   var initDefine = function initDefine(theDefine) {
     theRealDefine = function theRealDefine(defines, loaded) {
       if (!xsloader$9.config()) {
-        //还没有配置
         globalDefineQueue.push(defines);
       } else {
         theDefine(defines, loaded);
@@ -3872,8 +3589,7 @@
     }
 
     return has;
-  }; //用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
-
+  };
 
   xsloader$a._resUrlBuilder = function (groupName) {
     throw new Error('resUrlBuilder not found!');
@@ -4004,7 +3720,6 @@
         }
 
         for (var k in argsObject) {
-          //加入全局的参数
           urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
         }
 
@@ -4052,7 +3767,6 @@
     option.modulePrefixCount = modulePrefixCount;
 
     if (modulePrefixCount > 0) {
-      //替换urlArgs中地址前缀
       var star = option.urlArgs["*"];
       delete option.urlArgs["*"];
       var urlArgsArr = [];
@@ -4061,7 +3775,6 @@
         var url = k;
 
         if (utils.isJsFile(url)) {
-          //处理相对
           if (xsloader$a.startsWith(url, ".") || xsloader$a.startsWith(url, "/") && !xsloader$a.startsWith(url, "//")) {
             url = utils.getPathWithRelative(script.theLoaderUrl, url);
           } else {
@@ -4070,7 +3783,6 @@
             if (absolute.absolute) {
               url = absolute.path;
             } else if (!xsloader$a.startsWith(url, "*]")) {
-              //排除*]；单*[可以有前缀
               url = option.baseUrl + url;
             }
           }
@@ -4109,8 +3821,7 @@
         var _urlArgObj = urlArgsArr[_i];
         option.urlArgs[_urlArgObj.url] = _urlArgObj.args;
       }
-    } //预处理urlArgs中的*[与*]
-
+    }
 
     var _urlArgs_prefix = [];
     var _urlArgs_suffix = [];
@@ -4152,7 +3863,6 @@
     }
 
     option.forPrefixSuffix = function (urlOrName) {
-      //前缀判断
       for (var _i2 = 0; _i2 < _urlArgs_prefix.length; _i2++) {
         var strfixObj = _urlArgs_prefix[_i2];
 
@@ -4167,8 +3877,7 @@
 
           return value;
         }
-      } //后缀判断
-
+      }
 
       for (var _i3 = 0; _i3 < _urlArgs_suffix.length; _i3++) {
         var _strfixObj = _urlArgs_suffix[_i3];
@@ -4188,13 +3897,12 @@
     };
 
     for (var name in option.paths) {
-      utils.replaceModulePrefix(option, option.paths[name]); //前缀替换
+      utils.replaceModulePrefix(option, option.paths[name]);
     }
 
     for (var _name in option.depsPaths) {
-      utils.replaceModulePrefix(option, option.depsPaths[_name]); //前缀替换
-    } //处理依赖
-
+      utils.replaceModulePrefix(option, option.depsPaths[_name]);
+    }
 
     var dealtDeps = option.dealtDeps;
 
@@ -4227,8 +3935,7 @@
 
     theConfig = option;
     theContext = _newContext();
-    script.onConfigedCallback(); //完成配置回调
-
+    script.onConfigedCallback();
     return theConfig;
   });
 
@@ -4276,16 +3983,8 @@
       loaded();
     });
   });
-  /**
-   * 当前模块脚本已经完成加载、但其依赖的模块可能需要加载。
-   * 当前模块：src、selfname已经确定。
-   * 若当前模块依赖为0、则可以直接finish；若当前模块存在其他依赖、则设置回调，等待被其他地方依赖时再触发。
-   * @param {Object} defineObject 当前模块
-   * @param {Object} lastDefineObject 第一次加载当前模块的模块
-   */
 
   function onModuleLoaded(defineObject, lastDefineObject) {
-    //先根据src获取模块
     var ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
 
     if (ifmodule) {
@@ -4296,19 +3995,17 @@
       ifmodule = moduleScript.newModule(defineObject);
     }
 
-    var names = []; //[defineObject.src];
+    var names = [];
 
     if (defineObject.selfname && defineObject.selfname != defineObject.src) {
       names.push(defineObject.selfname);
     }
 
     if (ifmodule.selfname && ifmodule.selfname != defineObject.selfname && ifmodule.selfname != defineObject.src) {
-      //此处的名字可能由配置指定
       names.push(ifmodule.selfname);
     }
 
-    defineObject.names = names; //一个模块的所有名字，包括src
-
+    defineObject.names = names;
     utils.each(names, function (name) {
       moduleScript.setModule(name, ifmodule);
 
@@ -4330,9 +4027,8 @@
     module.setInstanceType(defineObject.handle.instance || xsloader$b.config().instance);
 
     if (module.deps.length == 0) {
-      module.finish([]); //递归结束
+      module.finish([]);
     } else {
-      //在其他模块依赖此模块时进行加载
       var needCallback = function needCallback() {
         moduleScript.everyRequired(defineObject, module, function (depModules) {
           var args = [];
@@ -4354,8 +4050,7 @@
         module.whenNeed(needCallback);
       }
     }
-  } //定义模块
-
+  }
 
   var define = function define() {
     return defineHandle.predefine.apply(this, arguments);
@@ -4392,12 +4087,11 @@
   define("exports", function () {});
 
   var global$c = utils.global;
-  var xsloader$c = global$c.xsloader; //内部依赖加载插件
-
+  var xsloader$c = global$c.xsloader;
   xsloader$c.define(script.INNER_DEPS_PLUGIN, {
     pluginMain: function pluginMain(depId, onload, onerror, config) {
       var depsObj = script.innerDepsMap[depId];
-      var deps = depsObj.deps; //delete innerDepsMap[depId];
+      var deps = depsObj.deps;
 
       this.invoker().require(deps, function () {
         var args = [];
@@ -4491,10 +4185,6 @@
 
   var global$g = utils.global;
   var xsloader$g = global$g.xsloader;
-  /**
-   * 格式:name!moduleName=>>modulePath
-   */
-
   xsloader$g.define("name", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config) {
@@ -4544,13 +4234,6 @@
 
   var global$h = utils.global;
   var xsloader$h = global$h.xsloader;
-  /*
-   * Require-CSS RequireJS css! loader plugin
-   * 0.1.8
-   * Guy Bedford 2014
-   * MIT
-   */
-
   xsloader$h.define("css", function () {
     if (typeof window == 'undefined') return {
       load: function load(n, r, _load) {
@@ -4655,16 +4338,10 @@
     };
 
     cssAPI.pluginMain = function (cssId, onload, onerror, config) {
-      //			if(cssId.indexOf(".css") != cssId.length - 4) {
-      //				cssId += ".css";
-      //			}
       (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
     };
 
     cssAPI.getCacheKey = function (cssId) {
-      //			if(cssId.indexOf(".css") != cssId.length - 4) {
-      //				cssId += ".css";
-      //			}
       var invoker = this.invoker();
       return invoker ? invoker.getUrl(cssId, true) : cssId;
     };
@@ -4700,11 +4377,6 @@
 
   var global$j = utils.global;
   var xsloader$j = global$j.xsloader;
-  /**
-   * 格式：window!varNameInWindow=>>modulePath
-   */
-  //window插件,用于添加模块到window对象中
-
   xsloader$j.define("window", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config, http) {
@@ -4727,10 +4399,6 @@
 
   var global$k = utils.global;
   var xsloader$k = global$k.xsloader;
-  /**
-   * 格式:withdeps!modulePath=>>[deps]
-   */
-
   xsloader$k.define("withdeps", {
     pluginMain: function pluginMain(arg, onload, onerror, config) {
       var index = arg.indexOf("=>>");
@@ -4766,10 +4434,6 @@
 
   var global$l = utils.global;
   var xsloader$l = global$l.xsloader;
-  /**
-   * 加载json对象
-   */
-
   xsloader$l.define("json", ["xshttp"], {
     isSingle: true,
     pluginMain: function pluginMain(name, onload, onerror, config, http) {
@@ -4785,13 +4449,6 @@
   var global$m = utils.global;
   var xsloader$m = global$m.xsloader;
   var progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
-  /**
-   * option._beforeOpenHook
-   * option._onOkResponseHook
-   * option._onFailResponseHook
-   * 
-   * @param {Object} option
-   */
 
   function httpRequest(option) {
     if (!option) {
@@ -5152,26 +4809,14 @@
     };
     return requestObj;
   }
-  /**
-   */
-
 
   httpRequest._beforeOpenHook = function (option, callback, xhr) {
     callback();
   };
-  /**
-   * function(result,option,xhr,callback),callback(result)的result为最终的结果
-   */
-
 
   httpRequest._onOkResponseHook = function (result, option, callback, xhr) {
     callback(result);
   };
-  /**
-   * function(option,xhr,callback,extraErrorType),callback(result)的result为false则不会处理后面的,如果为非undefined则作为成功的结果。
-   * extraErrorType=="parse-json-error"表示转换成json时出错
-   */
-
 
   httpRequest._onFailResponseHook = function (option, callback, xhr, extraErrorType) {
     callback(undefined);
@@ -5185,14 +4830,6 @@
   var global$n = utils.global;
   var xsloader$n = global$n.xsloader;
   xsloader$n.define("xsrequest", ["xshttp"], function (http) {
-    /**
-     * 参数列表:
-     * callback:function(rs)
-     * async:始终为true
-     * 其他参数同xshttp
-     * 不断返回then(function()).then,当返回false时取消调用后面的回调。
-     * @param {Object} option
-     */
     var xsRequest = function xsRequest(option) {
       option = xsloader$n.extend({
         params: undefined,
@@ -5278,9 +4915,6 @@
       var length = 0;
       var headNode = newNode(),
           lastNode = headNode;
-      /**
-       * 在链表末尾添加元素
-       */
 
       this.append = function (element) {
         var current = newNode(element);
@@ -5288,8 +4922,7 @@
         current.pre = lastNode;
         lastNode = current;
         length++;
-      }; //在链表的任意位置插入元素
-
+      };
 
       this.insert = function (position, element) {
         if (position >= 0 && position <= length) {
@@ -5351,10 +4984,6 @@
           return undefined;
         }
       }
-      /**
-       * @param callback function 返回true表示移除
-       */
-
 
       this.eachForRemove = function (callback) {
         var pNode = headNode.next;
@@ -5379,26 +5008,15 @@
             pNode = pNode.next;
           }
         }
-      }; //从链表中移除元素
-
+      };
 
       this.removeAt = function (position) {
         return getElement(position, true);
       };
-      /**
-       * 移除并获取第一个元素
-       * @param callback function(elem,index)
-       */
-
 
       this.pop = function (callback) {
         return this.removeAt(0);
       };
-      /**
-       * 返回元素在链表中的位置
-       * @param element object|function(elem)
-       */
-
 
       this.indexOf = function (element) {
         var pNode = headNode.next;
@@ -5423,19 +5041,16 @@
       this.find = function (element) {
         var index = this.indexOf(element);
         return index >= 0 ? this.elementAt(index) : undefined;
-      }; //移除某个元素
-
+      };
 
       this.remove = function (element) {
         var index = this.indexOf(element);
         return this.removeAt(index);
-      }; //判断链表是否为空
-
+      };
 
       this.isEmpty = function () {
         return length === 0;
-      }; //返回链表的长度
-
+      };
 
       this.size = function () {
         return length;
@@ -5489,7 +5104,6 @@
           }
 
           postMessageBridge.sendResponse({
-            //回应已经收到
             id: msgid
           }, handleId);
         }
@@ -5554,12 +5168,6 @@
         };
       };
 
-      /**
-       * 
-       * @param {Object} winObjOrCallback
-       * @param {Object} option
-       * @param {Object} notActive
-       */
       var _connectWindow = function _connectWindow(winObjOrCallback, option, notActive) {
         option = xsloader$o.extendDeep({
           cmd: "default-cmd",
@@ -5628,7 +5236,6 @@
         var winObj;
 
         if (typeof iframe == "string") {
-          //iframe = ddocument.querySelector(iframe);
           winObj = function winObj(callback) {
             iframe.onload = function () {
               callback(this.contentWindow);
@@ -5640,24 +5247,13 @@
 
         return _connectWindow(winObj, option);
       };
-      /**
-       * 用于连接iframe.
-       * @param {Object} iframe iframe或selector
-       * @param {Object} option
-       * @return 返回sender
-       */
-
 
       var postMessageBridge = function () {
         var handle = {};
-        var instanceMap = {}; //id:listener
-
-        var cmd2ListenerMap = {}; //cmd:[]
-
-        var instanceBindMap = {}; //instanceid:true
-
-        var oinstanceidMap = {}; //已经被绑定的oinstanceid:instanceid
-        //isActive为false表示监听者
+        var instanceMap = {};
+        var cmd2ListenerMap = {};
+        var instanceBindMap = {};
+        var oinstanceidMap = {};
 
         handle.listen = function (cmd, conndata, connectingSource, source, isActive, _onConned, _onMsg, _onResponse, _onElse) {
           var listener = {
@@ -5684,27 +5280,7 @@
           return instanceid;
         };
 
-        handle.remove = function (instanceid) {//TODO !!!!!!!
-
-          /*let listener = listeners[id];
-          delete listeners[id];
-          if(listener.active) {
-          	for(let x in activeListenerMyIds) {
-          		let as = activeListenerMyIds[x];
-          		let found = false;
-          		for(let k = 0; k < as.length; k++) {
-          			if(as[k] == id) {
-          				as.splice(k, 1);
-          				found = true;
-          				break;
-          			}
-          		}
-          		if(found) {
-          			break;
-          		}
-          	}
-          }*/
-        };
+        handle.remove = function (instanceid) {};
 
         handle.send = function (data, instanceid, msgid) {
           var listener = instanceMap[instanceid];
@@ -5726,7 +5302,6 @@
 
         function handleConn(cmd, fromSource, originStr, data, oinstanceid) {
           if (oinstanceidMap[oinstanceid]) {
-            //console.warn("already bind:" + cmd);
             return;
           }
 
@@ -5810,7 +5385,6 @@
             var listener = listeners[i];
 
             if (listener.id == minstanceid && !listener.refused[oinstanceid]) {
-              //当前为主动发起连接的页面
               listener.connectingSource(fromSource, originStr, data, Callback(listener.id));
             }
           }
@@ -5921,42 +5495,18 @@
       handleApi.connectIFrame = function (iframe, option) {
         return _connectIFrame(iframe, option);
       };
-      /**
-       * 用于连接父页面.
-       * @param {Object} option
-       * @return 返回sender
-       */
-
 
       handleApi.connectParent = function (option) {
         return _connectWindow(window.parent, option);
       };
-      /**
-       * 用于连接顶层页面.
-       * @param {Object} option
-       * @return 返回sender
-       */
-
 
       handleApi.connectTop = function (option) {
         return _connectWindow(window.top, option);
       };
-      /**
-       * 用于连接打开者.
-       * @param {Object} option
-       * @return 返回sender
-       */
-
 
       handleApi.connectOpener = function (option) {
         return _connectWindow(window.opener, option);
       };
-      /**
-       * 用于监听其他页面发送消息.
-       * @param {Object} option
-       * @return 返回一个sender
-       */
-
 
       handleApi.listenMessage = function (option) {
         return _connectWindow(null, option, true);
@@ -5965,24 +5515,8 @@
       handleApi.debug = function (isDebug) {
         isXsMsgDebug = isDebug;
       };
-      /**
-       * *******************
-       * option参数
-       *********************
-       * option.cmd:
-       * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))默认只选择同源
-       * option.listener: function(data,sender)
-       * option.connected:function(sender,conndata)
-       * option.onfailed:function(errtype):errtype,timeout,canceled
-       * option.conndata:
-       **************
-       * 回调的extra参数
-       **************
-       * originStr:对方页面的地址
-       */
 
-
-      xsloader$o.define("xsmsg", handleApi); //TODO STRONG xsmsg
+      xsloader$o.define("xsmsg", handleApi);
     }
 
     xsloader$o.define("XsLinkedList", function () {
@@ -5992,7 +5526,6 @@
     console.error(e);
   }
 
-  // 静态资源服务
   var global$p = utils.global;
   var xsloader$p = global$p.xsloader;
   var http = global$p._xshttp_request_;
@@ -6057,7 +5590,6 @@
           resUrls: []
         },
         chooseLoader: function chooseLoader(localConfig) {
-          //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
           return "default";
         },
         loader: {
@@ -6084,7 +5616,6 @@
             conf = xsloader$p.xsParseJson(confText);
           } else {
             if (xsloader$p.startsWith(url, location.protocol + "//" + location.host + "/")) {
-              //同域则默认用脚本解析
               conf = xsloader$p.xsEval(confText);
             } else {
               conf = xsloader$p.xsParseJson(confText);
@@ -6097,7 +5628,7 @@
             conf.beforeDealProperties();
           }
 
-          conf = xsloader$p.dealProperties(conf, conf.properties); //参数处理
+          conf = xsloader$p.dealProperties(conf, conf.properties);
 
           if (isLocal && conf.service.hasGlobal) {
             loadServiceConfig("global servie", conf.service.confUrl, function (globalConfig) {
@@ -6186,13 +5717,11 @@
       loader.depsPaths = loader.depsPaths || {};
 
       if (mainPath.indexOf("!") != -1) {
-        //插件调用
         var theConfig = xsloader$p(loader);
         mainName = "_plugin_main_";
         var deps = [];
 
         if (theConfig.deps) {
-          //手动添加*依赖
           if (theConfig.deps["*"]) {
             Array.pushAll(deps, theConfig.deps["*"]);
           }
@@ -6207,8 +5736,7 @@
           absUrl: pageHref
         });
       } else if (!xsloader$p.hasDefine(mainName)) {
-        loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
-
+        loader.depsPaths[mainName] = mainPath;
         xsloader$p(loader);
       } else {
         xsloader$p(loader);

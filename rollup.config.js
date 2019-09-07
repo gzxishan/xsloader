@@ -31,21 +31,19 @@ export default {
 		resolve({
 			browser: true
 		}),
-		eslint({
+		!isProduct&&eslint({
 			exclude: 'node_modules/**'
 		}),
 		babel({
 			exclude: 'node_modules/**'
 		}),
 		(isProduct && uglify(
-		{output: {
-            comments: function(node, comment) {
-              if (comment.type === "comment2") {
-                return /@preserve|@license|Released under the/i.test(comment.value);
-              }
-              return false;
+		{
+			output: {
+				semicolons:true,
+				beautify: false,
+                comments: true//注释的保留已在babel里面进行过滤
             }
-          }
 		})),
 
 	],
