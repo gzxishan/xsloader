@@ -47,7 +47,7 @@
   	（2）define(callback)
   	（3）define(moduleName,[deps],content),defineAsync(moduleName,[deps],content)
   	（4）define(moduleName,content),defineAsync(moduleName,content)
-  	（5）define.then({onError:function(err,invoker),orderDep:false,instance:"single",absUrl:url},before:function(deps),depBefore:function(index,dep,depDeps)}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时，则除外）
+  	（5）define.then({onError:function(err,invoker),orderDep:false,instance:"single",absUrl:url},before:function(deps),depBefore:function(index,dep,depDeps)}),其中orderDep为true时，表示数组中依赖的模块按照顺序加载（但有些在后面的模块已经被加载过时、则除外，且只对当前依赖数组有效）
   	（6）define.error(function(err,invoker){})同then的onError
  5、1）回调函数(包括plugin函数)的this对象、模块对象(为define(...Object))的_invoker_
         （1）require(...)与define(...)、defineAsync(...),同require与define,但具有当前js文件的路径信息、从而可以使用相对路径

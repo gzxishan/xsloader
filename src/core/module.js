@@ -50,11 +50,11 @@ function buildInvoker(obj) {
 		let h = this.define.apply(this, arguments);
 		return h;
 	};
-	invoker.withAbsUrl = function(absUrl) {
+	invoker.withAbsUrl = function(absUrlStr) {
 		let moduleMap = {
 			module: module,
-			src: absUrl,
-			absUrl: () => absUrl,
+			src: absUrlStr,
+			absUrl: () => absUrlStr,
 			name: invoker.getName(),
 			invoker: invoker.invoker()
 		};
@@ -173,13 +173,14 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 					hasFinished = true;
 					relyCallback(this, new utils.PluginError(err || false));
 				};
-				let args = [pluginArgs, onload, onerror, xsloader.config()].concat(this.module.depModules);
+
 				try {
 					let cacheResult;
 					if(this._object.isSingle && (cacheResult = this.lastSinglePluginResult(pluginArgs)) !== undefined) {
 						let last = cacheResult;
 						onload(last.result, last.ignoreAspect);
 					} else {
+						let args = [pluginArgs, onload, onerror, xsloader.config()].concat(this.module.args);
 						this._object.pluginMain.apply(this.thiz, args);
 					}
 				} catch(e) {
@@ -213,13 +214,11 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 	return instanceModule;
 }
 
-function _newModule(name, src, absUrl, thatInvoker, callback) {
+function _newModule(name, src, thatInvoker, callback) {
 	src = utils.removeQueryHash(src);
-	let defineObject = new script.DefineObject(src, null, [name, null, callback], false);
+	let defineObject = new script.DefineObject(src, null, [name, null, callback]);
 	defineObject.thatInvoker = thatInvoker;
-	defineObject.handle = {
-		absUrl: absUrl
-	};
+	defineObject.appendConfigDepsAndEmbedDeps(); //添加配置依赖，该模块对象是加载者、而不是define者
 	return newModule(defineObject);
 }
 
@@ -248,12 +247,12 @@ function newModule(defineObject) {
 		deps: defineObject.deps || [],
 		relys: [],
 		otherModule: undefined,
-		directDefineIndex: 0, //模块直接声明的依赖开始索引
 		ignoreAspect: false,
-		depModules: null,
+		args: null,
 		src: defineObject.src, //绝对路径,可能等于当前页面路径
 		absUrl: () => defineObject.absUrl(),
 		callback: defineObject.callback,
+		_dealApplyArgs: (args) => args,
 		_loadCallback: null,
 		moduleObject: undefined, //依赖模块对应的对象
 		loopObject: undefined, //循环依赖对象
@@ -261,7 +260,6 @@ function newModule(defineObject) {
 		instanceType: "single",
 		reinitByDefineObject(defineObject) {
 			this.deps = defineObject.deps || [];
-			//this.absUrl = () => defineObject.absUrl();
 			this.callback = defineObject.callback;
 		},
 		setInstanceType(instanceType) {
@@ -286,14 +284,8 @@ function newModule(defineObject) {
 			}
 		},
 		finish(args) {
-			if(this.directDefineIndex != 0) {
-				let _directArgs = [];
-				for(let i = this.directDefineIndex; i < args.length; i++) {
-					_directArgs.push(args[i]);
-				}
-				args = _directArgs;
-			}
-			this.depModules = args;
+			args = this._dealApplyArgs(args);
+			this.args = args;
 			let obj;
 			if(xsloader.isFunction(this.callback)) {
 				try {
@@ -566,7 +558,7 @@ function newModule(defineObject) {
 			}
 			//只打印一个错误栈
 			if(mod) {
-				mod._printOnNotDefined(node);
+				mod._printOnNotDefined && mod._printOnNotDefined(node);
 			} else {
 				node.nodes.push({
 					parent: parentNode,
@@ -594,7 +586,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		return;
 	}
 
-	//处理相对路径
+	//处理相对路径,此时模块的依赖已经全部处理好了
 	defineObject.dealRelative(module);
 
 	let config = xsloader.config();
@@ -719,9 +711,39 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				}
 
 				if(!isError && urls.length) {
+					utils.replaceModulePrefix(config, urls); //前缀替换
+
 					let m2Name = isJsFile ? null : dep;
-					let module2 = _newModule(m2Name, urls[0], module.absUrl, module.thiz);
-					module2.setState("loading");
+					let module2 = _newModule(m2Name, urls[0], module.thiz);
+					module2.setState("loading"); //只有此处才设置loading状态
+
+					let configDeps = [];
+					if(m2Name) {
+						let _deps = config.getDeps(m2Name);
+						utils.each(_deps, (d) => {
+							if(xsloader.indexInArray(configDeps, d) == -1) {
+								configDeps.push(d);
+							}
+						});
+					}
+
+					utils.each(urls, (url) => {
+						let _deps = config.getDeps(url);
+						utils.each(_deps, (d) => {
+							if(xsloader.indexInArray(configDeps, d) == -1) {
+								configDeps.push(d);
+							}
+						});
+					});
+
+					if(configDeps.length) {
+						//先加载配置依赖
+						xsloader.require(configDeps, () => {
+							loadModule();
+						});
+					} else {
+						loadModule();
+					}
 
 					//加载模块dep:module2
 					function loadModule(index = 0) {
@@ -737,16 +759,17 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						}
 						script.loadScript(module2.selfname, url, (scriptData) => {
 							//console.log(scriptData);
-							if(module2.state == "loading") { //module2.selfname为配置名称，尝试默认模块
-								let defaultMod = moduleDef.getModule(module2.src);
+							if(module2.state == "loading") { //module2.selfname为配置名称，尝试默认模块或者唯一的模块
+								//(唯一的模块用于支持：脚本里只有一个define、且指定了模块名、且此处的模块名与其自己指定了不相等)
+								let defaultMod = moduleDef.getModule(module2.src, null, module2);
 								if(defaultMod && module2 != defaultMod) {
 									module2.toOtherModule(defaultMod);
 								}
 							}
 
 							if(module2.state == "loading") {
-								//								isError = "load module err(may not define default):" + module2.description();
-								//								errCallback(isError, invoker_the_module);
+								//isError = "load module err(may not define default):" + module2.description();
+								//errCallback(isError, invoker_the_module);
 								//？？没有define的情况、直接完成
 								module2.finish([]);
 							}
@@ -759,7 +782,6 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							}
 						});
 					}
-					loadModule();
 				}
 			} while (false);
 		}

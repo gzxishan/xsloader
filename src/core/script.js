@@ -98,25 +98,30 @@ class Invoker {
 	}
 }
 
-function getInvoker(thiz, nullNew = true) {
+function getInvoker(thiz, nullNew = false) {
 	if(thiz instanceof Invoker) {
 		return thiz;
 	} else if(thiz instanceof DefineObject) {
 		return thiz.thatInvoker;
-	} else if(nullNew) {
-		let moduleMap = {
-			module: "",
-			src: thePageUrl,
-			absUrl: () => thePageUrl,
-			name: "__root__",
-			invoker: null
-		};
-		moduleMap.thiz = new Invoker(moduleMap);
-		moduleScript.buildInvoker(moduleMap);
-		moduleMap.thiz.invoker = function() {
-			return this;
-		};
-		return moduleMap.thiz;
+	} else {
+		let parentModule = currentDefineModuleQueue.peek();
+		if(parentModule) {
+			return parentModule.thiz;
+		} else if(nullNew) {
+			let moduleMap = {
+				module: "",
+				src: thePageUrl,
+				absUrl: () => thePageUrl,
+				name: "__root__",
+				invoker: null
+			};
+			moduleMap.thiz = new Invoker(moduleMap);
+			moduleScript.buildInvoker(moduleMap);
+			moduleMap.thiz.invoker = function() {
+				return this;
+			};
+			return moduleMap.thiz;
+		}
 	}
 }
 
@@ -130,11 +135,18 @@ class DefineObject {
 	deps;
 	callback;
 	thatInvoker;
-	constructor(src, thiz, args = [], isRequire = false, willDealConfigDeps = true) {
+	_directDepLength = 0;
+	directDepLength = 0;
+	names = [];
+	constructor(src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
+		this.parentDefine = currentDefineModuleQueue.peek();
+		this.thatInvoker = getInvoker(thiz);
+//		if(this.thatInvoker) {
+//			src = this.thatInvoker.getAbsoluteUrl();
+//		}
 		this.src = src;
 		this.thiz = thiz;
 		this.isRequire = isRequire;
-		this.parentDefine = currentDefineModuleQueue.peek();
 		this.handle = {
 			onError(err) {
 				console.warn(err);
@@ -143,10 +155,9 @@ class DefineObject {
 			depBefore(index, dep, depDeps) {},
 			orderDep: false,
 			absoluteUrl: undefined, //弃用
-			absUrl: undefined,
+			absUrl: this.thatInvoker&&this.thatInvoker.getAbsoluteUrl(),
 			instance: undefined,
 		};
-		this.thatInvoker = getInvoker(thiz);
 
 		let selfname = args[0];
 		let deps = args[1];
@@ -178,38 +189,74 @@ class DefineObject {
 
 		this.selfname = selfname;
 		this.deps = deps;
+		this.pushName(selfname);
 		this.callback = callback;
-
-		if(willDealConfigDeps) {
-			//处理配置依赖及嵌套依赖
-			this.dealConfigDeps();
-		}
-
+		this._directDepLength = deps.length;
+		this.directDepLength = deps.length;
 	}
 
-	dealConfigDeps() {
-		let src = this.src;
-		let selfname = this.selfname;
-		let deps = this.deps;
+	pushName(name) {
+		if(name && xsloader.indexInArray(this.names, name) == -1) {
+			this.names.push(name);
+		}
+	}
+
+	/**
+	 * 处理配置依赖及嵌套依赖,同时会替换前缀
+	 */
+	appendConfigDepsAndEmbedDeps(module) {
 		let config = xsloader.config();
-		if(config) {
-			//获取配置里配置的依赖
-			let _deps = config.getDeps(src);
-			utils.each(_deps, (dep) => {
+		let src = this.src;
+		let deps = this.deps;
+
+		let _deps = config.getDeps(src);
+		utils.each(_deps, (dep) => {
+			if(xsloader.indexInArray(deps, dep) == -1) {
 				deps.push(dep);
-			});
-			if(selfname && selfname != src) {
-				_deps = config.getDeps(selfname);
-				utils.each(_deps, (dep) => {
-					deps.push(dep);
-				});
 			}
-			//前缀替换
-			utils.replaceModulePrefix(config, deps);
+		});
+		utils.each(this.names, (name) => {
+			_deps = config.getDeps(name);
+			utils.each(_deps, (dep) => {
+				if(xsloader.indexInArray(deps, dep) == -1) {
+					deps.push(dep);
+				}
+			});
+		});
+		if(this.handle.orderDep && this._directDepLength > 1 && deps.length > this._directDepLength) {
+			let odeps = [true]; //第一个true表示顺序依赖
+			while(this._directDepLength-- > 0) {
+				odeps.push(deps.shift());
+			}
+			deps.unshift(odeps);
+			this.handle.orderDep = false;
 		}
 
 		//处理嵌套依赖
 		_dealEmbedDeps(deps);
+		utils.replaceModulePrefix(config, deps); //前缀替换
+		if(module) {
+			module.deps = deps;
+			module._dealApplyArgs = (function(directDepLength, hasOrderDep) {
+				return function(applyArgs) {
+					if(directDepLength == 0) {
+						return [];
+					}
+					//顺序依赖,还原成最初的顺序,移除额外的依赖。
+					let args = new Array(directDepLength + 1);
+					if(hasOrderDep) {
+						args = applyArgs[0];
+					} else {
+						for(var i = 0; i < directDepLength; i++) {
+							args[i] = applyArgs[i];
+						}
+						args[directDepLength] = applyArgs[applyArgs.length - 1].slice(0, directDepLength);
+					}
+					return args;
+				};
+			})(this.directDepLength, this.directDepLength > 0 && this._directDepLength <= 0);
+		}
+
 	}
 
 	dealRelative(module) {
@@ -235,7 +282,7 @@ class DefineObject {
 	}
 
 	absUrl() {
-		return this.getMineAbsUrl() || this.src; //(this.thatInvoker ? this.thatInvoker.absUrl() : null);
+		return this.getMineAbsUrl() || this.src;
 	}
 
 	getMineAbsUrl() {
@@ -454,7 +501,7 @@ function loadScript(moduleName, url, onload, onerror) {
 
 function doDefine(thiz, args, isRequire) {
 	let src = getCurrentScript().src; //已经不含参数
-	let defineObject = new DefineObject(src, thiz, args, isRequire, !isSrcFromScriptLoad);
+	let defineObject = new DefineObject(src, thiz, args, isRequire);
 	if(!isSrcFromScriptLoad) {
 		try { //防止执行其他脚本
 			if(defineObject.src) {
@@ -488,7 +535,6 @@ function doDefine(thiz, args, isRequire) {
 		if(isSrcFromScriptLoad && isLoaderEnd) {
 			//执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
 			defineObject.src = lastScriptSrc;
-			defineObject.dealConfigDeps();
 		}
 		theRealDefine([defineObject]);
 	});

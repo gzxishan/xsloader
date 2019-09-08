@@ -147,7 +147,9 @@ function appendInnerDeps(deps, callback) {
 			.toString()
 			.replace(commentRegExp, __commentReplace)
 			.replace(cjsRequireRegExp, function(match, dep) {
-				deps.push(dep);
+				if(xsloader.indexInArray(deps, dep) == -1) {
+					deps.push(dep);
+				}
 			});
 	}
 }

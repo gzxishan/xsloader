@@ -235,7 +235,8 @@ let initFun = () => {
 				if(invoker) {
 					console.error("error occured:invoker.url=", invoker.getUrl());
 				}
-				console.error("invoke main err:" + err);
+				console.error("invoke main err:");
+				console.error(err);
 			}
 		});
 	}

@@ -50,7 +50,8 @@ const defineHandle = script.initDefine(function theRealDefine(defines, loaded = 
  * @param {Object} lastDefineObject 第一次加载当前模块的模块
  */
 function onModuleLoaded(defineObject, lastDefineObject) {
-
+	//同一个模块可能分属于不同的module对象，加载者module当前处于loading状态、需要将其依赖追加进来、确保依赖完整
+	moduleScript.appendLoadingModuleDeps(defineObject);
 	//先根据src获取模块
 	let ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
 	if(ifmodule) {
@@ -61,22 +62,22 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		ifmodule = moduleScript.newModule(defineObject);
 	}
 
-	let names = []; //[defineObject.src];
-	if(defineObject.selfname && defineObject.selfname != defineObject.src) {
-		names.push(defineObject.selfname);
+	if(defineObject.selfname != defineObject.src) {
+		defineObject.pushName(defineObject.selfname);
 	}
 
-	if(ifmodule.selfname && ifmodule.selfname != defineObject.selfname && ifmodule.selfname != defineObject.src) {
+	if(ifmodule.selfname != defineObject.src) {
 		//此处的名字可能由配置指定
-		names.push(ifmodule.selfname);
+		defineObject.pushName(ifmodule.selfname);
 	}
-	defineObject.names = names; //一个模块的所有名字，包括src
-	utils.each(names, (name) => {
+	//一个模块的所有名字，包括src
+	utils.each(defineObject.names, (name) => {
 		moduleScript.setModule(name, ifmodule);
 		if(xsloader._ignoreAspect_[name]) {
 			ifmodule.ignoreAspect = true;
 		}
 	});
+	defineObject.appendConfigDepsAndEmbedDeps(ifmodule); //添加配置依赖:在配置文件里直接通过src、名称配置的
 
 	let module = ifmodule;
 

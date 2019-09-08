@@ -40,7 +40,7 @@ export default {
 		(isProduct && uglify(
 		{
 			output: {
-				semicolons:true,
+				semicolons:false,
 				beautify: false,
                 comments: true//注释的保留已在babel里面进行过滤
             }

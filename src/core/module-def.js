@@ -1,5 +1,6 @@
 import utils from "../util/index.js";
 const global = utils.global;
+const xsloader = global.xsloader;
 const theDefinedMap = {};
 const lastDefinObjectMap = {};
 
@@ -57,7 +58,49 @@ function getLastDefineObject(src) {
 	return lastDefinObjectMap[src];
 }
 
-function getModule(nameOrUrl, selfname = null) {
+/**
+ * 获取指定脚本、加载中模块的依赖，并添加到defineObject.deps末尾。(配置里的依赖、不一定被添加到实际模块中，模块别名的缘故)
+ * @param {Object} src
+ */
+function appendLoadingModuleDeps(defineObject) {
+	let src = defineObject.src;
+	let deps = defineObject.deps;
+	let moduleDef = theDefinedMap[src];
+	if(moduleDef) {
+		let mod = moduleDef.defaultModule && moduleDef.defaultModule.state == "loading" && moduleDef.defaultModule;
+		let _deps = mod && mod.deps;
+		utils.each(_deps, (dep) => {
+			if(xsloader.indexInArray(deps, dep) == -1) {
+				deps.push(dep);
+			}
+		});
+		if(mod) {
+			defineObject.pushName(mod.selfname);
+		}
+		for(let k in moduleDef.modules) {
+			mod = moduleDef.modules[k].state == "loading" && moduleDef.modules[k];
+			_deps = mod && mod.deps;
+
+			if(mod) {
+				defineObject.pushName(mod.selfname);
+			}
+
+			utils.each(_deps, (dep) => {
+				if(xsloader.indexInArray(deps, dep) == -1) {
+					deps.push(dep);
+				}
+			});
+		}
+	}
+}
+
+/**
+ * 
+ * @param {Object} nameOrUrl
+ * @param {Object} selfname
+ * @param ifoneThenGet 如果没有找到(排除此模块)，且只有唯一的一个、且状态为loaded或defined、则返回该模块对象。获取的模块不等于此模块。
+ */
+function getModule(nameOrUrl, selfname = null, ifoneThenGet = null) {
 	nameOrUrl = utils.removeQueryHash(nameOrUrl);
 	let isSrc = _isSrc(nameOrUrl);
 
@@ -77,6 +120,24 @@ function getModule(nameOrUrl, selfname = null) {
 				module = moduleDef.modules[nameOrUrl];
 			}
 		}
+
+		if(module == ifoneThenGet) {
+			module = null;
+		}
+
+		if(!module && ifoneThenGet) {
+			let count = 0;
+			let mod = moduleDef.defaultModule;
+			mod && mod != ifoneThenGet && count++;
+			for(let k in moduleDef.modules) {
+				mod = moduleDef.modules[k];
+				mod != ifoneThenGet && count++;
+			}
+			if(count == 1 && (mod.state == "loaded" || mod.state == "defined")) {
+				module = mod;
+			}
+		}
+
 		return module ? module.get() : null;
 	} else {
 		return null;
@@ -188,4 +249,5 @@ export default {
 	preDependOn,
 	setLastDefineObject,
 	getLastDefineObject,
+	appendLoadingModuleDeps
 };

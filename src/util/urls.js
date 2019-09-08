@@ -6,7 +6,7 @@ import global from './global.js';
 const xsloader = global.xsloader;
 
 function isJsFile(path) {
-	if(!xsloader.isString(path)) {
+	if(!xsloader.isString(path) || path.indexOf(".") == -1) {
 		return false;
 	}
 	var pluginIndex = path.indexOf("!");
@@ -292,23 +292,25 @@ function propertiesDeal(configObject, properties) {
 
 function replaceModulePrefix(config, deps) {
 
-	if(!deps) {
+	if(!deps||deps.length==0) {
 		return;
 	}
 
 	for(let i = 0; i < deps.length; i++) {
 		let m = deps[i];
-		let index = m.indexOf("!");
-		let pluginParam = index > 0 ? m.substring(index) : "";
-		m = index > 0 ? m.substring(0, index) : m;
+		if(typeof m == "string") {
+			let index = m.indexOf("!");
+			let pluginParam = index > 0 ? m.substring(index) : "";
+			m = index > 0 ? m.substring(0, index) : m;
 
-		index = m.indexOf("?");
-		let query = index > 0 ? m.substring(index) : "";
-		m = index > 0 ? m.substring(0, index) : m;
+			index = m.indexOf("?");
+			let query = index > 0 ? m.substring(index) : "";
+			m = index > 0 ? m.substring(0, index) : m;
 
-		let is = isJsFile(m);
-		if(!is && (xsloader.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
-			deps[i] = m + ".js" + query + pluginParam;
+			let is = isJsFile(m);
+			if(!is && !/\.[^\/\s]*$/.test(m) && (xsloader.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+				deps[i] = m + ".js" + query + pluginParam;
+			}
 		}
 	}
 
@@ -319,15 +321,17 @@ function replaceModulePrefix(config, deps) {
 			let len = prefix.length;
 			for(let i = 0; i < deps.length; i++) {
 				let m = deps[i];
-				let pluginIndex = m.indexOf("!");
-				let pluginName = null;
-				if(pluginIndex >= 0) {
-					pluginName = m.substring(0, pluginIndex + 1);
-					m = m.substring(pluginIndex + 1);
-				}
-				if(xsloader.startsWith(m, prefix)) {
-					let dep = replaceStr + m.substring(len);
-					deps[i] = pluginName ? pluginName + dep : dep;
+				if(typeof m == "string") {
+					let pluginIndex = m.indexOf("!");
+					let pluginName = null;
+					if(pluginIndex >= 0) {
+						pluginName = m.substring(0, pluginIndex + 1);
+						m = m.substring(pluginIndex + 1);
+					}
+					if(xsloader.startsWith(m, prefix)) {
+						let dep = replaceStr + m.substring(len);
+						deps[i] = pluginName ? pluginName + dep : dep;
+					}
 				}
 			}
 		}
