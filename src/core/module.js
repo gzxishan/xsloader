@@ -4,66 +4,6 @@ import moduleDef from "./module-def";
 const global = utils.global;
 const xsloader = global.xsloader;
 
-function buildInvoker(obj) {
-	let invoker = obj["thiz"];
-	let module = obj.module || obj;
-	let id = xsloader.randId();
-	invoker.getId = function() {
-		return id;
-	};
-	invoker.getUrl = function(relativeUrl, appendArgs, optionalAbsUrl) {
-		if(optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
-			throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
-		}
-		if(appendArgs === undefined) {
-			appendArgs = true;
-		}
-		let url;
-		if(relativeUrl === undefined) {
-			url = this.getAbsoluteUrl();
-		} else if(xsloader.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
-			url = utils.getPathWithRelative(optionalAbsUrl || this.rurl(), relativeUrl);
-		} else {
-			url = xsloader.config().baseUrl + relativeUrl;
-		}
-		if(appendArgs) {
-			if(url == script.thePageUrl) {
-				url += location.search + location.hash;
-			}
-			return xsloader.config().dealUrl(module, url);
-		} else {
-			return url;
-		}
-	};
-	invoker.require = function() {
-		let h = xsloader.require.apply(invoker, arguments);
-		return h;
-	};
-	invoker.define = function() {
-		let h = xsloader.define.apply(invoker, arguments);
-		return h;
-	};
-	invoker.rurl = function(defineObject) {
-		return defineObject && defineObject.absUrl() || this.absUrl() || this.getAbsoluteUrl();
-	};
-	invoker.defineAsync = function() {
-		let h = this.define.apply(this, arguments);
-		return h;
-	};
-	invoker.withAbsUrl = function(absUrlStr) {
-		let moduleMap = {
-			module: module,
-			src: absUrlStr,
-			absUrl: () => absUrlStr,
-			name: invoker.getName(),
-			invoker: invoker.invoker()
-		};
-		moduleMap.thiz = new script.Invoker(moduleMap);
-		buildInvoker(moduleMap);
-		return moduleMap.thiz;
-	};
-}
-
 //新建模块实例
 //relyCallback(depModuleThis)
 function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
@@ -203,14 +143,18 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 
 	let moduleMap = {
 		module: module,
-		src: module.thiz.getAbsoluteUrl(),
+		src: module.src,
 		absUrl: () => module.thiz.absUrl(),
-		name: module.thiz.getName(),
+		selfname: module.thiz.getName(),
 		invoker: instanceModule._invoker
 	};
 	instanceModule.thiz = new script.Invoker(moduleMap);
 
-	buildInvoker(instanceModule);
+	//	if(module.selfname == "css") {
+	//		console.log("absUrl=" + instanceModule.thiz.absUrl() + ",invoker.absUrl=" + instanceModule.thiz.invoker().absUrl());
+	//	}
+
+	//	buildInvoker(instanceModule);
 	return instanceModule;
 }
 
@@ -241,6 +185,7 @@ function newModule(defineObject) {
 	let moduleMap = {
 		id: utils.getAndIncIdCount(),
 		selfname: defineObject.selfname,
+		parent: defineObject.parentDefine,
 		description() {
 			return "selfname=" + (this.selfname || "") + ",src=" + this.src;
 		},
@@ -346,10 +291,10 @@ function newModule(defineObject) {
 				//console.log(this.selfname,":",deps);
 				//deps=null;
 				if(deps && deps.length > 0) {
-					xsloader.require(deps, function() {
+					xsloader.require(deps, () => {
 						theCallback();
 					}).then({
-						defined_module_for_deps: thiz.selfname
+						defined_module_for_deps: this.selfname
 					});
 				} else {
 					theCallback();
@@ -430,7 +375,7 @@ function newModule(defineObject) {
 			}
 		}
 	};
-	moduleMap.thiz = new script.Invoker(moduleMap);
+	new script.Invoker(moduleMap);
 
 	//返回_module_
 	moduleMap.dealInstance = function(moduleInstance) {
@@ -530,6 +475,19 @@ function newModule(defineObject) {
 					}
 				}
 				console.warn("failed module:" + errModule.description() + ",\n\tdeps state infos [" + as.join(",") + "]");
+				for(let i = 0; i < errModule.deps.length; i++) {
+					let dep = errModule.deps[i];
+					let index = dep.lastIndexOf("!");
+					if(index != -1) {
+						dep = dep.substring(0, index);
+					}
+					let depMod = moduleDef.getModule(dep);
+					if(depMod) {
+						console.warn("\t" + dep + ":src=" + depMod.src + ",absUrl=" + (depMod.thiz && depMod.thiz.absUrl()));
+					} else {
+						console.warn(dep + ":");
+					}
+				}
 			}
 		});
 
@@ -570,7 +528,6 @@ function newModule(defineObject) {
 	};
 	moduleDef.setModule(moduleMap.selfname, moduleMap);
 
-	buildInvoker(moduleMap);
 	return moduleMap;
 }
 
@@ -598,7 +555,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 	//module.jsScriptCount = 0;
 	let depModules = new Array(depCount);
 
-	let invoker_the_module = module.thiz;
+	let invoker_of_module = module.thiz;
 
 	function checkFinish(index, dep_name, depModule, syncHandle) {
 		depModules[index] = depModule;
@@ -613,12 +570,15 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					err: isError,
 					index: index,
 					dep_name: dep_name
-				}, invoker_the_module);
+				}, invoker_of_module);
 			}
 		}!isError && syncHandle && syncHandle();
 	}
 
 	utils.each(module.deps, function(dep, index, ary, syncHandle) {
+		//		if(xsloader.startsWith(dep, "css!")) {
+		//			console.log("src=" + module.src + ",absUrl=" + invoker_of_module.absUrl() + ",absolute=" + invoker_of_module.src());
+		//		}
 		let originDep = dep;
 		let pluginArgs = undefined;
 		let pluginIndex = dep.indexOf("!");
@@ -628,7 +588,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		}
 		let relyItFun = function() {
 			moduleDef.getModule(dep)
-				.relyIt(invoker_the_module, function(depModule, err) {
+				.relyIt(invoker_of_module, function(depModule, err) {
 					if(!err) {
 						depCount--;
 						if(dep == "exports") {
@@ -657,7 +617,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					let i3 = i2 > 0 ? dep.indexOf(":", i2 + 1) : -1;
 					if(i2 == -1) {
 						isError = "illegal module:" + dep;
-						errCallback(isError, invoker_the_module);
+						errCallback(isError, invoker_of_module);
 						break;
 					}
 					let version;
@@ -671,7 +631,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					}
 					if(version === undefined) {
 						isError = "unknown version for:" + dep;
-						errCallback(isError, invoker_the_module);
+						errCallback(isError, invoker_of_module);
 						break;
 					}
 					let _url = xsloader._resUrlBuilder(groupModule);
@@ -689,15 +649,15 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					//提前依赖模块
 					moduleDef.preDependOn(dep);
 					//					isError = "module '" + dep + "' urls is empty.";
-					//					errCallback(isError, invoker_the_module);
+					//					errCallback(isError, invoker_of_module);
 				} else {
 					utils.each(urls, function(url, index) {
 						if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
-							if(!module.thiz.rurl(defineObject)) {
+							if(!invoker_of_module.rurl(defineObject)) {
 								isError = "script url is null:'" + module.description();
-								errCallback(isError, invoker_the_module);
+								errCallback(isError, invoker_of_module);
 							}
-							url = utils.getPathWithRelative(module.thiz.rurl(defineObject), url);
+							url = utils.getPathWithRelative(invoker_of_module.rurl(defineObject), url);
 						} else {
 							let absolute = utils.dealPathMayAbsolute(url);
 							if(absolute.absolute) {
@@ -714,7 +674,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					utils.replaceModulePrefix(config, urls); //前缀替换
 
 					let m2Name = isJsFile ? null : dep;
-					let module2 = _newModule(m2Name, urls[0], module.thiz);
+					let module2 = _newModule(m2Name, urls[0], invoker_of_module);
 					module2.setState("loading"); //只有此处才设置loading状态
 
 					let configDeps = [];
@@ -769,7 +729,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 
 							if(module2.state == "loading") {
 								//isError = "load module err(may not define default):" + module2.description();
-								//errCallback(isError, invoker_the_module);
+								//errCallback(isError, invoker_of_module);
 								//？？没有define的情况、直接完成
 								module2.finish([]);
 							}
@@ -778,7 +738,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 								loadModule(index + 1);
 							} else {
 								isError = err;
-								errCallback(isError, invoker_the_module);
+								errCallback(isError, invoker_of_module);
 							}
 						});
 					}
@@ -796,7 +756,6 @@ export default {
 	...moduleDef,
 	newModule,
 	everyRequired,
-	buildInvoker,
 	newModuleInstance,
 	getModuleId
 };

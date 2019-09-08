@@ -75,31 +75,139 @@ function _getPluginParam(path) {
 }
 
 /////////////////////////////
+class Handle {
+	defineObject;
+	constructor(defineObject) {
+		this.defineObject = defineObject;
+	}
+
+	then(option) {
+		let defineObject = this.defineObject;
+		defineObject.handle = xsloader.extend(defineObject.handle, option);
+		return this;
+	}
+	error(onError) {
+		let defineObject = this.defineObject;
+		defineObject.handle.onError = onError;
+		return this;
+	}
+}
+
+class ThisInvoker {
+	invoker;
+	constructor(invoker) {
+		this.invoker = invoker;
+	}
+}
+
+function _buildInvoker(module) {
+	let invoker = module["thiz"];
+	module = module.module || module;
+	let id = xsloader.randId();
+	invoker.getId = function() {
+		return id;
+	};
+	invoker.getUrl = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
+		if(optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+			throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
+		}
+
+		let url;
+		if(relativeUrl === undefined) {
+			url = this.src();
+		} else if(xsloader.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
+			url = utils.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
+		} else {
+			url = xsloader.config().baseUrl + relativeUrl;
+		}
+		if(appendArgs) {
+			if(url == thePageUrl) {
+				url += location.search + location.hash;
+			}
+			return xsloader.config().dealUrl(module, url);
+		} else {
+			return url;
+		}
+	};
+	invoker.require = function() {
+		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
+		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);
+		if(h instanceof Handle) {
+			h.then({
+				absUrl: invoker.src()
+			});
+		}
+		return h;
+	};
+	invoker.define = function() {
+		let h = xsloader.define.apply(new ThisInvoker(invoker), arguments);
+		if(h instanceof Handle) {
+			h.then({
+				absUrl: invoker.src()
+			});
+		}
+		return h;
+	};
+	invoker.rurl = function(defineObject) {
+		return defineObject && defineObject.absUrl() || this.absUrl();
+	};
+	invoker.defineAsync = function() {
+		let h = invoker.define.apply(invoker, arguments);
+		return h;
+	};
+	invoker.withAbsUrl = function(absUrlStr) {
+		let moduleMap = {
+			module: module,
+			src: module.src,
+			absUrl: () => absUrlStr,
+			name: invoker.getName(),
+			invoker: invoker.invoker()
+		};
+		return new Invoker(moduleMap);
+	};
+}
 
 class Invoker {
 	_im;
 	constructor(moduleMap) {
 		this._im = new InVar(moduleMap);
+		moduleMap.thiz = this;
+		_buildInvoker(moduleMap);
 	}
 	/**
-	 * 获取绝对地址
+	 * 获取绝对地址（弃用）
 	 */
 	getAbsoluteUrl() {
 		return this._im.get().src;
 	}
+
+	/**
+	 * 获取绝对地址
+	 */
+	src() {
+		return this._im.get().src;
+	}
+
 	getName() {
 		return this._im.get().selfname;
 	}
+
+	/**
+	 * 获取当前调用者的调用者
+	 */
 	invoker() {
 		return this._im.get().invoker;
 	}
+
 	absUrl() { //用于获取其他模块地址的参考路径
 		return this._im.get().absUrl();
 	}
 }
 
 function getInvoker(thiz, nullNew = false) {
-	if(thiz instanceof Invoker) {
+	if(thiz instanceof ThisInvoker) {
+		return thiz.invoker;
+	} else if(thiz instanceof Invoker) {
 		return thiz;
 	} else if(thiz instanceof DefineObject) {
 		return thiz.thatInvoker;
@@ -115,12 +223,7 @@ function getInvoker(thiz, nullNew = false) {
 				name: "__root__",
 				invoker: null
 			};
-			moduleMap.thiz = new Invoker(moduleMap);
-			moduleScript.buildInvoker(moduleMap);
-			moduleMap.thiz.invoker = function() {
-				return this;
-			};
-			return moduleMap.thiz;
+			return new Invoker(moduleMap);
 		}
 	}
 }
@@ -141,9 +244,11 @@ class DefineObject {
 	constructor(src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
-//		if(this.thatInvoker) {
-//			src = this.thatInvoker.getAbsoluteUrl();
-//		}
+
+		if(thiz instanceof ThisInvoker) {
+			src = thiz.invoker.src(); //设置脚本地址为上级的
+		}
+
 		this.src = src;
 		this.thiz = thiz;
 		this.isRequire = isRequire;
@@ -155,7 +260,7 @@ class DefineObject {
 			depBefore(index, dep, depDeps) {},
 			orderDep: false,
 			absoluteUrl: undefined, //弃用
-			absUrl: this.thatInvoker&&this.thatInvoker.getAbsoluteUrl(),
+			absUrl: undefined,
 			instance: undefined,
 		};
 
@@ -267,12 +372,12 @@ class DefineObject {
 			let m = deps[i];
 			let jsFilePath = utils.isJsFile(m);
 
-			if(module.thiz.rurl(this)) { //替换相对路径为绝对路径
-				if(jsFilePath && xsloader.startsWith(m, ".")) {
-					m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
-					deps[i] = m;
-				}
+			//替换相对路径为绝对路径
+			if(jsFilePath && xsloader.startsWith(m, ".")) {
+				m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
+				deps[i] = m;
 			}
+
 			let paths = utils.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
 			if(paths.length > 0) {
 				let moduleLoop = moduleScript.getModule(m); //该模块必定已经被定义过
@@ -282,12 +387,9 @@ class DefineObject {
 	}
 
 	absUrl() {
-		return this.getMineAbsUrl() || this.src;
+		return this.handle.absUrl || this.handle.absoluteUrl || this.src;
 	}
 
-	getMineAbsUrl() {
-		return this.handle.absUrl || this.handle.absoluteUrl;
-	}
 }
 
 ////////////////////////
@@ -312,19 +414,16 @@ function getCurrentScript(isRemoveQueryHash = true) {
 		}
 		if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
 			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
-			for(let i = 0; i < nodes.length; i++) {
+			//			utils.each(nodes, (node) => {
+			//				console.log("node.src=" + node.src + ",node.readyState=" + node.readyState);
+			//			});
+			for(let i = nodes.length - 1; i >= 0; i--) {
 				let node = nodes[i];
-				if(node.readyState === "interactive") {
-					if(node.src) {
-						return {
-							node,
-							src: node.src
-						};
-					} else {
-						return {
-							src: thePageUrl
-						};
-					}
+				if(node.readyState === "interactive" && node.src) {
+					return {
+						node,
+						src: node.src
+					};
 				}
 			}
 		}
@@ -359,7 +458,16 @@ function getCurrentScript(isRemoveQueryHash = true) {
 		}
 	}
 
-	let rs = _getCurrentScriptOrSrc();
+	let rs;
+	let parentDefine = currentDefineModuleQueue.peek();
+	if(parentDefine) {
+		rs = {
+			src: parentDefine.src
+		};
+	} else {
+		rs = _getCurrentScriptOrSrc();
+	}
+
 	if(!rs) {
 		rs = {
 			src: thePageUrl
@@ -397,7 +505,7 @@ function __createNode() {
 	let node = document.createElement('script');
 	node.type = 'text/javascript';
 	node.charset = 'utf-8';
-	node.async = true;
+	node.async = "async";
 	return node;
 }
 
@@ -436,8 +544,8 @@ function __browserLoader(moduleName, url, callbackObj) {
 		callbackObj.errListen = errListen;
 		node.addEventListener('error', errListen, true);
 	}
-	node.src = url;
 	appendHeadDom(node);
+	node.src = url; //在ie10-以下，必须在脚本插入head后再进行src的设置。
 }
 
 function __getScriptData(evt, callbackObj) {
@@ -500,7 +608,17 @@ function loadScript(moduleName, url, onload, onerror) {
 }
 
 function doDefine(thiz, args, isRequire) {
-	let src = getCurrentScript().src; //已经不含参数
+	//	console.log("**********************************[");
+	let rs = getCurrentScript(); //已经不含参数
+
+	//	if(typeof args[0] == "string") {
+	//		console.log("args[0]=" + args[0] + ",args[1]=" + args[1] + ",src=" + rs.src);
+	//	} else {
+	//		console.log("args[0]=" + args[0] + ",src=" + rs.src);
+	//	}
+	//	console.log(rs.node);
+	//	console.log("**********************************]\n");
+	let src = rs.src;
 	let defineObject = new DefineObject(src, thiz, args, isRequire);
 	if(!isSrcFromScriptLoad) {
 		try { //防止执行其他脚本
@@ -519,16 +637,7 @@ function doDefine(thiz, args, isRequire) {
 
 	}
 
-	let handle = {
-		then(option) {
-			defineObject.handle = xsloader.extend(defineObject.handle, option);
-			return this;
-		},
-		error(onError) {
-			defineObject.handle.onError = onError;
-			return this;
-		}
-	};
+	let handle = new Handle(defineObject);
 
 	let isLoaderEnd = utils.isLoaderEnd();
 	xsloader.asyncCall(() => {
@@ -554,7 +663,7 @@ function prerequire(deps, callback) {
 	if(!xsloader.config()) { //require必须是在config之后
 		throw new Error("not config");
 	}
-	let thatInvoker = getInvoker(this, true);
+
 	if(arguments.length == 1 && xsloader.isString(deps)) { //获取已经加载的模块
 		let originDeps = deps;
 		let pluginArgs = undefined;
@@ -569,6 +678,7 @@ function prerequire(deps, callback) {
 			}
 		}
 		let module = moduleScript.getModule(deps);
+		let thatInvoker = getInvoker(this, true);
 		if(!module) {
 			deps = thatInvoker.getUrl(deps, false);
 			module = moduleScript.getModule(deps);
@@ -628,6 +738,7 @@ function prerequire(deps, callback) {
 	let checkResultFun = function() {
 		timeid = undefined;
 		let ifmodule = moduleScript.getModule(selfname);
+		console.log(isErr)
 		if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
 			let module = ifmodule;
 			if(module) {
@@ -675,6 +786,7 @@ export default {
 	thePageUrl,
 	appendHeadDom,
 	initDefine,
+	Handle,
 	Invoker,
 	DefineObject,
 	loadScript,

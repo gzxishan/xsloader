@@ -90,7 +90,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 
 	module.setState("loaded");
 	module.setInstanceType(defineObject.handle.instance || xsloader.config().instance);
-
+	
 	if(module.deps.length == 0) {
 		module.finish([]); //递归结束
 	} else {

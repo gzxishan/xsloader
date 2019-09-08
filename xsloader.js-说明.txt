@@ -55,12 +55,12 @@
         								1.当没有提供了relativeUrl时，获取当前模块的url路径；
         							  2.提供了relativeUrl时，获取相对于absUrl()的url路径、获取path映射路径或绝对路径。
         							  3.optionalAbsUrl:可选的绝对参考地址
-        （3）getAbsoluteUrl(),获取当前模块的绝对路径
+        （3）src(),获取当前模块的绝对路径
         （4）getName(),当前模块或插件的名称
         （5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
         （6）withAbsUrl(absUrl)，获取一个新的invoker，absUrl()、getAbsoluteUrl()都会变化
         （7）getId(),获取invoker的id。
-        （6）absUrl(),获取其他模块绝对路径的参考地址,默认等于getAbsoluteUrl(),可通过define或require的then({absUrl:url})进行指定
+        （6）absUrl(),获取其他模块绝对路径的参考地址,默认等于src(),可通过define或require的then({absUrl:url})进行指定
     2）模块对象有属性_module_,_module_.setToAll(attrName,attrValue)或_module_.setToAll(obj)给所有模块实例设置属性
     3）xsloader.clear_module_(modules)：删除_module_,_modules_
  6、plugin定义：

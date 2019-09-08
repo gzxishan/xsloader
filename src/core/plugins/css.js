@@ -109,6 +109,7 @@ xsloader.define("css", function() {
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {
 		//				cssId += ".css";
 		//			}
+//		console.log("cssId="+cssId+",cssSrc="+this.invoker().getUrl(cssId, true)+",absUrl="+this.invoker().absUrl());
 		(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
 	};
 	cssAPI.getCacheKey = function(cssId) {

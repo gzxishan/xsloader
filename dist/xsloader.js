@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Sun, 08 Sep 2019 06:35:29 GMT
+ * build time:Sun, 08 Sep 2019 15:36:29 GMT
  */
 (function () {
   'use strict';
@@ -2076,81 +2076,6 @@
   var global$8 = utils.global;
   var xsloader$9 = global$8.xsloader;
 
-  function buildInvoker(obj) {
-    var invoker = obj["thiz"];
-    var module = obj.module || obj;
-    var id = xsloader$9.randId();
-
-    invoker.getId = function () {
-      return id;
-    };
-
-    invoker.getUrl = function (relativeUrl, appendArgs, optionalAbsUrl) {
-      if (optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
-        throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
-      }
-
-      if (appendArgs === undefined) {
-        appendArgs = true;
-      }
-
-      var url;
-
-      if (relativeUrl === undefined) {
-        url = this.getAbsoluteUrl();
-      } else if (xsloader$9.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
-        url = utils.getPathWithRelative(optionalAbsUrl || this.rurl(), relativeUrl);
-      } else {
-        url = xsloader$9.config().baseUrl + relativeUrl;
-      }
-
-      if (appendArgs) {
-        if (url == script.thePageUrl) {
-          url += location.search + location.hash;
-        }
-
-        return xsloader$9.config().dealUrl(module, url);
-      } else {
-        return url;
-      }
-    };
-
-    invoker.require = function () {
-      var h = xsloader$9.require.apply(invoker, arguments);
-
-      return h;
-    };
-
-    invoker.define = function () {
-      var h = xsloader$9.define.apply(invoker, arguments);
-      return h;
-    };
-
-    invoker.rurl = function (defineObject) {
-      return defineObject && defineObject.absUrl() || this.absUrl() || this.getAbsoluteUrl();
-    };
-
-    invoker.defineAsync = function () {
-      var h = this.define.apply(this, arguments);
-      return h;
-    };
-
-    invoker.withAbsUrl = function (absUrlStr) {
-      var moduleMap = {
-        module: module,
-        src: absUrlStr,
-        absUrl: function absUrl() {
-          return absUrlStr;
-        },
-        name: invoker.getName(),
-        invoker: invoker.invoker()
-      };
-      moduleMap.thiz = new script.Invoker(moduleMap);
-      buildInvoker(moduleMap);
-      return moduleMap.thiz;
-    };
-  }
-
   function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
     var instanceModule = {
       relyCallback: relyCallback,
@@ -2314,15 +2239,14 @@
     };
     var moduleMap = {
       module: module,
-      src: module.thiz.getAbsoluteUrl(),
+      src: module.src,
       absUrl: function absUrl() {
         return module.thiz.absUrl();
       },
-      name: module.thiz.getName(),
+      selfname: module.thiz.getName(),
       invoker: instanceModule._invoker
     };
     instanceModule.thiz = new script.Invoker(moduleMap);
-    buildInvoker(instanceModule);
     return instanceModule;
   }
 
@@ -2339,6 +2263,7 @@
     var moduleMap = {
       id: utils.getAndIncIdCount(),
       selfname: defineObject.selfname,
+      parent: defineObject.parentDefine,
       description: function description() {
         return "selfname=" + (this.selfname || "") + ",src=" + this.src;
       },
@@ -2458,7 +2383,7 @@
             xsloader$9.require(deps, function () {
               theCallback();
             }).then({
-              defined_module_for_deps: thiz.selfname
+              defined_module_for_deps: this.selfname
             });
           } else {
             theCallback();
@@ -2537,7 +2462,7 @@
         }
       }
     };
-    moduleMap.thiz = new script.Invoker(moduleMap);
+    new script.Invoker(moduleMap);
 
     moduleMap.dealInstance = function (moduleInstance) {
       instances.push(moduleInstance);
@@ -2652,6 +2577,24 @@
           }
 
           console.warn("failed module:" + errModule.description() + ",\n\tdeps state infos [" + _as.join(",") + "]");
+
+          for (var _i2 = 0; _i2 < errModule.deps.length; _i2++) {
+            var _dep = errModule.deps[_i2];
+
+            var _index = _dep.lastIndexOf("!");
+
+            if (_index != -1) {
+              _dep = _dep.substring(0, _index);
+            }
+
+            var _depMod = moduleDef.getModule(_dep);
+
+            if (_depMod) {
+              console.warn("\t" + _dep + ":src=" + _depMod.src + ",absUrl=" + (_depMod.thiz && _depMod.thiz.absUrl()));
+            } else {
+              console.warn(_dep + ":");
+            }
+          }
         }
       });
     };
@@ -2697,7 +2640,6 @@
     };
 
     moduleDef.setModule(moduleMap.selfname, moduleMap);
-    buildInvoker(moduleMap);
     return moduleMap;
   }
 
@@ -2719,7 +2661,7 @@
         theExports;
     var depCount = module.deps.length;
     var depModules = new Array(depCount);
-    var invoker_the_module = module.thiz;
+    var invoker_of_module = module.thiz;
 
     function checkFinish(index, dep_name, depModule, syncHandle) {
       depModules[index] = depModule;
@@ -2735,7 +2677,7 @@
             err: isError,
             index: index,
             dep_name: dep_name
-          }, invoker_the_module);
+          }, invoker_of_module);
         }
       }
 
@@ -2753,7 +2695,7 @@
       }
 
       var relyItFun = function relyItFun() {
-        moduleDef.getModule(dep).relyIt(invoker_the_module, function (depModule, err) {
+        moduleDef.getModule(dep).relyIt(invoker_of_module, function (depModule, err) {
           if (!err) {
             depCount--;
 
@@ -2785,7 +2727,7 @@
 
             if (i2 == -1) {
               isError = "illegal module:" + dep;
-              errCallback(isError, invoker_the_module);
+              errCallback(isError, invoker_of_module);
               return "break";
             }
 
@@ -2802,7 +2744,7 @@
 
             if (version === undefined) {
               isError = "unknown version for:" + dep;
-              errCallback(isError, invoker_the_module);
+              errCallback(isError, invoker_of_module);
               return "break";
             }
 
@@ -2822,12 +2764,12 @@
           } else {
             utils.each(urls, function (url, index) {
               if (xsloader$9.startsWith(url, ".") || xsloader$9.startsWith(url, "/")) {
-                if (!module.thiz.rurl(defineObject)) {
+                if (!invoker_of_module.rurl(defineObject)) {
                   isError = "script url is null:'" + module.description();
-                  errCallback(isError, invoker_the_module);
+                  errCallback(isError, invoker_of_module);
                 }
 
-                url = utils.getPathWithRelative(module.thiz.rurl(defineObject), url);
+                url = utils.getPathWithRelative(invoker_of_module.rurl(defineObject), url);
               } else {
                 var absolute = utils.dealPathMayAbsolute(url);
 
@@ -2876,7 +2818,7 @@
                   loadModule(index + 1);
                 } else {
                   isError = err;
-                  errCallback(isError, invoker_the_module);
+                  errCallback(isError, invoker_of_module);
                 }
               });
             };
@@ -2884,7 +2826,7 @@
             utils.replaceModulePrefix(config, urls);
             var m2Name = isJsFile ? null : dep;
 
-            var module2 = _newModule(m2Name, urls[0], module.thiz);
+            var module2 = _newModule(m2Name, urls[0], invoker_of_module);
 
             module2.setState("loading");
             var configDeps = [];
@@ -2935,7 +2877,6 @@
   var moduleScript = _objectSpread2({}, moduleDef, {
     newModule: newModule,
     everyRequired: everyRequired,
-    buildInvoker: buildInvoker,
     newModuleInstance: newModuleInstance,
     getModuleId: getModuleId
   });
@@ -3015,6 +2956,129 @@
     }
   }
 
+  var Handle = function () {
+    function Handle(defineObject) {
+      _classCallCheck(this, Handle);
+
+      _defineProperty(this, "defineObject", void 0);
+
+      this.defineObject = defineObject;
+    }
+
+    _createClass(Handle, [{
+      key: "then",
+      value: function then(option) {
+        var defineObject = this.defineObject;
+        defineObject.handle = xsloader$a.extend(defineObject.handle, option);
+        return this;
+      }
+    }, {
+      key: "error",
+      value: function error(onError) {
+        var defineObject = this.defineObject;
+        defineObject.handle.onError = onError;
+        return this;
+      }
+    }]);
+
+    return Handle;
+  }();
+
+  var ThisInvoker = function ThisInvoker(invoker) {
+    _classCallCheck(this, ThisInvoker);
+
+    _defineProperty(this, "invoker", void 0);
+
+    this.invoker = invoker;
+  };
+
+  function _buildInvoker(module) {
+    var invoker = module["thiz"];
+    module = module.module || module;
+    var id = xsloader$a.randId();
+
+    invoker.getId = function () {
+      return id;
+    };
+
+    invoker.getUrl = function (relativeUrl) {
+      var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+      var optionalAbsUrl = arguments.length > 2 ? arguments[2] : undefined;
+
+      if (optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+        throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
+      }
+
+      var url;
+
+      if (relativeUrl === undefined) {
+        url = this.src();
+      } else if (xsloader$a.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
+        url = utils.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
+      } else {
+        url = xsloader$a.config().baseUrl + relativeUrl;
+      }
+
+      if (appendArgs) {
+        if (url == thePageUrl) {
+          url += location.search + location.hash;
+        }
+
+        return xsloader$a.config().dealUrl(module, url);
+      } else {
+        return url;
+      }
+    };
+
+    invoker.require = function () {
+      console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
+
+      var h = xsloader$a.require.apply(new ThisInvoker(invoker), arguments);
+
+      if (h instanceof Handle) {
+        h.then({
+          absUrl: invoker.src()
+        });
+      }
+
+      return h;
+    };
+
+    invoker.define = function () {
+      var h = xsloader$a.define.apply(new ThisInvoker(invoker), arguments);
+
+      if (h instanceof Handle) {
+        h.then({
+          absUrl: invoker.src()
+        });
+      }
+
+      return h;
+    };
+
+    invoker.rurl = function (defineObject) {
+      return defineObject && defineObject.absUrl() || this.absUrl();
+    };
+
+    invoker.defineAsync = function () {
+      var h = invoker.define.apply(invoker, arguments);
+      return h;
+    };
+
+    invoker.withAbsUrl = function (absUrlStr) {
+      var moduleMap = {
+        module: module,
+        src: module.src,
+        absUrl: function absUrl() {
+          return absUrlStr;
+        },
+        name: invoker.getName(),
+        invoker: invoker.invoker()
+      };
+      return new Invoker(moduleMap);
+    };
+  }
+
   var Invoker = function () {
     function Invoker(moduleMap) {
       _classCallCheck(this, Invoker);
@@ -3022,11 +3086,19 @@
       _defineProperty(this, "_im", void 0);
 
       this._im = new InVar(moduleMap);
+      moduleMap.thiz = this;
+
+      _buildInvoker(moduleMap);
     }
 
     _createClass(Invoker, [{
       key: "getAbsoluteUrl",
       value: function getAbsoluteUrl() {
+        return this._im.get().src;
+      }
+    }, {
+      key: "src",
+      value: function src() {
         return this._im.get().src;
       }
     }, {
@@ -3052,7 +3124,9 @@
   function getInvoker(thiz) {
     var nullNew = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
-    if (thiz instanceof Invoker) {
+    if (thiz instanceof ThisInvoker) {
+      return thiz.invoker;
+    } else if (thiz instanceof Invoker) {
       return thiz;
     } else if (thiz instanceof DefineObject) {
       return thiz.thatInvoker;
@@ -3071,14 +3145,7 @@
           name: "__root__",
           invoker: null
         };
-        moduleMap.thiz = new Invoker(moduleMap);
-        moduleScript.buildInvoker(moduleMap);
-
-        moduleMap.thiz.invoker = function () {
-          return this;
-        };
-
-        return moduleMap.thiz;
+        return new Invoker(moduleMap);
       }
     }
   }
@@ -3116,6 +3183,11 @@
 
       this.parentDefine = currentDefineModuleQueue.peek();
       this.thatInvoker = getInvoker(thiz);
+
+      if (thiz instanceof ThisInvoker) {
+        src = thiz.invoker.src();
+      }
+
       this.src = src;
       this.thiz = thiz;
       this.isRequire = isRequire;
@@ -3127,7 +3199,7 @@
         depBefore: function depBefore(index, dep, depDeps) {},
         orderDep: false,
         absoluteUrl: undefined,
-        absUrl: this.thatInvoker && this.thatInvoker.getAbsoluteUrl(),
+        absUrl: undefined,
         instance: undefined
       };
       var selfname = args[0];
@@ -3242,11 +3314,9 @@
           var m = deps[i];
           var jsFilePath = utils.isJsFile(m);
 
-          if (module.thiz.rurl(this)) {
-            if (jsFilePath && xsloader$a.startsWith(m, ".")) {
-              m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
-              deps[i] = m;
-            }
+          if (jsFilePath && xsloader$a.startsWith(m, ".")) {
+            m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
+            deps[i] = m;
           }
 
           var paths = utils.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
@@ -3260,12 +3330,7 @@
     }, {
       key: "absUrl",
       value: function absUrl() {
-        return this.getMineAbsUrl() || this.src;
-      }
-    }, {
-      key: "getMineAbsUrl",
-      value: function getMineAbsUrl() {
-        return this.handle.absUrl || this.handle.absoluteUrl;
+        return this.handle.absUrl || this.handle.absoluteUrl || this.src;
       }
     }]);
 
@@ -3290,20 +3355,14 @@
       if (utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
         var nodes = document.getElementsByTagName("script");
 
-        for (var i = 0; i < nodes.length; i++) {
+        for (var i = nodes.length - 1; i >= 0; i--) {
           var _node = nodes[i];
 
-          if (_node.readyState === "interactive") {
-            if (_node.src) {
-              return {
-                node: _node,
-                src: _node.src
-              };
-            } else {
-              return {
-                src: thePageUrl
-              };
-            }
+          if (_node.readyState === "interactive" && _node.src) {
+            return {
+              node: _node,
+              src: _node.src
+            };
           }
         }
       }
@@ -3331,7 +3390,16 @@
       }
     }
 
-    var rs = _getCurrentScriptOrSrc();
+    var rs;
+    var parentDefine = currentDefineModuleQueue.peek();
+
+    if (parentDefine) {
+      rs = {
+        src: parentDefine.src
+      };
+    } else {
+      rs = _getCurrentScriptOrSrc();
+    }
 
     if (!rs) {
       rs = {
@@ -3373,7 +3441,7 @@
     var node = document.createElement('script');
     node.type = 'text/javascript';
     node.charset = 'utf-8';
-    node.async = true;
+    node.async = "async";
     return node;
   }
 
@@ -3409,8 +3477,8 @@
       node.addEventListener('error', errListen, true);
     }
 
-    node.src = url;
     appendHeadDom(node);
+    node.src = url;
   }
 
   function __getScriptData(evt, callbackObj) {
@@ -3483,7 +3551,8 @@
   }
 
   function doDefine(thiz, args, isRequire) {
-    var src = getCurrentScript().src;
+    var rs = getCurrentScript();
+    var src = rs.src;
     var defineObject = new DefineObject(src, thiz, args, isRequire);
 
     if (!isSrcFromScriptLoad) {
@@ -3502,16 +3571,7 @@
       }
     }
 
-    var handle = {
-      then: function then(option) {
-        defineObject.handle = xsloader$a.extend(defineObject.handle, option);
-        return this;
-      },
-      error: function error(onError) {
-        defineObject.handle.onError = onError;
-        return this;
-      }
-    };
+    var handle = new Handle(defineObject);
     var isLoaderEnd = utils.isLoaderEnd();
     xsloader$a.asyncCall(function () {
       if (isSrcFromScriptLoad && isLoaderEnd) {
@@ -3538,8 +3598,6 @@
       throw new Error("not config");
     }
 
-    var thatInvoker = getInvoker(this, true);
-
     if (arguments.length == 1 && xsloader$a.isString(deps)) {
       var originDeps = deps;
       var pluginArgs = undefined;
@@ -3557,6 +3615,7 @@
       }
 
       var module = moduleScript.getModule(deps);
+      var thatInvoker = getInvoker(this, true);
 
       if (!module) {
         deps = thatInvoker.getUrl(deps, false);
@@ -3626,6 +3685,7 @@
     var checkResultFun = function checkResultFun() {
       timeid = undefined;
       var ifmodule = moduleScript.getModule(selfname);
+      console.log(isErr);
 
       if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
         var _module = ifmodule;
@@ -3677,6 +3737,7 @@
     thePageUrl: thePageUrl,
     appendHeadDom: appendHeadDom,
     initDefine: initDefine,
+    Handle: Handle,
     Invoker: Invoker,
     DefineObject: DefineObject,
     loadScript: loadScript,
@@ -5870,7 +5931,7 @@
         }
 
         deps.push(mainPath);
-        xsloader$q.defineAsync(mainName, deps, function () {}).then({
+        xsloader$q.define(mainName, deps, function () {}).then({
           absUrl: pageHref
         });
       } else if (!xsloader$q.hasDefine(mainName)) {

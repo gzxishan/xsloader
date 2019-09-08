@@ -206,7 +206,7 @@ let initFun = () => {
 				}
 			}
 			deps.push(mainPath);
-			xsloader.defineAsync(mainName, deps, function() {
+			xsloader.define(mainName, deps, function() {
 
 			}).then({
 				absUrl: pageHref
