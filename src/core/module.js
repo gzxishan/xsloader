@@ -76,7 +76,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 			let willCache = this._willCache(pluginArgs, obj);
 			return this.module.setSinglePluginResult(willCache, id, pluginArgs, obj);
 		},
-		init: function(justForSingle) {
+		initInstance: function(justForSingle) {
 			let relyCallback = this.relyCallback;
 			this._module_ = this.module.dealInstance(this);
 			this._setDepModuleObjectGen(this.module.loopObject || this.module.moduleObject);
@@ -124,7 +124,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 						this._object.pluginMain.apply(this.thiz, args);
 					}
 				} catch(e) {
-					console.warn(e);
+					//console.warn(e);
 					onerror(e);
 				}
 				if(!hasFinished) {
@@ -191,12 +191,11 @@ function newModule(defineObject) {
 		},
 		deps: defineObject.deps || [],
 		relys: [],
-		otherModule: undefined,
 		ignoreAspect: false,
 		args: null,
 		src: defineObject.src, //绝对路径,可能等于当前页面路径
-		absUrl: () => defineObject.absUrl(),
-		callback: defineObject.callback,
+		absUrlFromModule: () => defineObject.absUrlFromDefineObject(),
+		getCallback: () => defineObject.callback,
 		_dealApplyArgs: (args) => args,
 		_loadCallback: null,
 		moduleObject: undefined, //依赖模块对应的对象
@@ -205,7 +204,7 @@ function newModule(defineObject) {
 		instanceType: "single",
 		reinitByDefineObject(defineObject) {
 			this.deps = defineObject.deps || [];
-			this.callback = defineObject.callback;
+			this.getCallback = () => defineObject.callback;
 		},
 		setInstanceType(instanceType) {
 			this.instanceType = instanceType;
@@ -232,20 +231,20 @@ function newModule(defineObject) {
 			args = this._dealApplyArgs(args);
 			this.args = args;
 			let obj;
-			if(xsloader.isFunction(this.callback)) {
+			if(xsloader.isFunction(this.getCallback())) {
 				try {
 					script.currentDefineModuleQueue.push(this);
-					obj = this.callback.apply(this.thiz, args);
+					obj = this.getCallback().apply(this.thiz, args);
 					script.currentDefineModuleQueue.pop();
 				} catch(e) {
 					script.currentDefineModuleQueue.pop();
 					console.error("error occured,invoker.url=", this.invoker ? this.invoker.getUrl() : "");
 					console.error(e);
 					this.setState("error", e);
-					return;
+					throw e;
 				}
 			} else {
-				obj = this.callback;
+				obj = this.getCallback();
 				if(this.moduleObject !== undefined) {
 					console.warn("ignore moudule:" + moduleMap.description());
 				}
@@ -283,7 +282,7 @@ function newModule(defineObject) {
 				let theCallback = function() {
 					if(fun) {
 						let depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
-						depModule.init();
+						depModule.initInstance();
 					}
 				};
 				//已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
@@ -321,28 +320,29 @@ function newModule(defineObject) {
 			}
 		},
 		get() {
-			if(this.otherModule) {
-				this.state = this.otherModule.state; //状态同步,保持与otherModule状态相同
-				return this.otherModule;
+			if(this.refmodule) {
+				this.state = this.refmodule.state; //状态同步,保持与refmodule状态相同
+				return this.refmodule;
 			}
 			return this;
 		},
+		refmodule: undefined, //引用指定模块
 		/**
 		 * 依赖当前模块、表示依赖otherModule模块，当前模块为别名或引用。
 		 * @param {Object} otherModule
 		 */
 		toOtherModule(otherModule) {
-			this.otherModule = otherModule;
+			this.refmodule = otherModule;
 			this.get(); //状态同步
 			let theRelys = this.relys;
 			this.relys = [];
 			while(theRelys.length) {
 				let fun = theRelys.shift();
-				otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+				this.refmodule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
 			}
 		},
 		whenNeed(loadCallback) {
-			if(this.relys.length || this.otherModule && this.otherModule.relys.length) {
+			if(this.relys.length || this.refmodule && this.refmodule.relys.length) {
 				loadCallback(); //已经被依赖了
 			} else {
 				this._loadCallback = loadCallback;
@@ -355,9 +355,9 @@ function newModule(defineObject) {
 		 * @param {Object} pluginArgs
 		 */
 		relyIt(thatInvoker, callbackFun, pluginArgs) {
-			if(this.otherModule) {
+			if(this.refmodule) {
 				this.get(); //状态同步
-				this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给otherModule
+				this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给refmodule
 				return;
 			}
 			let fun = {
@@ -608,9 +608,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		if(!moduleDef.getModule(dep)) {
 			let isJsFile = utils.isJsFile(dep);
 			do {
-
 				let urls;
-
 				if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
 					let i1 = dep.indexOf(":");
 					let i2 = dep.indexOf(":", i1 + 1);
@@ -648,8 +646,6 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				if(urls.length == 0) {
 					//提前依赖模块
 					moduleDef.preDependOn(dep);
-					//					isError = "module '" + dep + "' urls is empty.";
-					//					errCallback(isError, invoker_of_module);
 				} else {
 					utils.each(urls, function(url, index) {
 						if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
@@ -718,20 +714,25 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							moduleDef.replaceModuleSrc(oldSrc, module2);
 						}
 						script.loadScript(module2.selfname, url, (scriptData) => {
-							//console.log(scriptData);
+							let defaultMod;
 							if(module2.state == "loading") { //module2.selfname为配置名称，尝试默认模块或者唯一的模块
 								//(唯一的模块用于支持：脚本里只有一个define、且指定了模块名、且此处的模块名与其自己指定了不相等)
-								let defaultMod = moduleDef.getModule(module2.src, null, module2);
+								defaultMod = moduleDef.getModule(module2.src, null, module2);
 								if(defaultMod && module2 != defaultMod) {
 									module2.toOtherModule(defaultMod);
 								}
 							}
 
-							if(module2.state == "loading") {
+							if(!defaultMod && module2.state == "loading") {
 								//isError = "load module err(may not define default):" + module2.description();
 								//errCallback(isError, invoker_of_module);
 								//？？没有define的情况、直接完成
-								module2.finish([]);
+								try {
+									module2.finish([]);
+								} catch(e) {
+									isError = e;
+									errCallback(isError, invoker_of_module);
+								}
 							}
 						}, (err) => {
 							if(index + 1 < urls.length) {

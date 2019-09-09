@@ -19,7 +19,7 @@ xsloader.define("name", {
 		moduleName = moduleName.replace(/，/g, ',');
 		let names = moduleName.split(",");
 		let dep = arg.substring(index + 3);
-		this.invoker().require([dep], function(mod, depModuleArgs) {
+		this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			let existsMods = [];
 			for(let i = 0; i < names.length; i++) {
 				let newName = names[i];

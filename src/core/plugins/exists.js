@@ -16,7 +16,7 @@ xsloader.define("exists", {
 			let moduleName = vars[0];
 			let module = moduleScript.getModule(moduleName);
 			if(module) {
-				this.invoker().require([moduleName], function(mod, depModuleArgs) {
+				this.invoker().withAbsUrl().require([moduleName], function(mod, depModuleArgs) {
 					onload(mod);
 				}).error(function(e) {
 					onerror(e);

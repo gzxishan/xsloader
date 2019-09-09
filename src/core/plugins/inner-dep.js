@@ -10,7 +10,9 @@ xsloader.define(script.INNER_DEPS_PLUGIN, {
 		let depsObj = script.innerDepsMap[depId];
 		let deps = depsObj.deps;
 		//delete innerDepsMap[depId];
-		this.invoker().require(deps, function() {
+		let newInvoker = this.invoker().withAbsUrl(depsObj.absUrl);
+		newInvoker.src = () => depsObj.src;
+		newInvoker.require(deps, function() {
 			let args = [];
 			for(let k = 0; k < arguments.length; k++) {
 				args.push(arguments[k]);

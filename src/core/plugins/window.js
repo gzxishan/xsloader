@@ -15,7 +15,7 @@ xsloader.define("window", {
 		}
 		let moduleName = arg.substring(0, index);
 		let dep = arg.substring(index + 3);
-		this.invoker().require([dep], function(mod, depModuleArgs) {
+		this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			window[moduleName] = mod;
 			onload(mod);
 		});

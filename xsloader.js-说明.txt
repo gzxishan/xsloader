@@ -58,7 +58,7 @@
         （3）src(),获取当前模块的绝对路径
         （4）getName(),当前模块或插件的名称
         （5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
-        （6）withAbsUrl(absUrl)，获取一个新的invoker，absUrl()、getAbsoluteUrl()都会变化
+        （6）withAbsUrl(absUrl)，获取一个新的invoker，absUrl()会变化，absUrl为空、表示使用invoker的absUrl.
         （7）getId(),获取invoker的id。
         （6）absUrl(),获取其他模块绝对路径的参考地址,默认等于src(),可通过define或require的then({absUrl:url})进行指定
     2）模块对象有属性_module_,_module_.setToAll(attrName,attrValue)或_module_.setToAll(obj)给所有模块实例设置属性
@@ -85,7 +85,7 @@
   xsloader.config():获取配置
   xsloader.config().dealProperties(obj),xsloader.dealProperties(obj,properties)替换参数
     
- 9、内置简单插件或模块：css!,text!,json!,ready!,name!,window!,withdeps!,exports,xshttp,xsrequest,xsmsg,XsLinkedList,nodeps!
+ 9、内置简单插件或模块：css!,text!,json!,ready!,name!,window!,withdeps!,exports,xshttp,xsrequest,xsmsg,XsLinkedList,nodeps!,try!
      （1）name!插件格式:name!moduleName=>>modulePath；作用：用于给模块命名,其中moduleName用逗号隔开、表示多个名字
      （2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
      （3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖

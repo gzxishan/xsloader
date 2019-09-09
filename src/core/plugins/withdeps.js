@@ -24,7 +24,7 @@ xsloader.define("withdeps", {
 			onerror("deps error:" + depsStr);
 			return;
 		}
-		this.invoker().require([
+		this.invoker().withAbsUrl().require([
 			[false].concat(deps), moduleName
 		], function(_deps, mod, depModuleArgs) {
 			onload(mod);

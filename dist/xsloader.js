@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Sun, 08 Sep 2019 15:36:29 GMT
+ * build time:Mon, 09 Sep 2019 07:37:46 GMT
  */
 (function () {
   'use strict';
@@ -500,7 +500,7 @@
 
       if (".." == str) {
         if (stack.length == 0) {
-          throw new Error("no more upper path!");
+          throw new Error("no more upper path:path=" + arguments[0] + ",relative=" + arguments[1]);
         }
 
         stack.pop();
@@ -2158,7 +2158,7 @@
 
         return this.module.setSinglePluginResult(willCache, id, pluginArgs, obj);
       },
-      init: function init(justForSingle) {
+      initInstance: function initInstance(justForSingle) {
         var _this2 = this;
 
         var relyCallback = this.relyCallback;
@@ -2221,7 +2221,6 @@
               this._object.pluginMain.apply(this.thiz, args);
             }
           } catch (e) {
-            console.warn(e);
             onerror(e);
           }
 
@@ -2269,14 +2268,15 @@
       },
       deps: defineObject.deps || [],
       relys: [],
-      otherModule: undefined,
       ignoreAspect: false,
       args: null,
       src: defineObject.src,
-      absUrl: function absUrl() {
-        return defineObject.absUrl();
+      absUrlFromModule: function absUrlFromModule() {
+        return defineObject.absUrlFromDefineObject();
       },
-      callback: defineObject.callback,
+      getCallback: function getCallback() {
+        return defineObject.callback;
+      },
       _dealApplyArgs: function _dealApplyArgs(args) {
         return args;
       },
@@ -2287,7 +2287,10 @@
       instanceType: "single",
       reinitByDefineObject: function reinitByDefineObject(defineObject) {
         this.deps = defineObject.deps || [];
-        this.callback = defineObject.callback;
+
+        this.getCallback = function () {
+          return defineObject.callback;
+        };
       },
       setInstanceType: function setInstanceType(instanceType) {
         this.instanceType = instanceType;
@@ -2316,20 +2319,20 @@
         this.args = args;
         var obj;
 
-        if (xsloader$9.isFunction(this.callback)) {
+        if (xsloader$9.isFunction(this.getCallback())) {
           try {
             script.currentDefineModuleQueue.push(this);
-            obj = this.callback.apply(this.thiz, args);
+            obj = this.getCallback().apply(this.thiz, args);
             script.currentDefineModuleQueue.pop();
           } catch (e) {
             script.currentDefineModuleQueue.pop();
             console.error("error occured,invoker.url=", this.invoker ? this.invoker.getUrl() : "");
             console.error(e);
             this.setState("error", e);
-            return;
+            throw e;
           }
         } else {
-          obj = this.callback;
+          obj = this.getCallback();
 
           if (this.moduleObject !== undefined) {
             console.warn("ignore moudule:" + moduleMap.description());
@@ -2373,7 +2376,7 @@
           var theCallback = function theCallback() {
             if (fun) {
               var depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
-              depModule.init();
+              depModule.initInstance();
             }
           };
 
@@ -2413,35 +2416,36 @@
         }
       },
       get: function get() {
-        if (this.otherModule) {
-          this.state = this.otherModule.state;
-          return this.otherModule;
+        if (this.refmodule) {
+          this.state = this.refmodule.state;
+          return this.refmodule;
         }
 
         return this;
       },
+      refmodule: undefined,
       toOtherModule: function toOtherModule(otherModule) {
-        this.otherModule = otherModule;
+        this.refmodule = otherModule;
         this.get();
         var theRelys = this.relys;
         this.relys = [];
 
         while (theRelys.length) {
           var fun = theRelys.shift();
-          otherModule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+          this.refmodule.relyIt(fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
         }
       },
       whenNeed: function whenNeed(loadCallback) {
-        if (this.relys.length || this.otherModule && this.otherModule.relys.length) {
+        if (this.relys.length || this.refmodule && this.refmodule.relys.length) {
           loadCallback();
         } else {
           this._loadCallback = loadCallback;
         }
       },
       relyIt: function relyIt(thatInvoker, callbackFun, pluginArgs) {
-        if (this.otherModule) {
+        if (this.refmodule) {
           this.get();
-          this.otherModule.relyIt(thatInvoker, callbackFun, pluginArgs);
+          this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs);
           return;
         }
 
@@ -2802,16 +2806,23 @@
               }
 
               script.loadScript(module2.selfname, url, function (scriptData) {
+                var defaultMod;
+
                 if (module2.state == "loading") {
-                  var defaultMod = moduleDef.getModule(module2.src, null, module2);
+                  defaultMod = moduleDef.getModule(module2.src, null, module2);
 
                   if (defaultMod && module2 != defaultMod) {
                     module2.toOtherModule(defaultMod);
                   }
                 }
 
-                if (module2.state == "loading") {
-                  module2.finish([]);
+                if (!defaultMod && module2.state == "loading") {
+                  try {
+                    module2.finish([]);
+                  } catch (e) {
+                    isError = e;
+                    errCallback(isError, invoker_of_module);
+                  }
                 }
               }, function (err) {
                 if (index + 1 < urls.length) {
@@ -2925,7 +2936,7 @@
     isSrcFromScriptLoad = true;
   }
 
-  function _dealEmbedDeps(deps) {
+  function _dealEmbedDeps(deps, defineObject) {
     for (var i = 0; i < deps.length; i++) {
       var dep = deps[i];
 
@@ -2939,7 +2950,9 @@
 
         innerDepsMap[modName] = {
           deps: dep,
-          orderDep: isOrderDep
+          absUrl: defineObject.absUrlFromDefineObject(),
+          orderDep: isOrderDep,
+          src: defineObject.src
         };
         deps[i] = INNER_DEPS_PLUGIN + "!" + modName;
       }
@@ -2978,6 +2991,11 @@
         var defineObject = this.defineObject;
         defineObject.handle.onError = onError;
         return this;
+      }
+    }, {
+      key: "onError",
+      value: function onError(err, invoker) {
+        this.defineObject.handle.onError(err, invoker);
       }
     }]);
 
@@ -3031,8 +3049,6 @@
     };
 
     invoker.require = function () {
-      console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
-
       var h = xsloader$a.require.apply(new ThisInvoker(invoker), arguments);
 
       if (h instanceof Handle) {
@@ -3057,7 +3073,7 @@
     };
 
     invoker.rurl = function (defineObject) {
-      return defineObject && defineObject.absUrl() || this.absUrl();
+      return defineObject && defineObject.absUrlFromDefineObject() || this.absUrl();
     };
 
     invoker.defineAsync = function () {
@@ -3066,6 +3082,10 @@
     };
 
     invoker.withAbsUrl = function (absUrlStr) {
+      if (!absUrlStr) {
+        absUrlStr = invoker.absUrl();
+      }
+
       var moduleMap = {
         module: module,
         src: module.src,
@@ -3114,7 +3134,7 @@
     }, {
       key: "absUrl",
       value: function absUrl() {
-        return this._im.get().absUrl();
+        return this._im.get().absUrlFromModule();
       }
     }]);
 
@@ -3183,16 +3203,11 @@
 
       this.parentDefine = currentDefineModuleQueue.peek();
       this.thatInvoker = getInvoker(thiz);
-
-      if (thiz instanceof ThisInvoker) {
-        src = thiz.invoker.src();
-      }
-
       this.src = src;
       this.thiz = thiz;
       this.isRequire = isRequire;
       this.handle = {
-        onError: function onError(err) {
+        onError: function onError(err, invoker) {
           console.warn(err);
         },
         before: function before(deps) {},
@@ -3202,6 +3217,11 @@
         absUrl: undefined,
         instance: undefined
       };
+
+      if (thiz instanceof ThisInvoker) {
+        this.src = thiz.invoker.src();
+      }
+
       var selfname = args[0];
       var deps = args[1];
       var callback = args[2];
@@ -3275,7 +3295,7 @@
           this.handle.orderDep = false;
         }
 
-        _dealEmbedDeps(deps);
+        _dealEmbedDeps(deps, this);
 
         utils.replaceModulePrefix(config, deps);
 
@@ -3328,8 +3348,8 @@
         }
       }
     }, {
-      key: "absUrl",
-      value: function absUrl() {
+      key: "absUrlFromDefineObject",
+      value: function absUrlFromDefineObject() {
         return this.handle.absUrl || this.handle.absoluteUrl || this.src;
       }
     }]);
@@ -3478,7 +3498,14 @@
     }
 
     appendHeadDom(node);
-    node.src = url;
+
+    if (utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
+      xsloader$a.asyncCall(function () {
+        node.src = url;
+      });
+    } else {
+      node.src = url;
+    }
   }
 
   function __getScriptData(evt, callbackObj) {
@@ -3631,7 +3658,7 @@
       var theMod;
       moduleScript.newModuleInstance(module, thatInvoker, function (depModule) {
         theMod = depModule.moduleObject();
-      }, pluginArgs).init(true);
+      }, pluginArgs).initInstance(true);
 
       if (theMod === undefined) {
         throw Error("the module '" + originDeps + "' is not load!");
@@ -3656,7 +3683,11 @@
       }
 
       if (xsloader$a.isFunction(callback)) {
-        callback.apply(this, arguments);
+        try {
+          callback.apply(this, arguments);
+        } catch (e) {
+          handle.onError(e);
+        }
       }
     }], true);
     var customerErrCallback;
@@ -3672,7 +3703,7 @@
       if (customerErrCallback) {
         customerErrCallback(err, invoker);
       } else {
-        console.warn("invoker.url:" + invoker.getUrl());
+        console.warn("invoker.url:" + (invoker && invoker.getUrl()));
         console.warn(err);
       }
     });
@@ -3685,7 +3716,6 @@
     var checkResultFun = function checkResultFun() {
       timeid = undefined;
       var ifmodule = moduleScript.getModule(selfname);
-      console.log(isErr);
 
       if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
         var _module = ifmodule;
@@ -4175,8 +4205,6 @@
           originCallback = null;
           return rt;
         };
-
-        defineObject.callback.originCallback = originCallback;
       }
 
       onModuleLoaded(defineObject, moduleScript.getLastDefineObject(defineObject.src));
@@ -4226,7 +4254,11 @@
     module.setInstanceType(defineObject.handle.instance || xsloader$c.config().instance);
 
     if (module.deps.length == 0) {
-      module.finish([]);
+      try {
+        module.finish([]);
+      } catch (e) {
+        defineObject.handle.onError(e);
+      }
     } else {
       var needCallback = function needCallback() {
         moduleScript.everyRequired(defineObject, module, function (depModules) {
@@ -4237,7 +4269,12 @@
             args.push(depModule && depModule.moduleObject());
           });
           args.push(depModuleArgs);
-          module.finish(args);
+
+          try {
+            module.finish(args);
+          } catch (e) {
+            defineObject.handle.onError(e);
+          }
         }, function (err, invoker) {
           defineObject.handle.onError(err, invoker);
         });
@@ -4291,8 +4328,13 @@
     pluginMain: function pluginMain(depId, onload, onerror, config) {
       var depsObj = script.innerDepsMap[depId];
       var deps = depsObj.deps;
+      var newInvoker = this.invoker().withAbsUrl(depsObj.absUrl);
 
-      this.invoker().require(deps, function () {
+      newInvoker.src = function () {
+        return depsObj.src;
+      };
+
+      newInvoker.require(deps, function () {
         var args = [];
 
         for (var k = 0; k < arguments.length; k++) {
@@ -4324,10 +4366,26 @@
 
   var global$e = utils.global;
   var xsloader$f = global$e.xsloader;
-  xsloader$f.define("nodeps", {
+  xsloader$f.define("try", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config) {
-      this.invoker().require([arg], function (mod, depModuleArgs) {
+      var dep = arg;
+
+      this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
+        onload(mod);
+      }).error(function (e) {
+        console.warn(e);
+        onload(null);
+      });
+    }
+  });
+
+  var global$f = utils.global;
+  var xsloader$g = global$f.xsloader;
+  xsloader$g.define("nodeps", {
+    isSingle: true,
+    pluginMain: function pluginMain(arg, onload, onerror, config) {
+      this.invoker().withAbsUrl().require([arg], function (mod, depModuleArgs) {
         onload(mod);
       }).then({
         depBefore: function depBefore(index, dep, depDeps) {
@@ -4339,9 +4397,9 @@
     }
   });
 
-  var global$f = utils.global;
-  var xsloader$g = global$f.xsloader;
-  xsloader$g.define("exists", {
+  var global$g = utils.global;
+  var xsloader$h = global$g.xsloader;
+  xsloader$h.define("exists", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config) {
       var vars = arg.split("|");
@@ -4357,7 +4415,7 @@
         var module = moduleScript.getModule(moduleName);
 
         if (module) {
-          this.invoker().require([moduleName], function (mod, depModuleArgs) {
+          this.invoker().withAbsUrl().require([moduleName], function (mod, depModuleArgs) {
             onload(mod);
           }).error(function (e) {
             onerror(e);
@@ -4382,9 +4440,9 @@
     }
   });
 
-  var global$g = utils.global;
-  var xsloader$h = global$g.xsloader;
-  xsloader$h.define("name", {
+  var global$h = utils.global;
+  var xsloader$i = global$h.xsloader;
+  xsloader$i.define("name", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config) {
       var index = arg.indexOf("=>>");
@@ -4399,7 +4457,7 @@
       var names = moduleName.split(",");
       var dep = arg.substring(index + 3);
 
-      this.invoker().require([dep], function (mod, depModuleArgs) {
+      this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
         var existsMods = [];
 
         for (var i = 0; i < names.length; i++) {
@@ -4431,9 +4489,9 @@
     }
   });
 
-  var global$h = utils.global;
-  var xsloader$i = global$h.xsloader;
-  xsloader$i.define("css", function () {
+  var global$i = utils.global;
+  var xsloader$j = global$i.xsloader;
+  xsloader$j.define("css", function () {
     if (typeof window == 'undefined') return {
       load: function load(n, r, _load) {
         _load();
@@ -4448,7 +4506,7 @@
 
     var createStyle = function createStyle() {
       curStyle = document.createElement('style');
-      xsloader$i.appendHeadDom(curStyle);
+      xsloader$j.appendHeadDom(curStyle);
       curSheet = curStyle.styleSheet || curStyle.sheet;
     };
 
@@ -4533,7 +4591,7 @@
         }, 10);
       }
       link.href = url;
-      xsloader$i.appendHeadDom(link);
+      xsloader$j.appendHeadDom(link);
     };
 
     cssAPI.pluginMain = function (cssId, onload, onerror, config) {
@@ -4546,23 +4604,23 @@
     };
 
     cssAPI.loadCss = function (cssPath, callback) {
-      (useImportLoad ? importLoad : linkLoad)(xsloader$i.getUrl(cssPath), callback);
+      (useImportLoad ? importLoad : linkLoad)(xsloader$j.getUrl(cssPath), callback);
     };
 
     cssAPI.loadCsses = function () {
       var args = arguments;
 
       for (var i = 0; i < args.length; i++) {
-        (useImportLoad ? importLoad : linkLoad)(xsloader$i.getUrl(args[i]), null);
+        (useImportLoad ? importLoad : linkLoad)(xsloader$j.getUrl(args[i]), null);
       }
     };
 
     return cssAPI;
   });
 
-  var global$i = utils.global;
-  var xsloader$j = global$i.xsloader;
-  xsloader$j.define("text", ["xshttp"], {
+  var global$j = utils.global;
+  var xsloader$k = global$j.xsloader;
+  xsloader$k.define("text", ["xshttp"], {
     isSingle: true,
     pluginMain: function pluginMain(name, onload, onerror, config, http) {
       var url = this.invoker().getUrl(name, true);
@@ -4574,9 +4632,9 @@
     }
   });
 
-  var global$j = utils.global;
-  var xsloader$k = global$j.xsloader;
-  xsloader$k.define("window", {
+  var global$k = utils.global;
+  var xsloader$l = global$k.xsloader;
+  xsloader$l.define("window", {
     isSingle: true,
     pluginMain: function pluginMain(arg, onload, onerror, config, http) {
       var index = arg.indexOf("=>>");
@@ -4589,16 +4647,16 @@
       var moduleName = arg.substring(0, index);
       var dep = arg.substring(index + 3);
 
-      this.invoker().require([dep], function (mod, depModuleArgs) {
+      this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
         window[moduleName] = mod;
         onload(mod);
       });
     }
   });
 
-  var global$k = utils.global;
-  var xsloader$l = global$k.xsloader;
-  xsloader$l.define("withdeps", {
+  var global$l = utils.global;
+  var xsloader$m = global$l.xsloader;
+  xsloader$m.define("withdeps", {
     pluginMain: function pluginMain(arg, onload, onerror, config) {
       var index = arg.indexOf("=>>");
 
@@ -4612,9 +4670,9 @@
       var deps;
 
       try {
-        deps = xsloader$l.xsParseJson(depsStr);
+        deps = xsloader$m.xsParseJson(depsStr);
 
-        if (!xsloader$l.isArray(deps)) {
+        if (!xsloader$m.isArray(deps)) {
           onerror("deps is not Array:" + depsStr);
           return;
         }
@@ -4623,7 +4681,7 @@
         return;
       }
 
-      this.invoker().require([[false].concat(deps), moduleName], function (_deps, mod, depModuleArgs) {
+      this.invoker().withAbsUrl().require([[false].concat(deps), moduleName], function (_deps, mod, depModuleArgs) {
         onload(mod);
       }).then({
         orderDep: true
@@ -4631,9 +4689,9 @@
     }
   });
 
-  var global$l = utils.global;
-  var xsloader$m = global$l.xsloader;
-  xsloader$m.define("json", ["xshttp"], {
+  var global$m = utils.global;
+  var xsloader$n = global$m.xsloader;
+  xsloader$n.define("json", ["xshttp"], {
     isSingle: true,
     pluginMain: function pluginMain(name, onload, onerror, config, http) {
       var url = this.invoker().getUrl(name, true);
@@ -4645,8 +4703,8 @@
     }
   });
 
-  var global$m = utils.global;
-  var xsloader$n = global$m.xsloader;
+  var global$n = utils.global;
+  var xsloader$o = global$n.xsloader;
   var progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
 
   function httpRequest(option) {
@@ -4774,8 +4832,8 @@
         for (var x in option.params) {
           var value = option.params[x];
 
-          if (xsloader$n.isArray(value)) {
-            formData.append(x, xsloader$n.xsJson2String(value));
+          if (xsloader$o.isArray(value)) {
+            formData.append(x, xsloader$o.xsJson2String(value));
           } else {
             formData.append(x, value);
           }
@@ -4793,7 +4851,7 @@
           }
 
           if (_typeof(_value) == "object") {
-            _value = xsloader$n.xsJson2String(_value);
+            _value = xsloader$o.xsJson2String(_value);
           }
 
           body += "&" + encodeURIComponent(_x) + "=" + encodeURIComponent(_value);
@@ -4868,7 +4926,7 @@
 
             if (option.handleType === "json") {
               try {
-                result = xsloader$n.xsParseJson(xhr.responseText);
+                result = xsloader$o.xsParseJson(xhr.responseText);
               } catch (e) {
                 _doOnFailResponseHook(option, xhr, new Error("parse-json-error:" + e), "parse-json-error");
 
@@ -5022,15 +5080,15 @@
   };
 
   window._xshttp_request_ = httpRequest;
-  xsloader$n.define("xshttp", [], function () {
+  xsloader$o.define("xshttp", [], function () {
     return httpRequest;
   });
 
-  var global$n = utils.global;
-  var xsloader$o = global$n.xsloader;
-  xsloader$o.define("xsrequest", ["xshttp"], function (http) {
+  var global$o = utils.global;
+  var xsloader$p = global$o.xsloader;
+  xsloader$p.define("xsrequest", ["xshttp"], function (http) {
     var xsRequest = function xsRequest(option) {
-      option = xsloader$o.extend({
+      option = xsloader$p.extend({
         params: undefined,
         headers: undefined,
         method: undefined,
@@ -5093,8 +5151,8 @@
     return xsRequest;
   });
 
-  var global$o = utils.global;
-  var xsloader$p = global$o.xsloader;
+  var global$p = utils.global;
+  var xsloader$q = global$p.xsloader;
 
   try {
     var isDebug = function isDebug(type) {
@@ -5278,7 +5336,7 @@
 
         this.send = function (data) {
           var msg = {
-            id: xsloader$p.randId(),
+            id: xsloader$q.randId(),
             data: data
           };
           msgQueue.append(msg);
@@ -5368,7 +5426,7 @@
       };
 
       var _connectWindow = function _connectWindow(winObjOrCallback, option, notActive) {
-        option = xsloader$p.extendDeep({
+        option = xsloader$q.extendDeep({
           cmd: "default-cmd",
           listener: null,
           connected: null,
@@ -5465,7 +5523,7 @@
             osource: source,
             active: isActive,
             connectingSource: connectingSource,
-            id: xsloader$p.randId(),
+            id: xsloader$q.randId(),
             refused: {}
           };
 
@@ -5640,7 +5698,7 @@
             console.log(msg);
           }
 
-          source.postMessage(xsloader$p.xsJson2String(msg), "*");
+          source.postMessage(xsloader$q.xsJson2String(msg), "*");
         }
 
         window.addEventListener('message', function (event) {
@@ -5652,7 +5710,7 @@
           var data;
 
           try {
-            data = xsloader$p.xsParseJson(event.data);
+            data = xsloader$q.xsParseJson(event.data);
           } catch (e) {
             console.warn(e);
           }
@@ -5715,19 +5773,19 @@
         isXsMsgDebug = isDebug;
       };
 
-      xsloader$p.define("xsmsg", handleApi);
+      xsloader$q.define("xsmsg", handleApi);
     }
 
-    xsloader$p.define("XsLinkedList", function () {
+    xsloader$q.define("XsLinkedList", function () {
       return LinkedList;
     });
   } catch (e) {
     console.error(e);
   }
 
-  var global$p = utils.global;
-  var xsloader$q = global$p.xsloader;
-  var http = global$p._xshttp_request_;
+  var global$q = utils.global;
+  var xsloader$r = global$q.xsloader;
+  var http = global$q._xshttp_request_;
   var DATA_CONF = "data-conf",
       DATA_CONFX = "data-xsloader-conf";
   var DATA_CONF2 = "data-conf2",
@@ -5736,9 +5794,9 @@
       DATA_MAINX = "data-xsloader-main";
   var DATA_CONF_TYPE = "data-conf-type";
   var serviceConfigUrl;
-  var dataConf = xsloader$q.script().getAttribute(DATA_CONF) || xsloader$q.script().getAttribute(DATA_CONFX);
-  var dataMain = xsloader$q.script().getAttribute(DATA_MAIN) || xsloader$q.script().getAttribute(DATA_MAINX);
-  var dataConfType = xsloader$q.script().getAttribute(DATA_CONF_TYPE);
+  var dataConf = xsloader$r.script().getAttribute(DATA_CONF) || xsloader$r.script().getAttribute(DATA_CONFX);
+  var dataMain = xsloader$r.script().getAttribute(DATA_MAIN) || xsloader$r.script().getAttribute(DATA_MAINX);
+  var dataConfType = xsloader$r.script().getAttribute(DATA_CONF_TYPE);
 
   if (dataConfType !== "json" && dataConfType != "js") {
     dataConfType = "auto";
@@ -5755,7 +5813,7 @@
         name = "index";
       }
 
-      if (xsloader$q.endsWith(name, ".html")) {
+      if (xsloader$r.endsWith(name, ".html")) {
         name = name.substring(0, name.length - 5);
       }
 
@@ -5768,7 +5826,7 @@
     }
 
     function extendConfig(config) {
-      config = xsloader$q.extendDeep({
+      config = xsloader$r.extendDeep({
         properties: {},
         main: {
           getPath: function getPath() {
@@ -5810,14 +5868,14 @@
           var conf;
 
           if (dataConfType == "js") {
-            conf = xsloader$q.xsEval(confText);
+            conf = xsloader$r.xsEval(confText);
           } else if (dataConfType == "json") {
-            conf = xsloader$q.xsParseJson(confText);
+            conf = xsloader$r.xsParseJson(confText);
           } else {
-            if (xsloader$q.startsWith(url, location.protocol + "//" + location.host + "/")) {
-              conf = xsloader$q.xsEval(confText);
+            if (xsloader$r.startsWith(url, location.protocol + "//" + location.host + "/")) {
+              conf = xsloader$r.xsEval(confText);
             } else {
-              conf = xsloader$q.xsParseJson(confText);
+              conf = xsloader$r.xsParseJson(confText);
             }
           }
 
@@ -5827,13 +5885,13 @@
             conf.beforeDealProperties();
           }
 
-          conf = xsloader$q.dealProperties(conf, conf.properties);
+          conf = xsloader$r.dealProperties(conf, conf.properties);
 
           if (isLocal && conf.service.hasGlobal) {
             loadServiceConfig("global servie", conf.service.confUrl, function (globalConfig) {
               var localConfig = conf;
-              global$p[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
-              global$p[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
+              global$q[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
+              global$q[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
               var mainName, mainPath, loaderName;
               loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
               var conf;
@@ -5873,7 +5931,7 @@
 
     function startLoad() {
       loadServiceConfig("local", serviceConfigUrl, function (localConfig) {
-        global$p[localConfig.main.localConfigVar] = localConfig;
+        global$q[localConfig.main.localConfigVar] = localConfig;
         var mainName = localConfig.main.name;
         var href = location.href;
         var index = href.lastIndexOf("?");
@@ -5903,10 +5961,10 @@
       conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
       localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
-      xsloader$q._resUrlBuilder = function (groupModule) {
+      xsloader$r._resUrlBuilder = function (groupModule) {
         var as = [];
         utils.each(resUrls, function (url) {
-          as.push(xsloader$q.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
+          as.push(xsloader$r.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
         });
         return as;
       };
@@ -5916,7 +5974,7 @@
       loader.depsPaths = loader.depsPaths || {};
 
       if (mainPath.indexOf("!") != -1) {
-        var theConfig = xsloader$q(loader);
+        var theConfig = xsloader$r(loader);
         mainName = "_plugin_main_";
         var deps = [];
 
@@ -5931,49 +5989,47 @@
         }
 
         deps.push(mainPath);
-        xsloader$q.define(mainName, deps, function () {}).then({
+        xsloader$r.define(mainName, deps, function () {}).then({
           absUrl: pageHref
         });
-      } else if (!xsloader$q.hasDefine(mainName)) {
+      } else if (!xsloader$r.hasDefine(mainName)) {
         loader.depsPaths[mainName] = mainPath;
-        xsloader$q(loader);
+        xsloader$r(loader);
       } else {
-        xsloader$q(loader);
+        xsloader$r(loader);
       }
 
       loader.defineFunction[mainName] = function (originCallback, originThis, originArgs) {
-        if (xsloader$q.isFunction(conf.main.before)) {
+        if (xsloader$r.isFunction(conf.main.before)) {
           conf.main.before.call(conf, mainName);
         }
 
         var rt = originCallback.apply(originThis, originArgs);
 
-        if (xsloader$q.isFunction(conf.main.after)) {
+        if (xsloader$r.isFunction(conf.main.after)) {
           conf.main.after.call(conf, mainName);
         }
 
         return rt;
       };
 
-      xsloader$q.require([mainName], function (main) {}).then({
-        onError: function onError(err, invoker) {
-          if (invoker) {
-            console.error("error occured:invoker.url=", invoker.getUrl());
-          }
-
-          console.error("invoke main err:");
-          console.error(err);
+      xsloader$r.require([mainName], function (main) {}).error(function (err, invoker) {
+        if (invoker) {
+          console.error("error occured:invoker.url=", invoker.getUrl());
         }
+
+        console.error("invoke main err:");
+        console.error(err);
       });
     }
 
-    xsloader$q.asyncCall(startLoad, true);
+    xsloader$r.asyncCall(startLoad, true);
   };
 
   if (dataConf) {
     serviceConfigUrl = utils.getPathWithRelative(location.href, dataConf);
-  } else if (dataConf = xsloader$q.script().getAttribute(DATA_CONF2) || xsloader$q.script().getAttribute(DATA_CONF2X)) {
-    serviceConfigUrl = utils.getPathWithRelative(xsloader$q.scriptSrc(), dataConf);
+  } else if (dataConf = xsloader$r.script().getAttribute(DATA_CONF2) || xsloader$r.script().getAttribute(DATA_CONF2X)) {
+    serviceConfigUrl = utils.getPathWithRelative(xsloader$r.scriptSrc(), dataConf);
   } else {
     initFun = null;
   }

@@ -44,7 +44,7 @@ if(safariVersion > 0 && safariVersion <= 7) {
 }
 
 //处理嵌套依赖
-function _dealEmbedDeps(deps) {
+function _dealEmbedDeps(deps, defineObject) {
 	for(let i = 0; i < deps.length; i++) {
 		let dep = deps[i];
 		if(xsloader.isArray(dep)) {
@@ -56,7 +56,9 @@ function _dealEmbedDeps(deps) {
 			}
 			innerDepsMap[modName] = {
 				deps: dep,
-				orderDep: isOrderDep
+				absUrl: defineObject.absUrlFromDefineObject(),
+				orderDep: isOrderDep,
+				src: defineObject.src,
 			};
 
 			//console.log(innerDepsMap[modName]);
@@ -90,6 +92,9 @@ class Handle {
 		let defineObject = this.defineObject;
 		defineObject.handle.onError = onError;
 		return this;
+	}
+	onError(err, invoker) {
+		this.defineObject.handle.onError(err, invoker);
 	}
 }
 
@@ -130,7 +135,7 @@ function _buildInvoker(module) {
 		}
 	};
 	invoker.require = function() {
-		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
+//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
 		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
@@ -140,6 +145,7 @@ function _buildInvoker(module) {
 		return h;
 	};
 	invoker.define = function() {
+//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
 		let h = xsloader.define.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
@@ -149,13 +155,16 @@ function _buildInvoker(module) {
 		return h;
 	};
 	invoker.rurl = function(defineObject) {
-		return defineObject && defineObject.absUrl() || this.absUrl();
+		return defineObject && defineObject.absUrlFromDefineObject() || this.absUrl();
 	};
 	invoker.defineAsync = function() {
 		let h = invoker.define.apply(invoker, arguments);
 		return h;
 	};
 	invoker.withAbsUrl = function(absUrlStr) {
+		if(!absUrlStr) {
+			absUrlStr = invoker.absUrl();
+		}
 		let moduleMap = {
 			module: module,
 			src: module.src,
@@ -200,7 +209,7 @@ class Invoker {
 	}
 
 	absUrl() { //用于获取其他模块地址的参考路径
-		return this._im.get().absUrl();
+		return this._im.get().absUrlFromModule();
 	}
 }
 
@@ -245,15 +254,11 @@ class DefineObject {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
 
-		if(thiz instanceof ThisInvoker) {
-			src = thiz.invoker.src(); //设置脚本地址为上级的
-		}
-
 		this.src = src;
 		this.thiz = thiz;
 		this.isRequire = isRequire;
 		this.handle = {
-			onError(err) {
+			onError(err, invoker) {
 				console.warn(err);
 			},
 			before(deps) {},
@@ -263,6 +268,11 @@ class DefineObject {
 			absUrl: undefined,
 			instance: undefined,
 		};
+
+		if(thiz instanceof ThisInvoker) {
+			//this.handle.absUrl = thiz.invoker.src(); //设置默认参考地址
+			this.src = thiz.invoker.src();
+		}
 
 		let selfname = args[0];
 		let deps = args[1];
@@ -338,7 +348,7 @@ class DefineObject {
 		}
 
 		//处理嵌套依赖
-		_dealEmbedDeps(deps);
+		_dealEmbedDeps(deps, this);
 		utils.replaceModulePrefix(config, deps); //前缀替换
 		if(module) {
 			module.deps = deps;
@@ -386,7 +396,7 @@ class DefineObject {
 		}
 	}
 
-	absUrl() {
+	absUrlFromDefineObject() {
 		return this.handle.absUrl || this.handle.absoluteUrl || this.src;
 	}
 
@@ -545,7 +555,13 @@ function __browserLoader(moduleName, url, callbackObj) {
 		node.addEventListener('error', errListen, true);
 	}
 	appendHeadDom(node);
-	node.src = url; //在ie10-以下，必须在脚本插入head后再进行src的设置。
+	if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
+		xsloader.asyncCall(() => {
+			node.src = url; //在ie10-以下，必须在脚本插入head后再进行src的设置、且需要异步设置。
+		});
+	} else {
+		node.src = url;
+	}
 }
 
 function __getScriptData(evt, callbackObj) {
@@ -691,7 +707,7 @@ function prerequire(deps, callback) {
 		let theMod;
 		moduleScript.newModuleInstance(module, thatInvoker, (depModule) => {
 			theMod = depModule.moduleObject();
-		}, pluginArgs).init(true);
+		}, pluginArgs).initInstance(true);
 		if(theMod === undefined) {
 			throw Error("the module '" + originDeps + "' is not load!");
 		}
@@ -710,8 +726,14 @@ function prerequire(deps, callback) {
 			clearTimeout(timeid);
 			timeid = undefined;
 		}
+		//		console.log("2======require:"+selfname);
+		//		console.log(callback);
 		if(xsloader.isFunction(callback)) {
-			callback.apply(this, arguments);
+			try {
+				callback.apply(this, arguments);
+			} catch(e) {
+				handle.onError(e);
+			}
 		}
 	}], true);
 	let customerErrCallback;
@@ -726,7 +748,7 @@ function prerequire(deps, callback) {
 		if(customerErrCallback) {
 			customerErrCallback(err, invoker);
 		} else {
-			console.warn("invoker.url:" + invoker.getUrl());
+			console.warn("invoker.url:" + (invoker && invoker.getUrl()));
 			console.warn(err);
 		}
 	});
@@ -738,7 +760,7 @@ function prerequire(deps, callback) {
 	let checkResultFun = function() {
 		timeid = undefined;
 		let ifmodule = moduleScript.getModule(selfname);
-		console.log(isErr)
+		//console.log(isErr)
 		if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
 			let module = ifmodule;
 			if(module) {

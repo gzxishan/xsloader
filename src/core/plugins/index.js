@@ -1,5 +1,6 @@
 import "./inner-dep.js";
 import "./ready.js";
+import "./try.js";
 import "./nodeps.js";
 import "./exists.js";
 import "./name.js";

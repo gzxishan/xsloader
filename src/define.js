@@ -10,6 +10,11 @@ const defineHandle = script.initDefine(function theRealDefine(defines, loaded = 
 		if(xsloader.isFunction(defineObject.callback)) {
 			let originCallback = defineObject.callback;
 			defineObject.callback = function() {
+				//				if(defineObject.isRequire) {
+				//					console.log("1======require:" + defineObject.selfname);
+				//					console.log(defineObject);
+				//					console.log(originCallback);
+				//				}
 				let config = xsloader.config();
 				let rt;
 
@@ -35,7 +40,6 @@ const defineHandle = script.initDefine(function theRealDefine(defines, loaded = 
 				originCallback = null;
 				return rt;
 			};
-			defineObject.callback.originCallback = originCallback;
 		}
 		onModuleLoaded(defineObject, moduleScript.getLastDefineObject(defineObject.src));
 		loaded();
@@ -90,9 +94,13 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 
 	module.setState("loaded");
 	module.setInstanceType(defineObject.handle.instance || xsloader.config().instance);
-	
+
 	if(module.deps.length == 0) {
-		module.finish([]); //递归结束
+		try {
+			module.finish([]); //递归结束
+		} catch(e) {
+			defineObject.handle.onError(e);
+		}
 	} else {
 		//在其他模块依赖此模块时进行加载
 		let needCallback = function() {
@@ -104,7 +112,11 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 					args.push(depModule && depModule.moduleObject());
 				});
 				args.push(depModuleArgs);
-				module.finish(args);
+				try {
+					module.finish(args);
+				} catch(e) {
+					defineObject.handle.onError(e);
+				}
 			}, (err, invoker) => {
 				defineObject.handle.onError(err, invoker);
 			});

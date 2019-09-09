@@ -2,17 +2,18 @@ import utils from "../../util/index.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
-xsloader.define("nodeps", {
+/**
+ * 格式:name!module
+ */
+xsloader.define("try", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
-		this.invoker().withAbsUrl().require([arg], function(mod, depModuleArgs) {
+		let dep = arg;
+		this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			onload(mod);
-		}).then({
-			depBefore(index, dep, depDeps) {
-				depDeps.splice(0, depDeps.length);
-			}
 		}).error(function(e) {
-			onerror(e);
+			console.warn(e);
+			onload(null);
 		});
 	}
 });

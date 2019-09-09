@@ -4,6 +4,10 @@ const xsloader = global.xsloader;
 const theDefinedMap = {};
 const lastDefinObjectMap = {};
 
+//global.__showModules=()=>{
+//	console.log(theDefinedMap);
+//};
+
 class ModuleDef {
 	src;
 	defaultModule; //默认模块（ define时未指定selfname的） 只能有一个

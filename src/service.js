@@ -230,14 +230,12 @@ let initFun = () => {
 			return rt;
 		};
 
-		xsloader.require([mainName], function(main) {}).then({
-			onError: function(err, invoker) {
-				if(invoker) {
-					console.error("error occured:invoker.url=", invoker.getUrl());
-				}
-				console.error("invoke main err:");
-				console.error(err);
+		xsloader.require([mainName], function(main) {}).error((err, invoker) => {
+			if(invoker) {
+				console.error("error occured:invoker.url=", invoker.getUrl());
 			}
+			console.error("invoke main err:");
+			console.error(err);
 		});
 	}
 	xsloader.asyncCall(startLoad, true);

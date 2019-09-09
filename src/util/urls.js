@@ -147,7 +147,8 @@ function getPathWithRelative(path, relative, isPathDir) {
 		let str = relatives[i];
 		if(".." == str) {
 			if(stack.length == 0) {
-				throw new Error("no more upper path!");
+				
+				throw new Error("no more upper path:path="+arguments[0]+",relative="+arguments[1]);
 			}
 			stack.pop();
 		} else if("." != str) {
