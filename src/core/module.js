@@ -662,6 +662,9 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 								url = config.baseUrl + url;
 							}
 						}
+						if(urls[index]==dep){
+							dep=url;
+						}
 						urls[index] = config.dealUrl(dep, url);
 					});
 				}

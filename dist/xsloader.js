@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 09 Sep 2019 07:37:46 GMT
+ * build time:Mon, 09 Sep 2019 08:16:00 GMT
  */
 (function () {
   'use strict';
@@ -2782,6 +2782,10 @@
                 } else {
                   url = config.baseUrl + url;
                 }
+              }
+
+              if (urls[index] == dep) {
+                dep = url;
               }
 
               urls[index] = config.dealUrl(dep, url);
