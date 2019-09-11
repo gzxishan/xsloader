@@ -417,13 +417,11 @@ function newModule(defineObject) {
 
 		return _module_;
 	};
-
 	moduleMap.printOnNotDefined = function() {
 		let root = {
 			nodes: []
 		};
 		this._printOnNotDefined(root);
-
 		let leafs = [];
 
 		function findLeaf(node) {
@@ -443,11 +441,12 @@ function newModule(defineObject) {
 				genErrs(node.parent, infos);
 			}
 		}
+		console.error("{-----------------------------------------------------------------------------------------------");
+		console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," : "") + "my page=" + location.href);
 		utils.each(leafs, function(leaf) {
 			let infos = [];
 			genErrs(leaf, infos);
 			infos = infos.reverse();
-			console.error("load module error stack:my page=" + location.href);
 			for(let i = 1; i < infos.length;) {
 				let as = [];
 				for(let k = 0; k < 3 && i < infos.length; k++) {
@@ -490,7 +489,7 @@ function newModule(defineObject) {
 				}
 			}
 		});
-
+		console.error("}-----------------------------------------------------------------------------------------------");
 	};
 	moduleMap._printOnNotDefined = function(parentNode) {
 		let node = {
@@ -662,8 +661,8 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 								url = config.baseUrl + url;
 							}
 						}
-						if(urls[index]==dep){
-							dep=url;
+						if(urls[index] == dep) {
+							dep = url;
 						}
 						urls[index] = config.dealUrl(dep, url);
 					});

@@ -35,7 +35,7 @@ xsloader.clearUrlArgs = function() {
 	argsObject = {};
 };
 
-xsloader.appendHeadDom=script.appendHeadDom;
+xsloader.appendHeadDom = script.appendHeadDom;
 
 xsloader.hasDefine = function(name) {
 	let has = false;
@@ -84,10 +84,13 @@ loader.loaderFun((option) => {
 		deps: {},
 		jsExts: undefined,
 		properties: {},
+		loading: { //顶部加载进度条
+
+		},
 		modulePrefix: {},
 		defineFunction: {},
 		modulePrefixCount: 0,
-		waitSeconds: 10,
+		waitSeconds: 20,
 		autoUrlArgs() {
 			return false;
 		},
@@ -184,6 +187,14 @@ loader.loaderFun((option) => {
 		},
 		defaultVersion: {}
 	}, option);
+
+	option.loading = xsloader.extend({
+		enable: true,
+		color: '#1E90FF',
+		errColor: '#DC143C',
+		duration: 0.2,
+		height: '1px'
+	}, option.loading);
 
 	if(!xsloader.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";

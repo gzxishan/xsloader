@@ -14,7 +14,7 @@
 		
 	defineFunction:{},//map,{moduleName:function(originCallback,originThis,originArgs){}},用于自定义操作模块的回调函数
 	defaultVersion:{},//{'group:project':'versionName'}默认包名配置
-	waitSeconds:10,//加载模块默认等待时间，默认10秒,
+	waitSeconds:20,//加载模块默认等待时间，默认20秒,
 	instance:"single",//对模块对象的默认处理方式，取值为single(默认)或clone
 	properties:{//所有的字符串中都可以使用，格式为${propertyName}
 		name1:anyType,
@@ -26,6 +26,12 @@
 		name5:function(){//注意：this为当前的properties
 		
 		}
+	},
+	loading:{//顶部加载进度条
+		enable:true,
+		color:'#EEE',
+		duration: 0.2,
+		height:'2px'
 	}
 }
 二、xsloader说明

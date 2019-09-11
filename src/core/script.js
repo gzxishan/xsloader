@@ -131,7 +131,7 @@ function _buildInvoker(module) {
 		}
 	};
 	invoker.require = function() {
-//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
+		//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
 		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
@@ -141,7 +141,7 @@ function _buildInvoker(module) {
 		return h;
 	};
 	invoker.define = function() {
-//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
+		//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
 		let h = xsloader.define.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
@@ -209,7 +209,7 @@ class Invoker {
 	}
 }
 
-function getInvoker(thiz, nullNew = false) {
+function getInvoker(thiz, nullNew = true) {
 	if(thiz instanceof ThisInvoker) {
 		return thiz.invoker;
 	} else if(thiz instanceof Invoker) {
@@ -670,9 +670,11 @@ function predefine() {
 	return doDefine(this, args, false);
 }
 
-function prerequire(deps, callback) {
+let isFirstRequire = true;
 
-	if(!xsloader.config()) { //require必须是在config之后
+function prerequire(deps, callback) {
+	let config = xsloader.config();
+	if(!config) { //require必须是在config之后
 		throw new Error("not config");
 	}
 
@@ -685,12 +687,12 @@ function prerequire(deps, callback) {
 			deps = deps.substring(0, pluginIndex);
 			if(pluginArgs) {
 				let argArr = [pluginArgs];
-				utils.replaceModulePrefix(xsloader.config(), argArr); //前缀替换
+				utils.replaceModulePrefix(config, argArr); //前缀替换
 				pluginArgs = argArr[0];
 			}
 		}
 		let module = moduleScript.getModule(deps);
-		let thatInvoker = getInvoker(this, true);
+		let thatInvoker = getInvoker(this);
 		if(!module) {
 			deps = thatInvoker.getUrl(deps, false);
 			module = moduleScript.getModule(deps);
@@ -717,11 +719,31 @@ function prerequire(deps, callback) {
 	}
 	utils.appendInnerDeps(deps, callback);
 	let timeid;
-	let handle = doDefine(this, [selfname, deps, function() {
+	let loading;
+	if(isFirstRequire && config.loading.enable) {
+		isFirstRequire = false;
+		loading = new utils.ToProgress(config.loading);
+	}
+	let customerErrCallback;
+	let isErr;
+	let clearTimer = function(isErr = false) {
+		if(loading) {
+			loading.stopAuto();
+			if(isErr) {
+				loading.setColor(config.loading.errColor);
+			} else {
+				loading.finish();
+			}
+			loading = null;
+		}
 		if(timeid !== undefined) {
 			clearTimeout(timeid);
 			timeid = undefined;
 		}
+	};
+
+	let handle = doDefine(this, [selfname, deps, function() {
+		clearTimer();
 		//		console.log("2======require:"+selfname);
 		//		console.log(callback);
 		if(xsloader.isFunction(callback)) {
@@ -732,15 +754,10 @@ function prerequire(deps, callback) {
 			}
 		}
 	}], true);
-	let customerErrCallback;
-	let isErr;
 
 	handle.error(function(err, invoker) {
 		isErr = err;
-		if(timeid !== undefined) {
-			clearTimeout(timeid);
-			timeid = undefined;
-		}
+		clearTimer();
 		if(customerErrCallback) {
 			customerErrCallback(err, invoker);
 		} else {
@@ -754,11 +771,12 @@ function prerequire(deps, callback) {
 	};
 
 	let checkResultFun = function() {
-		timeid = undefined;
+		clearTimer();
 		let ifmodule = moduleScript.getModule(selfname);
 		//console.log(isErr)
 		if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
 			let module = ifmodule;
+			console.error("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
 			if(module) {
 				utils.each(module.deps, function(dep) {
 					let mod = moduleScript.getModule(dep);
@@ -767,10 +785,12 @@ function prerequire(deps, callback) {
 					}
 				});
 			}
-			console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]");
 		}
 	};
-	timeid = setTimeout(checkResultFun, xsloader.config().waitSeconds * 1000);
+	timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+	if(loading) {
+		loading.autoIncrement();
+	}
 	return handle;
 }
 

@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 11 Sep 2019 01:48:18 GMT
+ * build time:Wed, 11 Sep 2019 05:02:08 GMT
  */
 (function () {
   'use strict';
@@ -968,9 +968,193 @@
     IE_VERSION: IE_VERSION
   };
 
+  function whichTransitionEvent() {
+    var t,
+        el = document.createElement("fakeelement");
+    var transitions = {
+      "transition": "transitionend",
+      "OTransition": "oTransitionEnd",
+      "MozTransition": "transitionend",
+      "WebkitTransition": "webkitTransitionEnd"
+    };
+
+    for (t in transitions) {
+      if (el.style[t] !== undefined) {
+        return transitions[t];
+      }
+    }
+  }
+
+  var transitionEvent = whichTransitionEvent();
+
+  var ToProgress = function ToProgress(opt, selector) {
+    this.progress = 0;
+    this.options = {
+      id: 'xsloader-top-progress-bar',
+      color: '#F44336',
+      height: '2px',
+      duration: 0.2
+    };
+
+    if (opt && _typeof(opt) === 'object') {
+      for (var key in opt) {
+        this.options[key] = opt[key];
+      }
+    }
+
+    this.options.opacityDuration = this.options.duration * 3;
+    this.progressBar = document.createElement('div');
+    this.progressBar.id = this.options.id;
+
+    this.progressBar.setCSS = function (style) {
+      for (var property in style) {
+        this.style[property] = style[property];
+      }
+    };
+
+    this.progressBar.setCSS({
+      "position": selector ? "relative" : "fixed",
+      "padding": "0",
+      "margin": "0",
+      "top": "0",
+      "left": "0",
+      "right": "0",
+      "background-color": this.options.color,
+      "height": this.options.height,
+      "width": "0%",
+      "transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
+      "-moz-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
+      "-webkit-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s"
+    });
+
+    if (selector) {
+      var el = document.querySelector(selector);
+
+      if (el) {
+        if (el.hasChildNodes()) {
+          el.insertBefore(this.progressBar, el.firstChild);
+        } else {
+          el.appendChild(this.progressBar);
+        }
+      }
+    } else {
+      document.body.appendChild(this.progressBar);
+    }
+  };
+
+  ToProgress.prototype.setColor = function (color) {
+    this.progressBar.setCss({
+      "background-color": color
+    });
+  };
+
+  ToProgress.prototype._isAuto = false;
+  ToProgress.prototype._timer = null;
+
+  ToProgress.prototype.stopAuto = function () {
+    this._isAuto = false;
+
+    if (this._timer) {
+      clearInterval(this._timer);
+      this._timer = null;
+    }
+  };
+
+  ToProgress.prototype.autoIncrement = function () {
+    var _this = this;
+
+    var time = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 100;
+    this.stopAuto();
+    this._isAuto = true;
+    var dt = time < 100 ? 100 : time;
+    var k = 100;
+    var step = 0.1;
+    var x = 1 - step;
+    this._timer = setInterval(function () {
+      x += step;
+
+      _this.setProgress(100 - k / x);
+    }, dt);
+  };
+
+  ToProgress.prototype.transit = function () {
+    this.progressBar.style.width = this.progress + '%';
+  };
+
+  ToProgress.prototype.getProgress = function () {
+    return this.progress;
+  };
+
+  ToProgress.prototype.setProgress = function (progress, callback) {
+    this.show();
+
+    if (progress > 100) {
+      this.progress = 100;
+    } else if (progress < 0) {
+      this.progress = 0;
+    } else {
+      this.progress = progress;
+    }
+
+    this.transit();
+    callback && callback();
+  };
+
+  ToProgress.prototype.increase = function (toBeIncreasedProgress, callback) {
+    this.show();
+    this.setProgress(this.progress + toBeIncreasedProgress, callback);
+  };
+
+  ToProgress.prototype.decrease = function (toBeDecreasedProgress, callback) {
+    this.show();
+    this.setProgress(this.progress - toBeDecreasedProgress, callback);
+  };
+
+  ToProgress.prototype.finish = function (callback) {
+    var _this2 = this;
+
+    var that = this;
+    this.setProgress(100, callback);
+    setTimeout(function () {
+      _this2.hide();
+
+      var _fun;
+
+      _fun = function fun(e) {
+        that.reset();
+        that.progressBar.removeEventListener(e.type, _fun);
+        this.progressBar.parentNode.removeChild(this.progressBar);
+      };
+
+      transitionEvent && _this2.progressBar.addEventListener(transitionEvent, _fun);
+
+      if (!transitionEvent) {
+        _this2.progressBar.parentNode.removeChild(_this2.progressBar);
+      }
+    }, 150);
+  };
+
+  ToProgress.prototype.reset = function (callback) {
+    this.progress = 0;
+    this.transit();
+    callback && callback();
+  };
+
+  ToProgress.prototype.hide = function () {
+    this.progressBar.style.opacity = '0';
+  };
+
+  ToProgress.prototype.show = function () {
+    this.progressBar.style.opacity = '1';
+  };
+
+  var loading = {
+    ToProgress: ToProgress
+  };
+
   var utils = _objectSpread2({}, urls, {
     global: global$1
-  }, base);
+  }, base, {}, loading);
 
   var global$2 = utils.global;
   var xsloader$3 = global$2.xsloader;
@@ -2545,11 +2729,12 @@
         }
       }
 
+      console.error("{-----------------------------------------------------------------------------------------------");
+      console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," : "") + "my page=" + location.href);
       utils.each(leafs, function (leaf) {
         var infos = [];
         genErrs(leaf, infos);
         infos = infos.reverse();
-        console.error("load module error stack:my page=" + location.href);
 
         for (var i = 1; i < infos.length;) {
           var as = [];
@@ -2608,6 +2793,7 @@
           }
         }
       });
+      console.error("}-----------------------------------------------------------------------------------------------");
     };
 
     moduleMap._printOnNotDefined = function (parentNode) {
@@ -3147,7 +3333,7 @@
   }();
 
   function getInvoker(thiz) {
-    var nullNew = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    var nullNew = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
 
     if (thiz instanceof ThisInvoker) {
       return thiz.invoker;
@@ -3625,8 +3811,12 @@
     return doDefine(this, args, false);
   }
 
+  var isFirstRequire = true;
+
   function prerequire(deps, callback) {
-    if (!xsloader$a.config()) {
+    var config = xsloader$a.config();
+
+    if (!config) {
       throw new Error("not config");
     }
 
@@ -3641,13 +3831,13 @@
 
         if (pluginArgs) {
           var argArr = [pluginArgs];
-          utils.replaceModulePrefix(xsloader$a.config(), argArr);
+          utils.replaceModulePrefix(config, argArr);
           pluginArgs = argArr[0];
         }
       }
 
       var module = moduleScript.getModule(deps);
-      var thatInvoker = getInvoker(this, true);
+      var thatInvoker = getInvoker(this);
 
       if (!module) {
         deps = thatInvoker.getUrl(deps, false);
@@ -3681,11 +3871,39 @@
 
     utils.appendInnerDeps(deps, callback);
     var timeid;
-    var handle = doDefine(this, [selfname, deps, function () {
+    var loading;
+
+    if (isFirstRequire && config.loading.enable) {
+      isFirstRequire = false;
+      loading = new utils.ToProgress(config.loading);
+    }
+
+    var customerErrCallback;
+    var isErr;
+
+    var clearTimer = function clearTimer() {
+      var isErr = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+
+      if (loading) {
+        loading.stopAuto();
+
+        if (isErr) {
+          loading.setColor(config.loading.errColor);
+        } else {
+          loading.finish();
+        }
+
+        loading = null;
+      }
+
       if (timeid !== undefined) {
         clearTimeout(timeid);
         timeid = undefined;
       }
+    };
+
+    var handle = doDefine(this, [selfname, deps, function () {
+      clearTimer();
 
       if (xsloader$a.isFunction(callback)) {
         try {
@@ -3695,15 +3913,9 @@
         }
       }
     }], true);
-    var customerErrCallback;
-    var isErr;
     handle.error(function (err, invoker) {
       isErr = err;
-
-      if (timeid !== undefined) {
-        clearTimeout(timeid);
-        timeid = undefined;
-      }
+      clearTimer();
 
       if (customerErrCallback) {
         customerErrCallback(err, invoker);
@@ -3719,11 +3931,12 @@
     };
 
     var checkResultFun = function checkResultFun() {
-      timeid = undefined;
+      clearTimer();
       var ifmodule = moduleScript.getModule(selfname);
 
       if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
         var _module = ifmodule;
+        console.error("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
 
         if (_module) {
           utils.each(_module.deps, function (dep) {
@@ -3734,12 +3947,15 @@
             }
           });
         }
-
-        console.error("require timeout:[" + (deps ? deps.join(",") : "") + "]");
       }
     };
 
-    timeid = setTimeout(checkResultFun, xsloader$a.config().waitSeconds * 1000);
+    timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+
+    if (loading) {
+      loading.autoIncrement();
+    }
+
     return handle;
   }
 
@@ -3863,10 +4079,11 @@
       deps: {},
       jsExts: undefined,
       properties: {},
+      loading: {},
       modulePrefix: {},
       defineFunction: {},
       modulePrefixCount: 0,
-      waitSeconds: 10,
+      waitSeconds: 20,
       autoUrlArgs: function autoUrlArgs() {
         return false;
       },
@@ -3966,6 +4183,13 @@
       },
       defaultVersion: {}
     }, option);
+    option.loading = xsloader$b.extend({
+      enable: true,
+      color: '#1E90FF',
+      errColor: '#DC143C',
+      duration: 0.2,
+      height: '1px'
+    }, option.loading);
 
     if (!xsloader$b.endsWith(option.baseUrl, "/")) {
       option.baseUrl += "/";
