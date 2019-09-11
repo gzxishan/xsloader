@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 11 Sep 2019 05:02:08 GMT
+ * build time:Wed, 11 Sep 2019 16:19:24 GMT
  */
 (function () {
   'use strict';
@@ -992,7 +992,7 @@
     this.options = {
       id: 'xsloader-top-progress-bar',
       color: '#F44336',
-      height: '2px',
+      height: 2,
       duration: 0.2
     };
 
@@ -1004,7 +1004,15 @@
 
     this.options.opacityDuration = this.options.duration * 3;
     this.progressBar = document.createElement('div');
-    this.progressBar.id = this.options.id;
+    this.container = document.createElement('div');
+
+    this.container.setCSS = function (style) {
+      for (var property in style) {
+        this.style[property] = style[property];
+      }
+    };
+
+    this.container.id = this.options.id;
 
     this.progressBar.setCSS = function (style) {
       for (var property in style) {
@@ -1012,40 +1020,37 @@
       }
     };
 
+    this.container.setCSS({
+      "position": "fixed",
+      "padding": "0",
+      "margin": "0",
+      "top": "0",
+      "left": "0",
+      "right": "0",
+      "height": this.options.height + "px",
+      "width": "100%",
+      "opacity": "1"
+    });
     this.progressBar.setCSS({
-      "position": selector ? "relative" : "fixed",
+      "position": "absolute",
       "padding": "0",
       "margin": "0",
       "top": "0",
       "left": "0",
       "right": "0",
       "background-color": this.options.color,
-      "height": this.options.height,
+      "height": this.options.height + "px",
       "width": "0%",
       "transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
       "-moz-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
       "-webkit-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s"
     });
-
-    if (selector) {
-      var el = document.querySelector(selector);
-
-      if (el) {
-        if (el.hasChildNodes()) {
-          el.insertBefore(this.progressBar, el.firstChild);
-        } else {
-          el.appendChild(this.progressBar);
-        }
-      }
-    } else {
-      document.body.appendChild(this.progressBar);
-    }
+    this.container.appendChild(this.progressBar);
+    document.body.appendChild(this.container);
   };
 
   ToProgress.prototype.setColor = function (color) {
-    this.progressBar.setCss({
-      "background-color": color
-    });
+    this.progressBar.style.backgroundColor = color;
   };
 
   ToProgress.prototype._isAuto = false;
@@ -1075,6 +1080,11 @@
 
       _this.setProgress(100 - k / x);
     }, dt);
+  };
+
+  ToProgress.prototype.toError = function (errColor) {
+    this.setProgress(this.progress < 50 ? 50 : this.progress);
+    this.setColor(errColor);
   };
 
   ToProgress.prototype.transit = function () {
@@ -1113,7 +1123,6 @@
   ToProgress.prototype.finish = function (callback) {
     var _this2 = this;
 
-    var that = this;
     this.setProgress(100, callback);
     setTimeout(function () {
       _this2.hide();
@@ -1121,15 +1130,17 @@
       var _fun;
 
       _fun = function fun(e) {
-        that.reset();
-        that.progressBar.removeEventListener(e.type, _fun);
-        this.progressBar.parentNode.removeChild(this.progressBar);
+        _this2.reset();
+
+        _this2.progressBar.removeEventListener(e.type, _fun);
+
+        _this2.container.parentNode.removeChild(_this2.container);
       };
 
       transitionEvent && _this2.progressBar.addEventListener(transitionEvent, _fun);
 
       if (!transitionEvent) {
-        _this2.progressBar.parentNode.removeChild(_this2.progressBar);
+        _this2.container.parentNode.removeChild(_this2.container);
       }
     }, 150);
   };
@@ -1142,10 +1153,12 @@
 
   ToProgress.prototype.hide = function () {
     this.progressBar.style.opacity = '0';
+    this.container.style.display = 'none';
   };
 
   ToProgress.prototype.show = function () {
     this.progressBar.style.opacity = '1';
+    this.container.style.display = 'block';
   };
 
   var loading = {
@@ -3872,14 +3885,19 @@
     utils.appendInnerDeps(deps, callback);
     var timeid;
     var loading;
+    var isOk = false;
+    var customerErrCallback;
+    var isErr;
 
     if (isFirstRequire && config.loading.enable) {
       isFirstRequire = false;
-      loading = new utils.ToProgress(config.loading);
+      setTimeout(function () {
+        if (!isOk) {
+          loading = new utils.ToProgress(config.loading);
+          loading.autoIncrement();
+        }
+      }, config.loading.delay);
     }
-
-    var customerErrCallback;
-    var isErr;
 
     var clearTimer = function clearTimer() {
       var isErr = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
@@ -3888,7 +3906,7 @@
         loading.stopAuto();
 
         if (isErr) {
-          loading.setColor(config.loading.errColor);
+          loading.toError(config.loading.errColor);
         } else {
           loading.finish();
         }
@@ -3903,6 +3921,7 @@
     };
 
     var handle = doDefine(this, [selfname, deps, function () {
+      isOk = true;
       clearTimer();
 
       if (xsloader$a.isFunction(callback)) {
@@ -3920,7 +3939,7 @@
       if (customerErrCallback) {
         customerErrCallback(err, invoker);
       } else {
-        console.warn("invoker.url:" + (invoker && invoker.getUrl()));
+        console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
         console.warn(err);
       }
     });
@@ -3951,11 +3970,6 @@
     };
 
     timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
-
-    if (loading) {
-      loading.autoIncrement();
-    }
-
     return handle;
   }
 
@@ -4185,10 +4199,11 @@
     }, option);
     option.loading = xsloader$b.extend({
       enable: true,
-      color: '#1E90FF',
+      color: '#3366FF',
       errColor: '#DC143C',
       duration: 0.2,
-      height: '1px'
+      height: 1,
+      delay: 500
     }, option.loading);
 
     if (!xsloader$b.endsWith(option.baseUrl, "/")) {

@@ -1,4 +1,5 @@
-/* 
+//顶部加载条功能
+/*
  ** ToProgress v0.1.1
  ** http://github.com/djyde/ToProgress
  */
@@ -26,12 +27,11 @@ let transitionEvent = whichTransitionEvent();
 
 const ToProgress = function(opt, selector) {
 	// Attributes
-	let that = this;
 	this.progress = 0;
 	this.options = {
 		id: 'xsloader-top-progress-bar',
 		color: '#F44336',
-		height: '2px',
+		height: 2,
 		duration: 0.2
 	};
 	if(opt && typeof opt === 'object') {
@@ -41,49 +41,53 @@ const ToProgress = function(opt, selector) {
 	}
 	this.options.opacityDuration = this.options.duration * 3;
 	this.progressBar = document.createElement('div');
-
-	// Initialization
-	this.progressBar.id = this.options.id;
-	this.progressBar.setCSS = function(style) {
+	this.container = document.createElement('div');
+	this.container.setCSS = function(style) {
 		for(let property in style) {
 			this.style[property] = style[property];
 		}
 	}
+	this.container.id = this.options.id;
+
+	this.progressBar.setCSS = function(style) {
+		for(let property in style) {
+			this.style[property] = style[property];
+		}
+	};
+
+	this.container.setCSS({
+		"position": "fixed",
+		"padding": "0",
+		"margin": "0",
+		"top": "0",
+		"left": "0",
+		"right": "0",
+		"height": (this.options.height) + "px",
+		"width": "100%",
+		"opacity": "1",
+	});
+
 	this.progressBar.setCSS({
-		"position": selector ? "relative" : "fixed",
+		"position": "absolute",
 		"padding": "0",
 		"margin": "0",
 		"top": "0",
 		"left": "0",
 		"right": "0",
 		"background-color": this.options.color,
-		"height": this.options.height,
+		"height": this.options.height + "px",
 		"width": "0%",
 		"transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
 		"-moz-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s",
 		"-webkit-transition": "width " + this.options.duration + "s" + ", opacity " + this.options.opacityDuration + "s"
 	});
-
-	// Create the Progress Bar
-	if(selector) {
-		let el = document.querySelector(selector);
-		if(el) {
-			if(el.hasChildNodes()) {
-				el.insertBefore(this.progressBar, el.firstChild);
-			} else {
-				el.appendChild(this.progressBar);
-			}
-		}
-	} else {
-		document.body.appendChild(this.progressBar);
-	}
+	this.container.appendChild(this.progressBar);
+	document.body.appendChild(this.container);
 };
 
 ////////////////////////////////////
 ToProgress.prototype.setColor = function(color) {
-	this.progressBar.setCss({
-		"background-color": color
-	});
+	this.progressBar.style.backgroundColor = color;
 };
 
 ToProgress.prototype._isAuto = false;
@@ -110,6 +114,12 @@ ToProgress.prototype.autoIncrement = function(time = 100) {
 		this.setProgress(100 - k / x);
 	}, dt);
 };
+
+ToProgress.prototype.toError = function(errColor) {
+	this.setProgress(this.progress < 50 ? 50 : this.progress);
+	this.setColor(errColor);
+};
+
 ///////////////////////////////////
 
 ToProgress.prototype.transit = function() {
@@ -144,19 +154,18 @@ ToProgress.prototype.decrease = function(toBeDecreasedProgress, callback) {
 };
 
 ToProgress.prototype.finish = function(callback) {
-	let that = this;
 	this.setProgress(100, callback);
 	setTimeout(() => {
 		this.hide();
 		let fun;
-		fun = function(e) {
-			that.reset();
-			that.progressBar.removeEventListener(e.type, fun);
-			this.progressBar.parentNode.removeChild(this.progressBar);
+		fun = (e) => {
+			this.reset();
+			this.progressBar.removeEventListener(e.type, fun);
+			this.container.parentNode.removeChild(this.container);
 		};
 		transitionEvent && this.progressBar.addEventListener(transitionEvent, fun);
 		if(!transitionEvent) {
-			this.progressBar.parentNode.removeChild(this.progressBar);
+			this.container.parentNode.removeChild(this.container);
 		}
 	}, 150);
 };
@@ -169,10 +178,12 @@ ToProgress.prototype.reset = function(callback) {
 
 ToProgress.prototype.hide = function() {
 	this.progressBar.style.opacity = '0';
+	this.container.style.display = 'none';
 };
 
 ToProgress.prototype.show = function() {
 	this.progressBar.style.opacity = '1';
+	this.container.style.display = 'block';
 };
 
 export default {

@@ -720,17 +720,23 @@ function prerequire(deps, callback) {
 	utils.appendInnerDeps(deps, callback);
 	let timeid;
 	let loading;
-	if(isFirstRequire && config.loading.enable) {
-		isFirstRequire = false;
-		loading = new utils.ToProgress(config.loading);
-	}
+	let isOk = false;
 	let customerErrCallback;
 	let isErr;
+	if(isFirstRequire && config.loading.enable) {
+		isFirstRequire = false;
+		setTimeout(() => {
+			if(!isOk) {
+				loading = new utils.ToProgress(config.loading);
+				loading.autoIncrement();
+			}
+		}, config.loading.delay);
+	}
 	let clearTimer = function(isErr = false) {
 		if(loading) {
 			loading.stopAuto();
 			if(isErr) {
-				loading.setColor(config.loading.errColor);
+				loading.toError(config.loading.errColor);
 			} else {
 				loading.finish();
 			}
@@ -743,6 +749,7 @@ function prerequire(deps, callback) {
 	};
 
 	let handle = doDefine(this, [selfname, deps, function() {
+		isOk = true;
 		clearTimer();
 		//		console.log("2======require:"+selfname);
 		//		console.log(callback);
@@ -761,7 +768,7 @@ function prerequire(deps, callback) {
 		if(customerErrCallback) {
 			customerErrCallback(err, invoker);
 		} else {
-			console.warn("invoker.url:" + (invoker && invoker.getUrl()));
+			console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
 			console.warn(err);
 		}
 	});
@@ -788,9 +795,6 @@ function prerequire(deps, callback) {
 		}
 	};
 	timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
-	if(loading) {
-		loading.autoIncrement();
-	}
 	return handle;
 }
 

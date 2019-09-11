@@ -28,10 +28,12 @@
 		}
 	},
 	loading:{//顶部加载进度条
-		enable:true,
-		color:'#EEE',
+		enable: true,
+		color: '#0099FF',
+		errColor: '#DC143C',
 		duration: 0.2,
-		height:'2px'
+		height: '1px',
+		delay: 500,
 	}
 }
 二、xsloader说明

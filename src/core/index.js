@@ -190,10 +190,11 @@ loader.loaderFun((option) => {
 
 	option.loading = xsloader.extend({
 		enable: true,
-		color: '#1E90FF',
+		color: '#3366FF',
 		errColor: '#DC143C',
 		duration: 0.2,
-		height: '1px'
+		height: 1,
+		delay: 500,
 	}, option.loading);
 
 	if(!xsloader.endsWith(option.baseUrl, "/")) {
