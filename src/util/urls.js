@@ -355,6 +355,12 @@ function getScriptBySubname(subname) {
 	}
 }
 
+const thePageUrl = (function() {
+	let url = location.href;
+	url = removeQueryHash(url);
+	return url;
+})();
+
 export default {
 	getPathWithRelative,
 	getNodeAbsolutePath,
@@ -364,4 +370,5 @@ export default {
 	replaceModulePrefix,
 	isJsFile,
 	getScriptBySubname,
+	thePageUrl,
 };

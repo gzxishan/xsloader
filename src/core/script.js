@@ -21,11 +21,7 @@ const safariVersion = (function() {
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
 const theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
-const thePageUrl = (function() {
-	let url = location.href;
-	url = utils.removeQueryHash(url);
-	return url;
-})();
+const thePageUrl = utils.thePageUrl;
 const head = document.head || document.getElementsByTagName('head')[0];
 
 const currentDefineModuleQueue = []; //当前回调的模块

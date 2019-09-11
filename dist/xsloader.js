@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 09 Sep 2019 08:16:00 GMT
+ * build time:Wed, 11 Sep 2019 01:42:40 GMT
  */
 (function () {
   'use strict';
@@ -735,6 +735,12 @@
     }
   }
 
+  var thePageUrl = function () {
+    var url = location.href;
+    url = removeQueryHash(url);
+    return url;
+  }();
+
   var urls = {
     getPathWithRelative: getPathWithRelative,
     getNodeAbsolutePath: getNodeAbsolutePath,
@@ -743,7 +749,8 @@
     propertiesDeal: propertiesDeal,
     replaceModulePrefix: replaceModulePrefix,
     isJsFile: isJsFile,
-    getScriptBySubname: getScriptBySubname
+    getScriptBySubname: getScriptBySubname,
+    thePageUrl: thePageUrl
   };
 
   var xsloader$2 = global$1.xsloader;
@@ -1383,7 +1390,7 @@
     }
 
     var theConfig = xsloader$5.config();
-    var thePageUrl = xsloader$5.pageUrl();
+    var thePageUrl = utils.thePageUrl;
     var url;
 
     if (relativeUrl === undefined) {
@@ -2915,13 +2922,7 @@
   var readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
   var theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
   var theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
-
-  var thePageUrl = function () {
-    var url = location.href;
-    url = utils.removeQueryHash(url);
-    return url;
-  }();
-
+  var thePageUrl$1 = utils.thePageUrl;
   var head = document.head || document.getElementsByTagName('head')[0];
   var currentDefineModuleQueue = [];
 
@@ -2933,7 +2934,7 @@
 
   var lastAppendHeadDom = theLoaderScript;
   var isSrcFromScriptLoad;
-  var lastScriptSrc = thePageUrl;
+  var lastScriptSrc = thePageUrl$1;
   var theRealDefine;
 
   if (safariVersion > 0 && safariVersion <= 7) {
@@ -3042,7 +3043,7 @@
       }
 
       if (appendArgs) {
-        if (url == thePageUrl) {
+        if (url == thePageUrl$1) {
           url += location.search + location.hash;
         }
 
@@ -3162,9 +3163,9 @@
       } else if (nullNew) {
         var moduleMap = {
           module: "",
-          src: thePageUrl,
+          src: thePageUrl$1,
           absUrl: function absUrl() {
-            return thePageUrl;
+            return thePageUrl$1;
           },
           name: "__root__",
           invoker: null
@@ -3427,16 +3428,16 @@
 
     if (!rs) {
       rs = {
-        src: thePageUrl
+        src: thePageUrl$1
       };
     }
 
     if (utils.isLoaderEnd() && rs.src == theLoaderUrl) {
-      rs.src = thePageUrl;
+      rs.src = thePageUrl$1;
       rs.node = null;
     }
 
-    if (!rs.node && rs.src != thePageUrl) {
+    if (!rs.node && rs.src != thePageUrl$1) {
       var src = utils.removeQueryHash(rs.src);
       var nodes = document.getElementsByTagName("script");
 
@@ -3591,7 +3592,7 @@
         if (defineObject.src) {
           var node = document.currentScript;
 
-          if (node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName && defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
+          if (node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName && defineObject.src != theLoaderUrl && defineObject.src != thePageUrl$1) {
             console.error("unknown js script module:" + xsloader$a.xsJson2String(defineObject.src));
             console.error(node);
             return;
@@ -3768,7 +3769,7 @@
     defContextName: defContextName,
     theLoaderScript: theLoaderScript,
     theLoaderUrl: theLoaderUrl,
-    thePageUrl: thePageUrl,
+    thePageUrl: thePageUrl$1,
     appendHeadDom: appendHeadDom,
     initDefine: initDefine,
     Handle: Handle,

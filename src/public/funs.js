@@ -31,7 +31,7 @@ function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
 		appendArgs = true;
 	}
 	let theConfig = xsloader.config();
-	let thePageUrl = xsloader.pageUrl();
+	let thePageUrl = utils.thePageUrl;
 	let url;
 	if(relativeUrl === undefined) {
 		url = thePageUrl;
