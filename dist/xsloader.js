@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 12 Sep 2019 02:27:01 GMT
+ * build time:Thu, 12 Sep 2019 03:31:10 GMT
  */
 (function () {
   'use strict';
@@ -3958,23 +3958,28 @@
     };
 
     var checkResultFun = function checkResultFun() {
-      clearTimer();
-      var ifmodule = moduleScript.getModule(selfname);
+      try {
+        var ifmodule = moduleScript.getModule(selfname);
 
-      if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-        var _module = ifmodule;
-        console.error("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
+        if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+          var _module = ifmodule;
+          handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
 
-        if (_module) {
-          utils.each(_module.deps, function (dep) {
-            var mod = moduleScript.getModule(dep);
+          if (_module) {
+            utils.each(_module.deps, function (dep) {
+              var mod = moduleScript.getModule(dep);
 
-            if (mod && mod.printOnNotDefined) {
-              mod.printOnNotDefined();
-            }
-          });
+              if (mod && mod.printOnNotDefined) {
+                mod.printOnNotDefined();
+              }
+            });
+          }
         }
+      } catch (e) {
+        console.error(e);
       }
+
+      clearTimer();
     };
 
     timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);

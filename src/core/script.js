@@ -731,7 +731,7 @@ function prerequire(deps, callback) {
 				loading.autoIncrement();
 				if(isErr) {
 					loading.toError(config.loading.errColor);
-					loading=null;
+					loading = null;
 				}
 			}
 		}, config.loading.delay);
@@ -782,21 +782,25 @@ function prerequire(deps, callback) {
 	};
 
 	let checkResultFun = function() {
-		clearTimer();
-		let ifmodule = moduleScript.getModule(selfname);
-		//console.log(isErr)
-		if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-			let module = ifmodule;
-			console.error("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
-			if(module) {
-				utils.each(module.deps, function(dep) {
-					let mod = moduleScript.getModule(dep);
-					if(mod && mod.printOnNotDefined) {
-						mod.printOnNotDefined();
-					}
-				});
+		try {
+			let ifmodule = moduleScript.getModule(selfname);
+			//console.log(isErr)
+			if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+				let module = ifmodule;
+				handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
+				if(module) {
+					utils.each(module.deps, function(dep) {
+						let mod = moduleScript.getModule(dep);
+						if(mod && mod.printOnNotDefined) {
+							mod.printOnNotDefined();
+						}
+					});
+				}
 			}
+		} catch(e) {
+			console.error(e);
 		}
+		clearTimer();
 	};
 	timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
 	return handle;
