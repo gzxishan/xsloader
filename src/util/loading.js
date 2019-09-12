@@ -14,7 +14,7 @@ function whichTransitionEvent() {
 		"OTransition": "oTransitionEnd",
 		"MozTransition": "transitionend",
 		"WebkitTransition": "webkitTransitionEnd"
-	}
+	};
 
 	for(t in transitions) {
 		if(el.style[t] !== undefined) {
@@ -25,12 +25,13 @@ function whichTransitionEvent() {
 
 let transitionEvent = whichTransitionEvent();
 
-const ToProgress = function(opt, selector) {
+const ToProgress = function(opt) {
 	// Attributes
 	this.progress = 0;
 	this.options = {
 		id: 'xsloader-top-progress-bar',
 		color: '#F44336',
+		bgColor:undefined,
 		height: 2,
 		duration: 0.2
 	};
@@ -39,14 +40,14 @@ const ToProgress = function(opt, selector) {
 			this.options[key] = opt[key];
 		}
 	}
-	this.options.opacityDuration = this.options.duration * 3;
+	this.options.opacityDuration = 0; //this.options.duration * 3;
 	this.progressBar = document.createElement('div');
 	this.container = document.createElement('div');
 	this.container.setCSS = function(style) {
 		for(let property in style) {
 			this.style[property] = style[property];
 		}
-	}
+	};
 	this.container.id = this.options.id;
 
 	this.progressBar.setCSS = function(style) {
@@ -62,9 +63,11 @@ const ToProgress = function(opt, selector) {
 		"top": "0",
 		"left": "0",
 		"right": "0",
-		"height": (this.options.height) + "px",
+		"height": (this.options.height + 1) + "px",
 		"width": "100%",
 		"opacity": "1",
+		'z-index': '9999999999',
+		'background-color': this.options.bgColor,
 	});
 
 	this.progressBar.setCSS({
@@ -108,7 +111,7 @@ ToProgress.prototype.autoIncrement = function(time = 100) {
 
 	let k = 100; //
 	let step = 0.1;
-	let x = 1 - step;
+	let x = 1 - step / 2;
 	this._timer = setInterval(() => {
 		x += step;
 		this.setProgress(100 - k / x);
@@ -116,8 +119,9 @@ ToProgress.prototype.autoIncrement = function(time = 100) {
 };
 
 ToProgress.prototype.toError = function(errColor) {
-	this.setProgress(this.progress < 50 ? 50 : this.progress);
+	this.setProgress(this.progress < 60 ? 60 : this.progress);
 	this.setColor(errColor);
+	this.stopAuto();
 };
 
 ///////////////////////////////////
@@ -167,7 +171,7 @@ ToProgress.prototype.finish = function(callback) {
 		if(!transitionEvent) {
 			this.container.parentNode.removeChild(this.container);
 		}
-	}, 150);
+	}, 500);
 };
 
 ToProgress.prototype.reset = function(callback) {

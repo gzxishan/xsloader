@@ -729,15 +729,19 @@ function prerequire(deps, callback) {
 			if(!isOk) {
 				loading = new utils.ToProgress(config.loading);
 				loading.autoIncrement();
+				if(isErr) {
+					loading.toError(config.loading.errColor);
+					loading=null;
+				}
 			}
 		}, config.loading.delay);
 	}
 	let clearTimer = function(isErr = false) {
 		if(loading) {
-			loading.stopAuto();
 			if(isErr) {
 				loading.toError(config.loading.errColor);
 			} else {
+				loading.stopAuto();
 				loading.finish();
 			}
 			loading = null;
@@ -764,7 +768,7 @@ function prerequire(deps, callback) {
 
 	handle.error(function(err, invoker) {
 		isErr = err;
-		clearTimer();
+		clearTimer(true);
 		if(customerErrCallback) {
 			customerErrCallback(err, invoker);
 		} else {

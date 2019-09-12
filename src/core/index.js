@@ -189,12 +189,13 @@ loader.loaderFun((option) => {
 	}, option);
 
 	option.loading = xsloader.extend({
-		enable: true,
-		color: '#3366FF',
-		errColor: '#DC143C',
-		duration: 0.2,
-		height: 1,
-		delay: 500,
+        enable: true,
+        color: '#2196f3',
+        bgColor:'rgba(0,0,0,0.1)',
+        errColor: '#f5222d',
+        duration: 0.2,
+        height: 1,
+        delay: 500,
 	}, option.loading);
 
 	if(!xsloader.endsWith(option.baseUrl, "/")) {

@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 11 Sep 2019 16:19:24 GMT
+ * build time:Thu, 12 Sep 2019 02:27:01 GMT
  */
 (function () {
   'use strict';
@@ -987,11 +987,12 @@
 
   var transitionEvent = whichTransitionEvent();
 
-  var ToProgress = function ToProgress(opt, selector) {
+  var ToProgress = function ToProgress(opt) {
     this.progress = 0;
     this.options = {
       id: 'xsloader-top-progress-bar',
       color: '#F44336',
+      bgColor: undefined,
       height: 2,
       duration: 0.2
     };
@@ -1002,7 +1003,7 @@
       }
     }
 
-    this.options.opacityDuration = this.options.duration * 3;
+    this.options.opacityDuration = 0;
     this.progressBar = document.createElement('div');
     this.container = document.createElement('div');
 
@@ -1027,9 +1028,11 @@
       "top": "0",
       "left": "0",
       "right": "0",
-      "height": this.options.height + "px",
+      "height": this.options.height + 1 + "px",
       "width": "100%",
-      "opacity": "1"
+      "opacity": "1",
+      'z-index': '9999999999',
+      'background-color': this.options.bgColor
     });
     this.progressBar.setCSS({
       "position": "absolute",
@@ -1074,7 +1077,7 @@
     var dt = time < 100 ? 100 : time;
     var k = 100;
     var step = 0.1;
-    var x = 1 - step;
+    var x = 1 - step / 2;
     this._timer = setInterval(function () {
       x += step;
 
@@ -1083,8 +1086,9 @@
   };
 
   ToProgress.prototype.toError = function (errColor) {
-    this.setProgress(this.progress < 50 ? 50 : this.progress);
+    this.setProgress(this.progress < 60 ? 60 : this.progress);
     this.setColor(errColor);
+    this.stopAuto();
   };
 
   ToProgress.prototype.transit = function () {
@@ -1142,7 +1146,7 @@
       if (!transitionEvent) {
         _this2.container.parentNode.removeChild(_this2.container);
       }
-    }, 150);
+    }, 500);
   };
 
   ToProgress.prototype.reset = function (callback) {
@@ -3895,6 +3899,11 @@
         if (!isOk) {
           loading = new utils.ToProgress(config.loading);
           loading.autoIncrement();
+
+          if (isErr) {
+            loading.toError(config.loading.errColor);
+            loading = null;
+          }
         }
       }, config.loading.delay);
     }
@@ -3903,11 +3912,10 @@
       var isErr = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
 
       if (loading) {
-        loading.stopAuto();
-
         if (isErr) {
           loading.toError(config.loading.errColor);
         } else {
+          loading.stopAuto();
           loading.finish();
         }
 
@@ -3934,7 +3942,7 @@
     }], true);
     handle.error(function (err, invoker) {
       isErr = err;
-      clearTimer();
+      clearTimer(true);
 
       if (customerErrCallback) {
         customerErrCallback(err, invoker);
@@ -4199,8 +4207,9 @@
     }, option);
     option.loading = xsloader$b.extend({
       enable: true,
-      color: '#3366FF',
-      errColor: '#DC143C',
+      color: '#2196f3',
+      bgColor: 'rgba(0,0,0,0.1)',
+      errColor: '#f5222d',
       duration: 0.2,
       height: 1,
       delay: 500
