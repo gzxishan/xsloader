@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 12 Sep 2019 03:31:10 GMT
+ * build time:Thu, 12 Sep 2019 08:03:40 GMT
  */
 (function () {
   'use strict';
@@ -2038,6 +2038,7 @@
 
       if (isPreDependOn) {
         this._preModule = {
+          preDependModule: true,
           relyQueue: [],
           get: function get() {
             return this;
@@ -4722,14 +4723,14 @@
           var newName = names[i];
           var lastM = moduleScript.getModule(newName);
 
-          if (lastM && lastM.state != "init") {
-            existsMods.push(newName);
+          if (lastM && lastM.state != "init" && !lastM.preDependModule) {
+            existsMods.push("\tselfname=" + newName + ",state=" + lastM.state + ",src=" + lastM.src);
             continue;
           }
 
           var module = depModuleArgs[0].module;
 
-          if (lastM) {
+          if (lastM && !lastM.preDependModule) {
             lastM.toOtherModule(module);
           } else {
             moduleScript.setModule(newName, module);
@@ -4737,10 +4738,10 @@
         }
 
         if (existsMods.length) {
-          console.warn("already exists:", existsMods.join(','));
+          onerror("already exists:" + existsMods.join('\n'));
+        } else {
+          onload(mod);
         }
-
-        onload(mod);
       }).error(function (e) {
         onerror(e);
       });

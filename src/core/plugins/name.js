@@ -24,21 +24,22 @@ xsloader.define("name", {
 			for(let i = 0; i < names.length; i++) {
 				let newName = names[i];
 				let lastM = moduleScript.getModule(newName);
-				if(lastM && lastM.state != "init") {
-					existsMods.push(newName);
+				if(lastM && lastM.state != "init" && !lastM.preDependModule) {
+					existsMods.push("\tselfname=" + newName + ",state=" + lastM.state + ",src=" + lastM.src);
 					continue;
 				}
 				let module = depModuleArgs[0].module;
-				if(lastM) {
+				if(lastM && !lastM.preDependModule) {
 					lastM.toOtherModule(module);
 				} else {
 					moduleScript.setModule(newName, module);
 				}
 			}
 			if(existsMods.length) {
-				console.warn("already exists:", existsMods.join(','));
+				onerror("already exists:" + existsMods.join('\n'));
+			} else {
+				onload(mod);
 			}
-			onload(mod);
 		}).error(function(e) {
 			onerror(e);
 		});

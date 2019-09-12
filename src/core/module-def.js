@@ -23,6 +23,7 @@ class ModuleDef {
 		this.targetDef = null;
 		if(isPreDependOn) {
 			this._preModule = {
+				preDependModule:true,
 				relyQueue: [],
 				get() {
 					return this;
