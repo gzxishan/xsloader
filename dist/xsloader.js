@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 12 Sep 2019 08:03:40 GMT
+ * build time:Mon, 16 Sep 2019 04:10:18 GMT
  */
 (function () {
   'use strict';
@@ -3119,7 +3119,7 @@
 
   var safariVersion = function () {
     var ua = navigator.userAgent.toLowerCase();
-    var s = ua.match(/version\/([\d.]+).*safari/);
+    var s = ua.match(/version\/([\d.]+)\s+safari/);
     return s ? parseInt(s[1]) : -1;
   }();
 

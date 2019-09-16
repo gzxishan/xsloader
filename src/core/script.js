@@ -14,7 +14,7 @@ const globalDefineQueue = []; //没有配置前的define
 const isOpera = typeof opera !== 'undefined' && opera.toString() === '[object Opera]';
 const safariVersion = (function() {
 	let ua = navigator.userAgent.toLowerCase();
-	let s = ua.match(/version\/([\d.]+).*safari/);
+	let s = ua.match(/version\/([\d.]+)\s+safari/);
 	return s ? parseInt(s[1]) : -1;
 })();
 
