@@ -161,16 +161,17 @@ ToProgress.prototype.finish = function(callback) {
 	this.setProgress(100, callback);
 	setTimeout(() => {
 		this.hide();
-		let fun;
-		fun = (e) => {
-			this.reset();
-			this.progressBar.removeEventListener(e.type, fun);
-			this.container.parentNode.removeChild(this.container);
-		};
-		transitionEvent && this.progressBar.addEventListener(transitionEvent, fun);
-		if(!transitionEvent) {
-			this.container.parentNode.removeChild(this.container);
-		}
+//		let fun;
+//		fun = (e) => {
+//			this.reset();
+//			this.progressBar.removeEventListener(e.type, fun);
+//			this.container.parentNode.removeChild(this.container);
+//		};
+//		transitionEvent && this.progressBar.addEventListener(transitionEvent, fun);
+//		if(!transitionEvent) {
+//			this.container.parentNode.removeChild(this.container);
+//		}
+		this.container.parentNode.removeChild(this.container);
 	}, 500);
 };
 

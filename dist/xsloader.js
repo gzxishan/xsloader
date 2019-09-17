@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 16 Sep 2019 04:10:18 GMT
+ * build time:Tue, 17 Sep 2019 10:32:06 GMT
  */
 (function () {
   'use strict';
@@ -1131,21 +1131,7 @@
     setTimeout(function () {
       _this2.hide();
 
-      var _fun;
-
-      _fun = function fun(e) {
-        _this2.reset();
-
-        _this2.progressBar.removeEventListener(e.type, _fun);
-
-        _this2.container.parentNode.removeChild(_this2.container);
-      };
-
-      transitionEvent && _this2.progressBar.addEventListener(transitionEvent, _fun);
-
-      if (!transitionEvent) {
-        _this2.container.parentNode.removeChild(_this2.container);
-      }
+      _this2.container.parentNode.removeChild(_this2.container);
     }, 500);
   };
 
