@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Tue, 17 Sep 2019 10:32:06 GMT
+ * build time:Wed, 18 Sep 2019 09:14:53 GMT
  */
 (function () {
   'use strict';
@@ -1076,7 +1076,7 @@
     this._isAuto = true;
     var dt = time < 100 ? 100 : time;
     var k = 100;
-    var step = 0.1;
+    var step = 0.05;
     var x = 1 - step / 2;
     this._timer = setInterval(function () {
       x += step;

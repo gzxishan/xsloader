@@ -110,7 +110,7 @@ ToProgress.prototype.autoIncrement = function(time = 100) {
 	let dt = time < 100 ? 100 : time;
 
 	let k = 100; //
-	let step = 0.1;
+	let step = 0.05;
 	let x = 1 - step / 2;
 	this._timer = setInterval(() => {
 		x += step;

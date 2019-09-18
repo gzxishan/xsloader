@@ -4,7 +4,7 @@ console.log("this is loader.");
 	var safariVersion = (function() {
 		var ua = navigator.userAgent.toLowerCase();
 		var s;
-		return(s = ua.match(/version\/([\d.]+).*safari/)) ? parseInt(s[1]) : -1;
+		return(s = ua.match(/version\/([\d.]+)\s+safari/)) ? parseInt(s[1]) : -1;
 	})();
 	console.log("safari:",safariVersion)
 	
