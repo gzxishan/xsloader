@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 18 Sep 2019 09:14:53 GMT
+ * build time:Sat, 12 Oct 2019 06:48:39 GMT
  */
 (function () {
   'use strict';
@@ -5331,8 +5331,8 @@
 
   var global$o = utils.global;
   var xsloader$p = global$o.xsloader;
-  xsloader$p.define("xsrequest", ["xshttp"], function (http) {
-    var xsRequest = function xsRequest(option) {
+  xsloader$p.define("request", ["xshttp"], function (http) {
+    var Request = function Request(option) {
       option = xsloader$p.extend({
         params: undefined,
         headers: undefined,
@@ -5340,60 +5340,22 @@
         url: undefined,
         callback: undefined
       }, option);
-      var isResponsed = false;
-      var callbacksQueue = [function (rs) {
-        return rs;
-      }];
-
-      if (option.callback) {
-        callbacksQueue.push(option.callback);
-      }
-
-      callbacksQueue.callback = function (rs) {
-        isResponsed = true;
-
-        for (var i = 0; i < this.length; i++) {
-          var callback = this[i];
-          rs = callback(rs);
-
-          if (rs === false) {
-            return;
-          }
-        }
-      };
-
-      option.ok = function (rs) {
-        callbacksQueue.callback(rs);
-      };
-
-      option.fail = function (err) {
-        callbacksQueue.callback({
-          code: -1,
-          desc: err
-        });
-      };
-
       option.async = true;
-
-      function newHandle() {
-        var handle = {
-          then: function then(callback) {
-            if (isResponsed) {
-              throw new Error("already responsed!");
-            }
-
-            callbacksQueue.push(callback);
-            return newHandle();
-          }
+      var promise = new Promise(function (resolve, reject) {
+        option.ok = function (rs) {
+          resolve(rs);
         };
-        return handle;
-      }
 
-      http(option).done();
-      return newHandle();
+        option.fail = function (err) {
+          reject(err);
+        };
+
+        http(option).done();
+      });
+      return promise;
     };
 
-    return xsRequest;
+    return Request;
   });
 
   var global$p = utils.global;

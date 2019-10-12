@@ -10,5 +10,5 @@ import "./window.js";
 import "./withdeps.js";
 import "./json.js";
 import "./xshttp.js";
-import "./xsrequest.js";
+import "./request.js";
 import "./xsmsg.js";
