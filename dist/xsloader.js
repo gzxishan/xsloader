@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Sat, 12 Oct 2019 06:48:39 GMT
+ * build time:Sun, 13 Oct 2019 13:49:24 GMT
  */
 (function () {
   'use strict';
@@ -1809,7 +1809,8 @@
     return _obj;
   }
 
-  function clone(obj, isDeep) {
+  function clone(obj) {
+    var isDeep = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
     if (!obj || xsloader$5.isFunction(obj) || xsloader$5.isString(obj)) return obj;
 
     if (xsloader$5.isRegExp(obj)) {
@@ -1826,7 +1827,9 @@
       var _copy = xsloader$5.isArray(obj) ? [] : {};
 
       for (var attr in obj) {
-        if (obj.hasOwnProperty(attr)) _copy[attr] = isDeep ? clone(obj[attr]) : obj[attr];
+        if (obj.hasOwnProperty(attr)) {
+          _copy[attr] = isDeep ? clone(obj[attr]) : obj[attr];
+        }
       }
 
       return _copy;
@@ -3438,6 +3441,8 @@
 
       if (!deps) {
         deps = [];
+      } else {
+        deps = xsloader$a.clone(deps);
       }
 
       utils.appendInnerDeps(deps, callback);
@@ -3871,6 +3876,8 @@
     if (xsloader$a.isFunction(deps)) {
       callback = deps;
       deps = [];
+    } else if (!xsloader$a.isArray(deps)) {
+      throw new Error("unexpected argument:" + deps);
     }
 
     utils.appendInnerDeps(deps, callback);
@@ -3970,6 +3977,31 @@
     };
 
     timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+
+    if (typeof Promise != "undefined" && arguments.length == 1 && !callback) {
+      var promise = new Promise(function (resolve, inject) {
+        callback = function callback() {
+          if (deps.length == 1) {
+            resolve(arguments[0]);
+          } else {
+            var args = [];
+
+            for (var i = 0; i < deps.length; i++) {
+              args.push(arguments[i]);
+            }
+
+            resolve(args);
+          }
+        };
+
+        handle.error(function (err) {
+          callback = null;
+          inject(err);
+        });
+      });
+      return promise;
+    }
+
     return handle;
   }
 

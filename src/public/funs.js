@@ -242,7 +242,7 @@ function setObjectAttr(obj, attrNames, value) {
 	return _obj;
 }
 
-function clone(obj, isDeep) {
+function clone(obj, isDeep=false) {
 	// Handle the 3 simple types, and null or undefined or function
 	if(!obj || xsloader.isFunction(obj) || xsloader.isString(obj)) return obj;
 
@@ -260,8 +260,9 @@ function clone(obj, isDeep) {
 	if(xsloader.isArray(obj) || xsloader.isObject(obj)) {
 		let copy = xsloader.isArray(obj) ? [] : {};
 		for(let attr in obj) {
-			if(obj.hasOwnProperty(attr))
+			if(obj.hasOwnProperty(attr)) {
 				copy[attr] = isDeep ? clone(obj[attr]) : obj[attr];
+			}
 		}
 		return copy;
 	}

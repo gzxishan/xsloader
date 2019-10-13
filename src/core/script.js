@@ -291,6 +291,8 @@ class DefineObject {
 
 		if(!deps) {
 			deps = [];
+		} else {
+			deps = xsloader.clone(deps);
 		}
 
 		//获取函数体里直接require('...')的依赖
@@ -716,6 +718,8 @@ function prerequire(deps, callback) {
 	if(xsloader.isFunction(deps)) {
 		callback = deps;
 		deps = [];
+	} else if(!xsloader.isArray(deps)) {
+		throw new Error("unexpected argument:" + deps);
 	}
 	utils.appendInnerDeps(deps, callback);
 	let timeid;
@@ -803,6 +807,28 @@ function prerequire(deps, callback) {
 		clearTimer();
 	};
 	timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+
+	if(typeof Promise != "undefined" && arguments.length == 1 && !callback) {
+		let promise = new Promise((resolve, inject) => {
+			callback = function() {
+				if(deps.length == 1) {
+					resolve(arguments[0]);
+				} else {
+					let args = [];
+					for(var i = 0; i < deps.length; i++) {
+						args.push(arguments[i]);
+					}
+					resolve(args);
+				}
+			};
+			handle.error((err) => {
+				callback = null;
+				inject(err);
+			});
+		});
+		return promise;
+	}
+
 	return handle;
 }
 

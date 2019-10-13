@@ -155,6 +155,7 @@ require.has = function() {
 };
 
 xsloader.define = define;
+//deprecated
 xsloader.defineAsync = define;
 xsloader.require = require;
 global.define = define;
