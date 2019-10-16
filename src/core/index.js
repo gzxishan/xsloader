@@ -134,7 +134,7 @@ loader.loaderFun((option) => {
 			let nameOrUrl;
 			if(this.autoUrlArgs()) {
 				urlArg = "_t=" + new Date().getTime();
-			} else if(xsloader.isString(module)) {
+			} else if(xsloader.isString(module) && !url) {
 				urlArg = this.urlArgs[module];
 				if(urlArg) {
 					nameOrUrl = module;
@@ -189,13 +189,13 @@ loader.loaderFun((option) => {
 	}, option);
 
 	option.loading = xsloader.extend({
-        enable: true,
-        color: '#2196f3',
-        bgColor:'rgba(0,0,0,0.1)',
-        errColor: '#f5222d',
-        duration: 0.2,
-        height: 1,
-        delay: 500,
+		enable: true,
+		color: '#2196f3',
+		bgColor: 'rgba(0,0,0,0.1)',
+		errColor: '#f5222d',
+		duration: 0.2,
+		height: 1,
+		delay: 500,
 	}, option.loading);
 
 	if(!xsloader.endsWith(option.baseUrl, "/")) {

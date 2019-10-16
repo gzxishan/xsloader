@@ -712,7 +712,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						moduleDef.setLastDefineObject(url, defineObject);
 						if(index > 0) {
 							let oldSrc = module2.src;
-							module2.src = url;
+							module2.src = utils.removeQueryHash(url);
 							moduleDef.replaceModuleSrc(oldSrc, module2);
 						}
 						script.loadScript(module2.selfname, url, (scriptData) => {

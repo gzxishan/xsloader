@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Sun, 13 Oct 2019 13:49:24 GMT
+ * build time:Wed, 16 Oct 2019 10:09:34 GMT
  */
 (function () {
   'use strict';
@@ -3005,7 +3005,7 @@
 
               if (index > 0) {
                 var oldSrc = module2.src;
-                module2.src = url;
+                module2.src = utils.removeQueryHash(url);
                 moduleDef.replaceModuleSrc(oldSrc, module2);
               }
 
@@ -4174,7 +4174,7 @@
 
         if (this.autoUrlArgs()) {
           urlArg = "_t=" + new Date().getTime();
-        } else if (xsloader$b.isString(module)) {
+        } else if (xsloader$b.isString(module) && !url) {
           urlArg = this.urlArgs[module];
 
           if (urlArg) {
