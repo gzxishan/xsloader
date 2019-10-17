@@ -20,7 +20,7 @@ const safariVersion = (function() {
 
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
 const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
-const theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
+const theLoaderUrl = utils.removeQueryHash(utils.getNodeAbsolutePath(theLoaderScript));
 const thePageUrl = utils.thePageUrl;
 const head = document.head || document.getElementsByTagName('head')[0];
 

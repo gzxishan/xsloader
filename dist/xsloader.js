@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 16 Oct 2019 10:09:34 GMT
+ * build time:Thu, 17 Oct 2019 06:09:09 GMT
  */
 (function () {
   'use strict';
@@ -3114,7 +3114,7 @@
 
   var readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
   var theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
-  var theLoaderUrl = utils.getNodeAbsolutePath(theLoaderScript);
+  var theLoaderUrl = utils.removeQueryHash(utils.getNodeAbsolutePath(theLoaderScript));
   var thePageUrl$1 = utils.thePageUrl;
   var head = document.head || document.getElementsByTagName('head')[0];
   var currentDefineModuleQueue = [];
@@ -4174,47 +4174,50 @@
 
         if (this.autoUrlArgs()) {
           urlArg = "_t=" + new Date().getTime();
-        } else if (xsloader$b.isString(module) && !url) {
-          urlArg = this.urlArgs[module];
-
-          if (urlArg) {
-            nameOrUrl = module;
-          } else {
-            nameOrUrl = module;
-            urlArg = this.forPrefixSuffix(module);
-          }
-
-          if (!urlArg) {
-            nameOrUrl = "*";
-            urlArg = this.urlArgs["*"];
-          }
         } else {
-          urlArg = this.urlArgs[url];
+          var moduleName;
+          var src;
 
-          if (urlArg) {
-            nameOrUrl = url;
+          if (xsloader$b.isString(module)) {
+            moduleName = module;
           } else {
-            urlArg = this.forPrefixSuffix(url);
+            moduleName = module.selfname;
+            src = module.src;
+          }
+
+          urlArg = this.urlArgs[moduleName];
+
+          if (!urlArg) {
+            urlArg = this.forPrefixSuffix(moduleName);
+          }
+
+          if (!urlArg && url) {
+            urlArg = this.urlArgs[url];
+
+            if (!urlArg) {
+              urlArg = this.forPrefixSuffix(url);
+            }
+          }
+
+          if (!urlArg && src) {
+            urlArg = this.urlArgs[src];
+
+            if (!urlArg) {
+              urlArg = this.forPrefixSuffix(src);
+            }
           }
 
           if (!urlArg) {
-            nameOrUrl = module.selfname;
-            urlArg = this.urlArgs[nameOrUrl];
-          }
-
-          if (!urlArg) {
-            nameOrUrl = module.aurl;
-            urlArg = this.forPrefixSuffix(nameOrUrl);
-          }
-
-          if (!urlArg) {
-            nameOrUrl = "*";
             urlArg = this.urlArgs["*"];
           }
         }
 
         if (xsloader$b.isFunction(urlArg)) {
           urlArg = urlArg.call(this, nameOrUrl);
+        }
+
+        if (!urlArg) {
+          urlArg = "";
         }
 
         for (var k in argsObject) {

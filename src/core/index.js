@@ -134,48 +134,55 @@ loader.loaderFun((option) => {
 			let nameOrUrl;
 			if(this.autoUrlArgs()) {
 				urlArg = "_t=" + new Date().getTime();
-			} else if(xsloader.isString(module) && !url) {
-				urlArg = this.urlArgs[module];
-				if(urlArg) {
-					nameOrUrl = module;
-				} else {
-					nameOrUrl = module;
-					urlArg = this.forPrefixSuffix(module);
-				}
-
-				if(!urlArg) {
-					nameOrUrl = "*";
-					urlArg = this.urlArgs["*"];
-				}
-
 			} else {
-
-				urlArg = this.urlArgs[url];
-				if(urlArg) {
-					nameOrUrl = url;
+				let moduleName;
+				let src;
+				if(xsloader.isString(module)) {
+					moduleName = module;
 				} else {
-					urlArg = this.forPrefixSuffix(url);
+					moduleName = module.selfname;
+					src = module.src;
 				}
 
+				//精确匹配优先
+
+				//先尝试模块名
+				urlArg = this.urlArgs[moduleName];
 				if(!urlArg) {
-					nameOrUrl = module.selfname;
-					urlArg = this.urlArgs[nameOrUrl];
+					urlArg = this.forPrefixSuffix(moduleName);
 				}
 
-				if(!urlArg) {
-					nameOrUrl = module.aurl;
-					urlArg = this.forPrefixSuffix(nameOrUrl);
+				//再尝试提供的url
+				if(!urlArg && url) {
+					urlArg = this.urlArgs[url];
+					if(!urlArg) {
+						urlArg = this.forPrefixSuffix(url);
+					}
 				}
 
+				//接着尝试模块src
+				if(!urlArg && src) {
+					urlArg = this.urlArgs[src];
+					if(!urlArg) {
+						urlArg = this.forPrefixSuffix(src);
+					}
+				}
+
+				//最后尝试通用的
 				if(!urlArg) {
-					nameOrUrl = "*";
 					urlArg = this.urlArgs["*"];
 				}
 
 			}
+
 			if(xsloader.isFunction(urlArg)) {
 				urlArg = urlArg.call(this, nameOrUrl);
 			}
+
+			if(!urlArg) {
+				urlArg = "";
+			}
+
 			for(let k in argsObject) { //加入全局的参数
 				urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
 			}
