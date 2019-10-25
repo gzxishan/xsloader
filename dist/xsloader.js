@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.0
+ * xsloader.js v1.1.1
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 17 Oct 2019 06:09:09 GMT
+ * build time:Fri, 25 Oct 2019 04:39:55 GMT
  */
 (function () {
   'use strict';
@@ -919,17 +919,25 @@
     return idCount++;
   }
 
-  var PluginError = function PluginError(err, invoker) {
+  var PluginError = function PluginError(err, invoker, extra) {
     _classCallCheck(this, PluginError);
 
-    if (err instanceof PluginError) {
-      this.err = err.err;
-      this.invoker = err.invoker;
-    } else {
-      this.err = err;
-      this.invoker = invoker;
-    }
+    this.err = err;
+    this.invoker = invoker;
+    this.extra = extra;
   };
+
+  function unwrapError(err) {
+    if (err) {
+      var n = 0;
+
+      while (err instanceof PluginError && n++ < 100) {
+        err = err.err;
+      }
+    }
+
+    return err;
+  }
 
   var isXsLoaderEnd = false;
 
@@ -959,6 +967,7 @@
     appendInnerDeps: appendInnerDeps,
     getAndIncIdCount: getAndIncIdCount,
     PluginError: PluginError,
+    unwrapError: unwrapError,
     loaderEnd: function loaderEnd() {
       isXsLoaderEnd = true;
     },
@@ -2324,7 +2333,9 @@
         return this._object;
       },
       genExports: function genExports() {
-        this._setDepModuleObjectGen({});
+        var exports = {};
+
+        this._setDepModuleObjectGen(exports);
 
         return this._object;
       },
@@ -2480,6 +2491,7 @@
       },
       _loadCallback: null,
       moduleObject: undefined,
+      exports: null,
       loopObject: undefined,
       invoker: defineObject.thatInvoker,
       instanceType: "single",
@@ -2877,11 +2889,11 @@
 
         if (!hasCallErr) {
           hasCallErr = true;
-          errCallback({
-            err: isError,
+          var err = new utils.PluginError(isError, invoker_of_module, {
             index: index,
             dep_name: dep_name
-          }, invoker_of_module);
+          });
+          errCallback(err, invoker_of_module);
         }
       }
 
@@ -2909,6 +2921,8 @@
               } else {
                 theExports = module.moduleObject = depModule.genExports();
               }
+
+              module.exports = theExports;
             }
           } else {
             isError = err;
@@ -3334,10 +3348,25 @@
       value: function absUrl() {
         return this._im.get().absUrlFromModule();
       }
+    }, {
+      key: "exports",
+      value: function exports() {
+        return this._im.get().exports;
+      }
     }]);
 
     return Invoker;
   }();
+
+  function getMineInvoker(thiz) {
+    if (thiz instanceof ThisInvoker) {
+      return thiz.invoker;
+    } else if (thiz instanceof Invoker) {
+      return thiz;
+    } else if (thiz instanceof DefineObject) {
+      return thiz.thiz;
+    }
+  }
 
   function getInvoker(thiz) {
     var nullNew = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
@@ -3406,7 +3435,7 @@
       this.isRequire = isRequire;
       this.handle = {
         onError: function onError(err, invoker) {
-          console.warn(err);
+          console.warn(utils.unwrapError(err));
         },
         before: function before(deps) {},
         depBefore: function depBefore(index, dep, depDeps) {},
@@ -3830,6 +3859,18 @@
     }
 
     if (arguments.length == 1 && xsloader$a.isString(deps)) {
+      if (deps == "exports") {
+        var mineInvoker = getMineInvoker(this);
+        var exports = mineInvoker && mineInvoker.exports();
+
+        if (!exports) {
+          throw new Error("not found exports");
+        } else {
+          return exports;
+        }
+      }
+
+      var thatInvoker = getInvoker(this);
       var originDeps = deps;
       var pluginArgs = undefined;
       var pluginIndex = deps.indexOf("!");
@@ -3846,7 +3887,6 @@
       }
 
       var module = moduleScript.getModule(deps);
-      var thatInvoker = getInvoker(this);
 
       if (!module) {
         deps = thatInvoker.getUrl(deps, false);
@@ -3942,7 +3982,7 @@
         customerErrCallback(err, invoker);
       } else {
         console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
-        console.warn(err);
+        console.warn(utils.unwrapError(err));
       }
     });
 

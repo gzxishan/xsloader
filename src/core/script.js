@@ -207,6 +207,20 @@ class Invoker {
 	absUrl() { //用于获取其他模块地址的参考路径
 		return this._im.get().absUrlFromModule();
 	}
+
+	exports() {
+		return this._im.get().exports;
+	}
+}
+
+function getMineInvoker(thiz) {
+	if(thiz instanceof ThisInvoker) {
+		return thiz.invoker;
+	} else if(thiz instanceof Invoker) {
+		return thiz;
+	} else if(thiz instanceof DefineObject) {
+		return thiz.thiz;
+	}
 }
 
 function getInvoker(thiz, nullNew = true) {
@@ -255,7 +269,7 @@ class DefineObject {
 		this.isRequire = isRequire;
 		this.handle = {
 			onError(err, invoker) {
-				console.warn(err);
+				console.warn(utils.unwrapError(err));
 			},
 			before(deps) {},
 			depBefore(index, dep, depDeps) {},
@@ -681,6 +695,17 @@ function prerequire(deps, callback) {
 	}
 
 	if(arguments.length == 1 && xsloader.isString(deps)) { //获取已经加载的模块
+		if(deps == "exports") { //当require("exports")时，必须依赖了exports
+			let mineInvoker = getMineInvoker(this);
+			let exports = mineInvoker && mineInvoker.exports();
+			if(!exports) {
+				throw new Error("not found exports");
+			} else {
+				return exports;
+			}
+		}
+
+		let thatInvoker = getInvoker(this);
 		let originDeps = deps;
 		let pluginArgs = undefined;
 		let pluginIndex = deps.indexOf("!");
@@ -694,7 +719,6 @@ function prerequire(deps, callback) {
 			}
 		}
 		let module = moduleScript.getModule(deps);
-		let thatInvoker = getInvoker(this);
 		if(!module) {
 			deps = thatInvoker.getUrl(deps, false);
 			module = moduleScript.getModule(deps);
@@ -777,7 +801,7 @@ function prerequire(deps, callback) {
 			customerErrCallback(err, invoker);
 		} else {
 			console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
-			console.warn(err);
+			console.warn(utils.unwrapError(err));
 		}
 	});
 	handle.error = function(errCallback) {

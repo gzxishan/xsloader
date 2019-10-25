@@ -51,7 +51,8 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 			return this._object;
 		},
 		genExports: function() {
-			this._setDepModuleObjectGen({});
+			let exports = {};
+			this._setDepModuleObjectGen(exports);
 			return this._object;
 		},
 		_getCacheKey: function(pluginArgs) {
@@ -199,6 +200,7 @@ function newModule(defineObject) {
 		_dealApplyArgs: (args) => args,
 		_loadCallback: null,
 		moduleObject: undefined, //依赖模块对应的对象
+		exports: null,
 		loopObject: undefined, //循环依赖对象
 		invoker: defineObject.thatInvoker,
 		instanceType: "single",
@@ -565,11 +567,11 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 			module.setState('error', isError);
 			if(!hasCallErr) {
 				hasCallErr = true;
-				errCallback({
-					err: isError,
+				let err = new utils.PluginError(isError, invoker_of_module, {
 					index: index,
 					dep_name: dep_name
-				}, invoker_of_module);
+				});
+				errCallback(err, invoker_of_module);
 			}
 		}!isError && syncHandle && syncHandle();
 	}
@@ -596,6 +598,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							} else {
 								theExports = module.moduleObject = depModule.genExports();
 							}
+							module.exports = theExports;
 						}
 					} else {
 						isError = err;

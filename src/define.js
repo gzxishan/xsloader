@@ -162,4 +162,6 @@ global.define = define;
 global.require = require;
 
 define.amd = true;
+
+//声明exports,内部会做特殊处理
 define("exports", function() {});

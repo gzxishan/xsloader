@@ -161,15 +161,21 @@ function getAndIncIdCount() {
 }
 
 class PluginError {
-	constructor(err, invoker) {
-		if(err instanceof PluginError) {
-			this.err = err.err;
-			this.invoker = err.invoker;
-		} else {
-			this.err = err;
-			this.invoker = invoker;
+	constructor(err, invoker, extra) {
+		this.err = err;
+		this.invoker = invoker;
+		this.extra = extra;
+	}
+}
+
+function unwrapError(err) {
+	if(err) {
+		let n = 0;
+		while(err instanceof PluginError && n++ < 100) {
+			err = err.err;
 		}
 	}
+	return err;
 }
 
 let isXsLoaderEnd = false;
@@ -198,6 +204,7 @@ export default {
 	appendInnerDeps,
 	getAndIncIdCount,
 	PluginError,
+	unwrapError,
 	loaderEnd() {
 		isXsLoaderEnd = true;
 	},
