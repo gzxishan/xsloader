@@ -17,7 +17,7 @@ const banner =
 	' */'
 
 export default {
-	input: 'src/main.js',
+	input: 'xsloader-src/main.js',
 	output: {
 		banner,
 		file: (isProduct ? 'dist/xsloader.min.js' : 'dist/xsloader.js'),
