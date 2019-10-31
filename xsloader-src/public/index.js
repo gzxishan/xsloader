@@ -9,7 +9,7 @@ import funs from './funs.js';
 import browser from './browser.js';
 
 const global = utils.global;
-const xsloader=global.xsloader;
+const xsloader = global.xsloader;
 
 let toGlobal = {
 	...deprecated,
@@ -26,7 +26,8 @@ let justLoader = {
 	...browser,
 	_ignoreAspect_: {
 
-	}
+	},
+	each: utils.each
 };
 for(let k in justLoader) {
 	xsloader[k] = justLoader[k];

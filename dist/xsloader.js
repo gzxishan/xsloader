@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 30 Oct 2019 14:11:02 GMT
+ * build time:Thu, 31 Oct 2019 14:35:51 GMT
  */
 (function () {
   'use strict';
@@ -1998,7 +1998,8 @@
   }
 
   var justLoader = _objectSpread2({}, is, {}, funs, {}, browser, {
-    _ignoreAspect_: {}
+    _ignoreAspect_: {},
+    each: utils.each
   });
 
   for (var _k in justLoader) {

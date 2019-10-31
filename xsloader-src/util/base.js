@@ -98,7 +98,7 @@ function strValue2Arr(obj) {
 /**
  * 同步模式下，返回false表示终止循环。
  * @param {Object} ary
- * @param {Object} func
+ * @param {Object} func(item,index,array)
  * @param {Object} isSync
  * @param {Object} fromEnd
  */
