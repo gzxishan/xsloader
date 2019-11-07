@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 31 Oct 2019 14:35:51 GMT
+ * build time:Thu, 07 Nov 2019 10:14:13 GMT
  */
 (function () {
   'use strict';
@@ -3054,6 +3054,23 @@
             };
 
             utils.replaceModulePrefix(config, urls);
+
+            if (isJsFile) {
+              var lastModule;
+              utils.each([dep].concat(urls), function (item) {
+                lastModule = moduleDef.getModule(item);
+
+                if (lastModule) {
+                  return false;
+                }
+              });
+
+              if (lastModule) {
+                dep = lastModule.src;
+                return "break";
+              }
+            }
+
             var m2Name = isJsFile ? null : dep;
 
             var module2 = _newModule(m2Name, urls[0], invoker_of_module);

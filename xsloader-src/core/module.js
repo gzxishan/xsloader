@@ -665,7 +665,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							}
 						}
 						if(urls[index] == dep) {
-							dep = url;
+							dep = url; //替换为绝对路径
 						}
 						urls[index] = config.dealUrl(dep, url);
 					});
@@ -674,6 +674,20 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				if(!isError && urls.length) {
 					utils.replaceModulePrefix(config, urls); //前缀替换
 
+					if(isJsFile) {
+						let lastModule;
+						utils.each([dep].concat(urls), (item) => {
+							lastModule = moduleDef.getModule(item);
+							if(lastModule) {
+								return false;
+							}
+						});
+
+						if(lastModule) {//已经被加载过,在dep最初为相对地址、接着变成绝对地址、且该模块被多个其他模块依赖时会出现这种情况
+							dep=lastModule.src;
+							break;
+						}
+					}
 					let m2Name = isJsFile ? null : dep;
 					let module2 = _newModule(m2Name, urls[0], invoker_of_module);
 					module2.setState("loading"); //只有此处才设置loading状态
