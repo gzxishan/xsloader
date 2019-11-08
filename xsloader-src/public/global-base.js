@@ -1,11 +1,14 @@
 import {
-	JSON as xsJSON
+	JSON as xsJSON,
+	polyfillInit
 } from "../polyfill/index.js";
 import utils from "../util/index.js";
 
 const global = utils.global;
 const xsloader = global.xsloader;
 const IE_VERSION = utils.IE_VERSION;
+
+polyfillInit(global,xsloader);
 
 if(!String.prototype.trim) {
 	String.prototype.trim = function() {

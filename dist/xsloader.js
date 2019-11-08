@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.1
+ * xsloader.js v1.1.2
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 07 Nov 2019 10:14:13 GMT
+ * build time:Fri, 08 Nov 2019 06:01:56 GMT
  */
 (function () {
   'use strict';
@@ -91,206 +91,6 @@
     }
 
     return target;
-  }
-
-  var JSON = {};
-  var rx_one = /^[\],:{}\s]*$/;
-  var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
-  var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
-  var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
-  var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-  var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
-
-  function f(n) {
-    return n < 10 ? "0" + n : n;
-  }
-
-  function this_value() {
-    return this.valueOf();
-  }
-
-  if (typeof Date.prototype.toJSON !== "function") {
-    Date.prototype.toJSON = function () {
-      return isFinite(this.valueOf()) ? this.getUTCFullYear() + "-" + f(this.getUTCMonth() + 1) + "-" + f(this.getUTCDate()) + "T" + f(this.getUTCHours()) + ":" + f(this.getUTCMinutes()) + ":" + f(this.getUTCSeconds()) + "Z" : null;
-    };
-
-    Boolean.prototype.toJSON = this_value;
-    Number.prototype.toJSON = this_value;
-    String.prototype.toJSON = this_value;
-  }
-
-  var gap;
-  var indent;
-  var meta;
-  var rep;
-
-  function quote(string) {
-    rx_escapable.lastIndex = 0;
-    return rx_escapable.test(string) ? "\"" + string.replace(rx_escapable, function (a) {
-      var c = meta[a];
-      return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-    }) + "\"" : "\"" + string + "\"";
-  }
-
-  function str(key, holder) {
-    var i;
-    var k;
-    var v;
-    var length;
-    var mind = gap;
-    var partial;
-    var value = holder[key];
-
-    if (value && _typeof(value) === "object" && typeof value.toJSON === "function") {
-      value = value.toJSON(key);
-    }
-
-    if (typeof rep === "function") {
-      value = rep.call(holder, key, value);
-    }
-
-    switch (_typeof(value)) {
-      case "string":
-        return quote(value);
-
-      case "number":
-        return isFinite(value) ? String(value) : "null";
-
-      case "boolean":
-      case "null":
-        return String(value);
-
-      case "object":
-        if (!value) {
-          return "null";
-        }
-
-        gap += indent;
-        partial = [];
-
-        if (Object.prototype.toString.apply(value) === "[object Array]") {
-          length = value.length;
-
-          for (i = 0; i < length; i += 1) {
-            partial[i] = str(i, value) || "null";
-          }
-
-          v = partial.length === 0 ? "[]" : gap ? "[\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "]" : "[" + partial.join(",") + "]";
-          gap = mind;
-          return v;
-        }
-
-        if (rep && _typeof(rep) === "object") {
-          length = rep.length;
-
-          for (i = 0; i < length; i += 1) {
-            if (typeof rep[i] === "string") {
-              k = rep[i];
-              v = str(k, value);
-
-              if (v) {
-                partial.push(quote(k) + (gap ? ": " : ":") + v);
-              }
-            }
-          }
-        } else {
-          for (k in value) {
-            if (Object.prototype.hasOwnProperty.call(value, k)) {
-              v = str(k, value);
-
-              if (v) {
-                partial.push(quote(k) + (gap ? ": " : ":") + v);
-              }
-            }
-          }
-        }
-
-        v = partial.length === 0 ? "{}" : gap ? "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" : "{" + partial.join(",") + "}";
-        gap = mind;
-        return v;
-    }
-  }
-
-  if (typeof JSON.stringify !== "function") {
-    meta = {
-      "\b": "\\b",
-      "\t": "\\t",
-      "\n": "\\n",
-      "\f": "\\f",
-      "\r": "\\r",
-      "\"": "\\\"",
-      "\\": "\\\\"
-    };
-
-    JSON.stringify = function (value, replacer, space) {
-      var i;
-      gap = "";
-      indent = "";
-
-      if (typeof space === "number") {
-        for (i = 0; i < space; i += 1) {
-          indent += " ";
-        }
-      } else if (typeof space === "string") {
-        indent = space;
-      }
-
-      rep = replacer;
-
-      if (replacer && typeof replacer !== "function" && (_typeof(replacer) !== "object" || typeof replacer.length !== "number")) {
-        throw new Error("JSON.stringify");
-      }
-
-      return str("", {
-        "": value
-      });
-    };
-  }
-
-  if (typeof JSON.parse !== "function") {
-    JSON.parse = function (text, reviver) {
-      var j;
-
-      function walk(holder, key) {
-        var k;
-        var v;
-        var value = holder[key];
-
-        if (value && _typeof(value) === "object") {
-          for (k in value) {
-            if (Object.prototype.hasOwnProperty.call(value, k)) {
-              v = walk(value, k);
-
-              if (v !== undefined) {
-                value[k] = v;
-              } else {
-                delete value[k];
-              }
-            }
-          }
-        }
-
-        return reviver.call(holder, key, value);
-      }
-
-      text = String(text);
-      rx_dangerous.lastIndex = 0;
-
-      if (rx_dangerous.test(text)) {
-        text = text.replace(rx_dangerous, function (a) {
-          return "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
-        });
-      }
-
-      if (rx_one.test(text.replace(rx_two, "@").replace(rx_three, "]").replace(rx_four, ""))) {
-        j = eval("(" + text + ")");
-        return typeof reviver === "function" ? walk({
-          "": j
-        }, "") : j;
-      }
-
-      throw new SyntaxError("JSON.parse");
-    };
   }
 
   var g;
@@ -1277,9 +1077,377 @@
     indexInArrayFrom: indexInArrayFrom
   };
 
+  var JSON = {};
+  var rx_one = /^[\],:{}\s]*$/;
+  var rx_two = /\\(?:["\\\/bfnrt]|u[0-9a-fA-F]{4})/g;
+  var rx_three = /"[^"\\\n\r]*"|true|false|null|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?/g;
+  var rx_four = /(?:^|:|,)(?:\s*\[)+/g;
+  var rx_escapable = /[\\"\u0000-\u001f\u007f-\u009f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+  var rx_dangerous = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g;
+
+  function f(n) {
+    return n < 10 ? "0" + n : n;
+  }
+
+  function this_value() {
+    return this.valueOf();
+  }
+
+  if (typeof Date.prototype.toJSON !== "function") {
+    Date.prototype.toJSON = function () {
+      return isFinite(this.valueOf()) ? this.getUTCFullYear() + "-" + f(this.getUTCMonth() + 1) + "-" + f(this.getUTCDate()) + "T" + f(this.getUTCHours()) + ":" + f(this.getUTCMinutes()) + ":" + f(this.getUTCSeconds()) + "Z" : null;
+    };
+
+    Boolean.prototype.toJSON = this_value;
+    Number.prototype.toJSON = this_value;
+    String.prototype.toJSON = this_value;
+  }
+
+  var gap;
+  var indent;
+  var meta;
+  var rep;
+
+  function quote(string) {
+    rx_escapable.lastIndex = 0;
+    return rx_escapable.test(string) ? "\"" + string.replace(rx_escapable, function (a) {
+      var c = meta[a];
+      return typeof c === "string" ? c : "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+    }) + "\"" : "\"" + string + "\"";
+  }
+
+  function str(key, holder) {
+    var i;
+    var k;
+    var v;
+    var length;
+    var mind = gap;
+    var partial;
+    var value = holder[key];
+
+    if (value && _typeof(value) === "object" && typeof value.toJSON === "function") {
+      value = value.toJSON(key);
+    }
+
+    if (typeof rep === "function") {
+      value = rep.call(holder, key, value);
+    }
+
+    switch (_typeof(value)) {
+      case "string":
+        return quote(value);
+
+      case "number":
+        return isFinite(value) ? String(value) : "null";
+
+      case "boolean":
+      case "null":
+        return String(value);
+
+      case "object":
+        if (!value) {
+          return "null";
+        }
+
+        gap += indent;
+        partial = [];
+
+        if (Object.prototype.toString.apply(value) === "[object Array]") {
+          length = value.length;
+
+          for (i = 0; i < length; i += 1) {
+            partial[i] = str(i, value) || "null";
+          }
+
+          v = partial.length === 0 ? "[]" : gap ? "[\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "]" : "[" + partial.join(",") + "]";
+          gap = mind;
+          return v;
+        }
+
+        if (rep && _typeof(rep) === "object") {
+          length = rep.length;
+
+          for (i = 0; i < length; i += 1) {
+            if (typeof rep[i] === "string") {
+              k = rep[i];
+              v = str(k, value);
+
+              if (v) {
+                partial.push(quote(k) + (gap ? ": " : ":") + v);
+              }
+            }
+          }
+        } else {
+          for (k in value) {
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+              v = str(k, value);
+
+              if (v) {
+                partial.push(quote(k) + (gap ? ": " : ":") + v);
+              }
+            }
+          }
+        }
+
+        v = partial.length === 0 ? "{}" : gap ? "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" : "{" + partial.join(",") + "}";
+        gap = mind;
+        return v;
+    }
+  }
+
+  if (typeof JSON.stringify !== "function") {
+    meta = {
+      "\b": "\\b",
+      "\t": "\\t",
+      "\n": "\\n",
+      "\f": "\\f",
+      "\r": "\\r",
+      "\"": "\\\"",
+      "\\": "\\\\"
+    };
+
+    JSON.stringify = function (value, replacer, space) {
+      var i;
+      gap = "";
+      indent = "";
+
+      if (typeof space === "number") {
+        for (i = 0; i < space; i += 1) {
+          indent += " ";
+        }
+      } else if (typeof space === "string") {
+        indent = space;
+      }
+
+      rep = replacer;
+
+      if (replacer && typeof replacer !== "function" && (_typeof(replacer) !== "object" || typeof replacer.length !== "number")) {
+        throw new Error("JSON.stringify");
+      }
+
+      return str("", {
+        "": value
+      });
+    };
+  }
+
+  if (typeof JSON.parse !== "function") {
+    JSON.parse = function (text, reviver) {
+      var j;
+
+      function walk(holder, key) {
+        var k;
+        var v;
+        var value = holder[key];
+
+        if (value && _typeof(value) === "object") {
+          for (k in value) {
+            if (Object.prototype.hasOwnProperty.call(value, k)) {
+              v = walk(value, k);
+
+              if (v !== undefined) {
+                value[k] = v;
+              } else {
+                delete value[k];
+              }
+            }
+          }
+        }
+
+        return reviver.call(holder, key, value);
+      }
+
+      text = String(text);
+      rx_dangerous.lastIndex = 0;
+
+      if (rx_dangerous.test(text)) {
+        text = text.replace(rx_dangerous, function (a) {
+          return "\\u" + ("0000" + a.charCodeAt(0).toString(16)).slice(-4);
+        });
+      }
+
+      if (rx_one.test(text.replace(rx_two, "@").replace(rx_three, "]").replace(rx_four, ""))) {
+        j = eval("(" + text + ")");
+        return typeof reviver === "function" ? walk({
+          "": j
+        }, "") : j;
+      }
+
+      throw new SyntaxError("JSON.parse");
+    };
+  }
+
+  function proxyPolyfill() {
+    var lastRevokeFn = null;
+    var ProxyPolyfill;
+
+    function isObject(o) {
+      return o ? _typeof(o) === 'object' || typeof o === 'function' : false;
+    }
+
+    ProxyPolyfill = function ProxyPolyfill(target, handler) {
+      if (!isObject(target) || !isObject(handler)) {
+        throw new TypeError('Cannot create proxy with a non-object as target or handler');
+      }
+
+      var throwRevoked = function throwRevoked() {};
+
+      lastRevokeFn = function lastRevokeFn() {
+        throwRevoked = function throwRevoked(trap) {
+          throw new TypeError("Cannot perform '".concat(trap, "' on a proxy that has been revoked"));
+        };
+      };
+
+      var unsafeHandler = handler;
+      handler = {
+        'get': null,
+        'set': null,
+        'apply': null,
+        'construct': null
+      };
+
+      for (var k in unsafeHandler) {
+        if (!(k in handler)) {
+          throw new TypeError("Proxy polyfill does not support trap '".concat(k, "'"));
+        }
+
+        handler[k] = unsafeHandler[k];
+      }
+
+      if (typeof unsafeHandler === 'function') {
+        handler.apply = unsafeHandler.apply.bind(unsafeHandler);
+      }
+
+      var proxy = this;
+      var isMethod = false;
+      var isArray = false;
+
+      if (typeof target === 'function') {
+        proxy = function ProxyPolyfill() {
+          var usingNew = this && this.constructor === proxy;
+          var args = Array.prototype.slice.call(arguments);
+          throwRevoked(usingNew ? 'construct' : 'apply');
+
+          if (usingNew && handler['construct']) {
+            return handler['construct'].call(this, target, args);
+          } else if (!usingNew && handler.apply) {
+            return handler.apply(target, this, args);
+          }
+
+          if (usingNew) {
+            args.unshift(target);
+            var f = target.bind.apply(target, args);
+            return new f();
+          }
+
+          return target.apply(this, args);
+        };
+
+        isMethod = true;
+      } else if (target instanceof Array) {
+        proxy = [];
+        isArray = true;
+      }
+
+      var getter = handler.get ? function (prop) {
+        throwRevoked('get');
+        return handler.get(this, prop, proxy);
+      } : function (prop) {
+        throwRevoked('get');
+        return this[prop];
+      };
+      var setter = handler.set ? function (prop, value) {
+        throwRevoked('set');
+        var status = handler.set(this, prop, value, proxy);
+      } : function (prop, value) {
+        throwRevoked('set');
+        this[prop] = value;
+      };
+      var propertyNames = Object.getOwnPropertyNames(target);
+
+      if (target instanceof Promise && target.__proto__) {
+        var props = Object.getOwnPropertyNames(target.__proto__);
+        var obj = {};
+        propertyNames.forEach(function (prop) {
+          obj[prop] = true;
+        });
+        props.forEach(function (prop) {
+          obj[prop] = true;
+        });
+        propertyNames = [];
+
+        for (var prop in obj) {
+          propertyNames.push(prop);
+        }
+      }
+
+      var propertyMap = {};
+      propertyNames.forEach(function (prop) {
+        if ((isMethod || isArray) && prop in proxy) {
+          return;
+        }
+
+        var real = Object.getOwnPropertyDescriptor(target, prop);
+        var desc = {
+          enumerable: !!(real && real.enumerable),
+          get: getter.bind(target, prop),
+          set: setter.bind(target, prop)
+        };
+        Object.defineProperty(proxy, prop, desc);
+        propertyMap[prop] = true;
+      });
+      var prototypeOk = true;
+
+      if (Object.setPrototypeOf) {
+        Object.setPrototypeOf(proxy, Object.getPrototypeOf(target));
+      } else if (proxy.__proto__) {
+        proxy.__proto__ = target.__proto__;
+      } else {
+        prototypeOk = false;
+      }
+
+      if (handler.get || !prototypeOk) {
+        for (var _k in target) {
+          if (propertyMap[_k]) {
+            continue;
+          }
+
+          Object.defineProperty(proxy, _k, {
+            get: getter.bind(target, _k)
+          });
+        }
+      }
+
+      Object.seal(target);
+      Object.seal(proxy);
+      return proxy;
+    };
+
+    ProxyPolyfill.revocable = function (target, handler) {
+      var p = new ProxyPolyfill(target, handler);
+      return {
+        'proxy': p,
+        'revoke': lastRevokeFn
+      };
+    };
+
+    return ProxyPolyfill;
+  }
+
+  function polyfillInit(global, xsloader) {
+    var proxy = proxyPolyfill();
+
+    if (!global['Proxy']) {
+      global.Proxy = proxy;
+    }
+
+    xsloader.Proxy = proxy;
+  }
+
   var global$3 = utils.global;
   var xsloader$4 = global$3.xsloader;
   var IE_VERSION$1 = utils.IE_VERSION;
+  polyfillInit(global$3, xsloader$4);
 
   if (!String.prototype.trim) {
     String.prototype.trim = function () {
