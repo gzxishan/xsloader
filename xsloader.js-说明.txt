@@ -35,6 +35,9 @@
         duration: 0.2,
         height: 1,
         delay: 500,
+	},
+	css:{
+		inverse:true,//是否逆向添加css：即不同模块间添加style的顺序是与时间调用顺序相反的
 	}
 }
 二、xsloader说明

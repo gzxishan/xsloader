@@ -18,6 +18,15 @@ xsloader.config = function() {
 xsloader.script = function() {
 	return script.theLoaderScript;
 };
+
+xsloader.lastAppendHeadDom = function() {
+	return script.lastAppendHeadDom();
+};
+
+xsloader.head = function() {
+	return script.theHead;
+};
+
 xsloader.scriptSrc = function() {
 	return script.theLoaderUrl;
 };

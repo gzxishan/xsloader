@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.2
+ * xsloader.js v1.1.3
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Fri, 08 Nov 2019 06:01:56 GMT
+ * build time:Mon, 02 Dec 2019 14:47:09 GMT
  */
 (function () {
   'use strict';
@@ -3316,7 +3316,7 @@
   var theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
   var theLoaderUrl = utils.removeQueryHash(utils.getNodeAbsolutePath(theLoaderScript));
   var thePageUrl$1 = utils.thePageUrl;
-  var head = document.head || document.getElementsByTagName('head')[0];
+  var theHead = document.head || document.getElementsByTagName('head')[0];
   var currentDefineModuleQueue = [];
 
   currentDefineModuleQueue.peek = function () {
@@ -3325,7 +3325,7 @@
     }
   };
 
-  var lastAppendHeadDom = theLoaderScript;
+  var _lastAppendHeadDom = theLoaderScript;
   var isSrcFromScriptLoad;
   var lastScriptSrc = thePageUrl$1;
   var theRealDefine;
@@ -3942,9 +3942,9 @@
       throw new Error("expected dom object,but provided:" + dom);
     }
 
-    var nextDom = lastAppendHeadDom.nextSibling;
-    head.insertBefore(dom, nextDom);
-    lastAppendHeadDom = dom;
+    var nextDom = _lastAppendHeadDom.nextSibling;
+    theHead.insertBefore(dom, nextDom);
+    _lastAppendHeadDom = dom;
   }
 
   function loadScript(moduleName, url, onload, onerror) {
@@ -4256,8 +4256,12 @@
   var script = {
     defContextName: defContextName,
     theLoaderScript: theLoaderScript,
+    lastAppendHeadDom: function lastAppendHeadDom() {
+      return _lastAppendHeadDom;
+    },
     theLoaderUrl: theLoaderUrl,
     thePageUrl: thePageUrl$1,
+    theHead: theHead,
     appendHeadDom: appendHeadDom,
     initDefine: initDefine,
     Handle: Handle,
@@ -4282,6 +4286,14 @@
 
   xsloader$b.script = function () {
     return script.theLoaderScript;
+  };
+
+  xsloader$b.lastAppendHeadDom = function () {
+    return script.lastAppendHeadDom();
+  };
+
+  xsloader$b.head = function () {
+    return script.theHead;
   };
 
   xsloader$b.scriptSrc = function () {
@@ -4998,21 +5010,52 @@
   var global$i = utils.global;
   var xsloader$j = global$i.xsloader;
   xsloader$j.define("css", function () {
-    if (typeof window == 'undefined') return {
-      load: function load(n, r, _load) {
-        _load();
-      }
-    };
     var engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
     var useImportLoad = false;
     var useOnload = true;
     if (engine[1] || engine[7]) useImportLoad = parseInt(engine[1]) < 6 || parseInt(engine[7]) <= 9;else if (engine[2] || engine[8] || 'WebkitAppearance' in document.documentElement.style) useOnload = false;else if (engine[4]) useImportLoad = parseInt(engine[4]) < 18;
     var cssAPI = {};
+    var realFirstDom;
+    var invokerUrl2CssNodes = {};
+
+    function appendCssDom(dom, invokerUrl, inverse) {
+      if (invokerUrl && inverse) {
+        if (!invokerUrl2CssNodes[invokerUrl]) {
+          invokerUrl2CssNodes[invokerUrl] = {
+            first: dom,
+            last: dom
+          };
+          var nextDom;
+
+          if (realFirstDom) {
+            nextDom = realFirstDom;
+          } else {
+            nextDom = xsloader$j.script().nextSibling;
+          }
+
+          var head = xsloader$j.head();
+          realFirstDom = dom;
+          head.insertBefore(dom, nextDom);
+        } else {
+          var lastDom = invokerUrl2CssNodes[invokerUrl].last;
+          var _nextDom = lastDom.nextSibling;
+
+          var _head = xsloader$j.head();
+
+          invokerUrl2CssNodes[invokerUrl].last = dom;
+
+          _head.insertBefore(dom, _nextDom);
+        }
+      } else {
+        xsloader$j.appendHeadDom(dom);
+      }
+    }
+
     var curStyle, curSheet;
 
-    var createStyle = function createStyle() {
+    var createStyle = function createStyle(invokerUrl, inverse) {
       curStyle = document.createElement('style');
-      xsloader$j.appendHeadDom(curStyle);
+      appendCssDom(curStyle, invokerUrl, inverse);
       curSheet = curStyle.styleSheet || curStyle.sheet;
     };
 
@@ -5020,22 +5063,22 @@
     var ieLoads = [];
     var ieCurCallback;
 
-    var createIeLoad = function createIeLoad(url) {
+    var createIeLoad = function createIeLoad(url, invokerUrl, inverse) {
       curSheet.addImport(url);
 
       curStyle.onload = function () {
-        processIeLoad();
+        processIeLoad(invokerUrl, inverse);
       };
 
       ieCnt++;
 
       if (ieCnt == 31) {
-        createStyle();
+        createStyle(invokerUrl, inverse);
         ieCnt = 0;
       }
     };
 
-    var processIeLoad = function processIeLoad() {
+    var processIeLoad = function processIeLoad(invokerUrl, inverse) {
       ieCurCallback();
       var nextLoad = ieLoads.shift();
 
@@ -5045,19 +5088,19 @@
       }
 
       ieCurCallback = nextLoad[1];
-      createIeLoad(nextLoad[0]);
+      createIeLoad(nextLoad[0], invokerUrl, inverse);
     };
 
-    var importLoad = function importLoad(url, callback) {
+    var importLoad = function importLoad(url, callback, invokerUrl, inverse) {
       callback = callback || function () {};
 
-      if (!curSheet || !curSheet.addImport) createStyle();
+      if (!curSheet || !curSheet.addImport) createStyle(invokerUrl, inverse);
 
       if (curSheet && curSheet.addImport) {
         if (ieCurCallback) {
           ieLoads.push([url, callback]);
         } else {
-          createIeLoad(url);
+          createIeLoad(url, invokerUrl, inverse);
           ieCurCallback = callback;
         }
       } else {
@@ -5074,7 +5117,7 @@
       }
     };
 
-    var linkLoad = function linkLoad(url, callback) {
+    var linkLoad = function linkLoad(url, callback, invokerUrl, inverse) {
       callback = callback || function () {};
 
       var link = document.createElement('link');
@@ -5097,11 +5140,12 @@
         }, 10);
       }
       link.href = url;
-      xsloader$j.appendHeadDom(link);
+      appendCssDom(link, invokerUrl, inverse);
     };
 
     cssAPI.pluginMain = function (cssId, onload, onerror, config) {
-      (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
+      var inverse = !(config.css && config.css.inverse === false);
+      (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this.invoker().src(), inverse);
     };
 
     cssAPI.getCacheKey = function (cssId) {

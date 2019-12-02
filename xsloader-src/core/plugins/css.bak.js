@@ -9,7 +9,12 @@ const xsloader = global.xsloader;
  * MIT
  */
 xsloader.define("css", function() {
-
+	if(typeof window == 'undefined')
+		return {
+			load: function(n, r, load) {
+				load();
+			}
+		};
 	let engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
 	let useImportLoad = false;
 	let useOnload = true;
@@ -20,64 +25,28 @@ xsloader.define("css", function() {
 	else if(engine[4])
 		useImportLoad = parseInt(engine[4]) < 18;
 	let cssAPI = {};
-	let realFirstDom;
-	const invokerUrl2CssNodes = {};
-
-	function appendCssDom(dom, invokerUrl, inverse) {
-
-		if(invokerUrl && inverse) {
-			if(!invokerUrl2CssNodes[invokerUrl]) {
-				//不同invoker间、逆向插入
-				invokerUrl2CssNodes[invokerUrl] = {
-					first: dom,
-					last: dom,
-				};
-
-				let nextDom;//将会插入在该节点之前
-				if(realFirstDom) {
-					nextDom = realFirstDom;
-				} else {
-					nextDom = xsloader.script().nextSibling;
-				}
-				let head = xsloader.head();
-				realFirstDom = dom;
-				head.insertBefore(dom, nextDom);
-			} else {
-				//同一个invoker间正序加载
-				let lastDom = invokerUrl2CssNodes[invokerUrl].last;
-				let nextDom = lastDom.nextSibling;
-				let head = xsloader.head();
-				invokerUrl2CssNodes[invokerUrl].last = dom;
-				head.insertBefore(dom, nextDom);
-			}
-
-		} else {
-			xsloader.appendHeadDom(dom);
-		}
-	}
-
 	let curStyle, curSheet;
-	let createStyle = function(invokerUrl, inverse) {
+	let createStyle = function() {
 		curStyle = document.createElement('style');
-		appendCssDom(curStyle, invokerUrl, inverse);
+		xsloader.appendHeadDom(curStyle);
 		curSheet = curStyle.styleSheet || curStyle.sheet;
 	};
 	let ieCnt = 0;
 	let ieLoads = [];
 	let ieCurCallback;
-	let createIeLoad = function(url, invokerUrl, inverse) {
+	let createIeLoad = function(url) {
 		curSheet.addImport(url);
 		curStyle.onload = function() {
-			processIeLoad(invokerUrl, inverse);
+			processIeLoad();
 		};
 
 		ieCnt++;
 		if(ieCnt == 31) {
-			createStyle(invokerUrl, inverse);
+			createStyle();
 			ieCnt = 0;
 		}
 	};
-	let processIeLoad = function(invokerUrl, inverse) {
+	let processIeLoad = function() {
 		ieCurCallback();
 		let nextLoad = ieLoads.shift();
 		if(!nextLoad) {
@@ -85,18 +54,18 @@ xsloader.define("css", function() {
 			return;
 		}
 		ieCurCallback = nextLoad[1];
-		createIeLoad(nextLoad[0], invokerUrl, inverse);
+		createIeLoad(nextLoad[0]);
 	};
-	let importLoad = function(url, callback, invokerUrl, inverse) {
+	let importLoad = function(url, callback) {
 		callback = callback || function() {};
 		if(!curSheet || !curSheet.addImport)
-			createStyle(invokerUrl, inverse);
+			createStyle();
 
 		if(curSheet && curSheet.addImport) {
 			if(ieCurCallback) {
 				ieLoads.push([url, callback]);
 			} else {
-				createIeLoad(url, invokerUrl, inverse);
+				createIeLoad(url);
 				ieCurCallback = callback;
 			}
 		} else {
@@ -112,7 +81,7 @@ xsloader.define("css", function() {
 			}, 10);
 		}
 	};
-	let linkLoad = function(url, callback, invokerUrl, inverse) {
+	let linkLoad = function(url, callback) {
 		callback = callback || function() {};
 		let link = document.createElement('link');
 		link.type = 'text/css';
@@ -134,15 +103,14 @@ xsloader.define("css", function() {
 			}, 10);
 		}
 		link.href = url;
-		appendCssDom(link, invokerUrl, inverse);
+		xsloader.appendHeadDom(link);
 	};
 	cssAPI.pluginMain = function(cssId, onload, onerror, config) {
-		let inverse = !(config.css && config.css.inverse === false); //默认逆向
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {
 		//				cssId += ".css";
 		//			}
-		//		console.log("cssId="+cssId+",cssSrc="+this.invoker().getUrl(cssId, true)+",absUrl="+this.invoker().absUrl());
-		(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this.invoker().src(), inverse);
+//		console.log("cssId="+cssId+",cssSrc="+this.invoker().getUrl(cssId, true)+",absUrl="+this.invoker().absUrl());
+		(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload);
 	};
 	cssAPI.getCacheKey = function(cssId) {
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {

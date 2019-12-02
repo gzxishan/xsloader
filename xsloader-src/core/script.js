@@ -22,7 +22,7 @@ const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(c
 const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
 const theLoaderUrl = utils.removeQueryHash(utils.getNodeAbsolutePath(theLoaderScript));
 const thePageUrl = utils.thePageUrl;
-const head = document.head || document.getElementsByTagName('head')[0];
+const theHead = document.head || document.getElementsByTagName('head')[0];
 
 const currentDefineModuleQueue = []; //当前回调的模块
 currentDefineModuleQueue.peek = function() {
@@ -592,7 +592,7 @@ function appendHeadDom(dom) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
-	head.insertBefore(dom, nextDom);
+	theHead.insertBefore(dom, nextDom);
 	//			head.appendChild(dom);
 	lastAppendHeadDom = dom;
 }
@@ -882,8 +882,12 @@ const onConfigedCallback = function() {
 export default {
 	defContextName,
 	theLoaderScript,
+	lastAppendHeadDom: function() {
+		return lastAppendHeadDom;
+	},
 	theLoaderUrl,
 	thePageUrl,
+	theHead,
 	appendHeadDom,
 	initDefine,
 	Handle,
