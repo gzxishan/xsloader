@@ -174,11 +174,18 @@ function _buildInvoker(module) {
 
 class Invoker {
 	_im;
+	_id;
 	constructor(moduleMap) {
 		this._im = new InVar(moduleMap);
+		this._id = utils.getAndIncIdCount();
 		moduleMap.thiz = this;
 		_buildInvoker(moduleMap);
 	}
+
+	getId() {
+		return this._id;
+	}
+
 	/**
 	 * 获取绝对地址（弃用）
 	 */
@@ -198,6 +205,13 @@ class Invoker {
 	}
 
 	/**
+	 * 获取在上级依赖数组中的索引位置
+	 */
+	getIndex() {
+		return this._im.get().index;
+	}
+
+	/**
 	 * 获取当前调用者的调用者
 	 */
 	invoker() {
@@ -210,6 +224,11 @@ class Invoker {
 
 	exports() {
 		return this._im.get().exports;
+	}
+
+	root() {
+		let p = this.invoker();
+		return p ? p.invoker() : this
 	}
 }
 
@@ -260,6 +279,7 @@ class DefineObject {
 	_directDepLength = 0;
 	directDepLength = 0;
 	names = [];
+	index;
 	constructor(src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
@@ -887,7 +907,9 @@ export default {
 	},
 	theLoaderUrl,
 	thePageUrl,
-	theHead,
+	head: function() {
+		return theHead;
+	},
 	appendHeadDom,
 	initDefine,
 	Handle,

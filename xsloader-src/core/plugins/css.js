@@ -1,4 +1,5 @@
 import utils from "../../util/index.js";
+import script from "../script.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
@@ -10,6 +11,75 @@ const xsloader = global.xsloader;
  */
 xsloader.define("css", function() {
 
+	let lastDom; //始终执行最后一个style（inverse处理的）
+	//层级之间，越顶层的、越在后面；同级之间，索引越大的、越在后面
+	class Node {
+		parent;
+		children = {};
+		_maxindex = -1;
+		_minindex;
+		doms = {}; //index:dom
+		src;
+		constructor(src) {
+			this.src = src;
+		}
+
+		addChild(src, node) {
+			this.children[src] = node;
+			node.parent = this;
+		}
+		getChild(src) {
+			return this.children[src];
+		}
+
+		/**
+		 * 将添加到返回节点之前
+		 */
+		findAnchor(index, dom) {
+			if(dom) {
+				this.doms[index] = dom;
+			}
+
+			let anchorDom;
+			if(this._maxindex == -1) {
+				this._maxindex = index;
+				this._minindex = index;
+				//层级之间,反向添加
+				let p = this.parent;
+				while(p) {
+					if(p._maxindex == -1) {
+						p = p.parent;
+					} else {
+						anchorDom = p.doms[p._minindex];
+						break;
+					}
+				}
+			} else {
+				//同级之间、按照索引大小顺序添加
+				if(index > this._maxindex) {
+					anchorDom = this.doms[this._maxindex].nextSibling;
+					this._maxindex = index;
+				} else {
+					if(this._minindex > index) {
+						this._minindex = index;
+					}
+					for(let i = index + 1; i < this._maxindex; i++) {
+						if(this.doms[i]) {
+							anchorDom = this.doms[i];
+							break;
+						}
+					}
+				}
+			}
+
+			if(!anchorDom) {
+				anchorDom = lastDom ? lastDom.nextSibling : xsloader.script().nextSibling;
+			}
+
+			return anchorDom;
+		}
+	}
+
 	let engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
 	let useImportLoad = false;
 	let useOnload = true;
@@ -20,64 +90,84 @@ xsloader.define("css", function() {
 	else if(engine[4])
 		useImportLoad = parseInt(engine[4]) < 18;
 	let cssAPI = {};
-	let realFirstDom;
-	const invokerUrl2CssNodes = {};
 
-	function appendCssDom(dom, invokerUrl, inverse) {
+	let cssIndex = 0;
+	//src:Node
+	const rootNodes = {};
 
-		if(invokerUrl && inverse) {
-			if(!invokerUrl2CssNodes[invokerUrl]) {
-				//不同invoker间、逆向插入
-				invokerUrl2CssNodes[invokerUrl] = {
-					first: dom,
-					last: dom,
-				};
+	function domIndex(dom) {
+		let index = 0;
+		while((dom = dom.previousSibling)) {
+			index++;
+		}
+		return index;
+	}
 
-				let nextDom;//将会插入在该节点之前
-				if(realFirstDom) {
-					nextDom = realFirstDom;
-				} else {
-					nextDom = xsloader.script().nextSibling;
-				}
-				let head = xsloader.head();
-				realFirstDom = dom;
-				head.insertBefore(dom, nextDom);
-			} else {
-				//同一个invoker间正序加载
-				let lastDom = invokerUrl2CssNodes[invokerUrl].last;
-				let nextDom = lastDom.nextSibling;
-				let head = xsloader.head();
-				invokerUrl2CssNodes[invokerUrl].last = dom;
-				head.insertBefore(dom, nextDom);
+	function buildAndGetNode(mthiz) {
+		let src = mthiz.src();
+		let p = mthiz.invoker();
+
+		while(p && p.src() == src) {
+			p = p.invoker();
+		}
+
+		if(p) {
+			let pnode = buildAndGetNode(p);
+			let node = pnode.getChild(src);
+			if(!node) {
+				node = new Node(src);
+				pnode.addChild(src, node);
 			}
-
+			return node;
 		} else {
-			xsloader.appendHeadDom(dom);
+			//root
+			if(!rootNodes[src]) {
+				rootNodes[src] = new Node(src);
+			}
+			return rootNodes[src];
 		}
 	}
 
+	function appendCssDom(dom, cssThis, inverse) {
+		if(cssThis && inverse) {
+			let mthis = cssThis.invoker();
+			let node = buildAndGetNode(mthis);
+			dom.setAttribute("data-insert-index", cssIndex++);
+			let index = cssThis.getIndex();
+			let nextDom = node.findAnchor(index, dom);
+			script.head().insertBefore(dom, nextDom);
+
+			if(!lastDom || domIndex(dom) > domIndex(lastDom)) {
+				lastDom = dom;
+			}
+		} else {
+			xsloader.appendHeadDom(dom);
+		}
+
+	}
+
 	let curStyle, curSheet;
-	let createStyle = function(invokerUrl, inverse) {
+	let createStyle = function(mthis, inverse) {
 		curStyle = document.createElement('style');
-		appendCssDom(curStyle, invokerUrl, inverse);
+		appendCssDom(curStyle, mthis, inverse);
 		curSheet = curStyle.styleSheet || curStyle.sheet;
 	};
 	let ieCnt = 0;
 	let ieLoads = [];
 	let ieCurCallback;
-	let createIeLoad = function(url, invokerUrl, inverse) {
+	let createIeLoad = function(url, mthis, inverse) {
 		curSheet.addImport(url);
 		curStyle.onload = function() {
-			processIeLoad(invokerUrl, inverse);
+			processIeLoad(mthis, inverse);
 		};
 
 		ieCnt++;
 		if(ieCnt == 31) {
-			createStyle(invokerUrl, inverse);
+			createStyle(mthis, inverse);
 			ieCnt = 0;
 		}
 	};
-	let processIeLoad = function(invokerUrl, inverse) {
+	let processIeLoad = function(mthis, inverse) {
 		ieCurCallback();
 		let nextLoad = ieLoads.shift();
 		if(!nextLoad) {
@@ -85,18 +175,18 @@ xsloader.define("css", function() {
 			return;
 		}
 		ieCurCallback = nextLoad[1];
-		createIeLoad(nextLoad[0], invokerUrl, inverse);
+		createIeLoad(nextLoad[0], mthis, inverse);
 	};
-	let importLoad = function(url, callback, invokerUrl, inverse) {
+	let importLoad = function(url, callback, mthis, inverse) {
 		callback = callback || function() {};
 		if(!curSheet || !curSheet.addImport)
-			createStyle(invokerUrl, inverse);
+			createStyle(mthis, inverse);
 
 		if(curSheet && curSheet.addImport) {
 			if(ieCurCallback) {
 				ieLoads.push([url, callback]);
 			} else {
-				createIeLoad(url, invokerUrl, inverse);
+				createIeLoad(url, mthis, inverse);
 				ieCurCallback = callback;
 			}
 		} else {
@@ -112,7 +202,7 @@ xsloader.define("css", function() {
 			}, 10);
 		}
 	};
-	let linkLoad = function(url, callback, invokerUrl, inverse) {
+	let linkLoad = function(url, callback, mthis, inverse) {
 		callback = callback || function() {};
 		let link = document.createElement('link');
 		link.type = 'text/css';
@@ -134,7 +224,7 @@ xsloader.define("css", function() {
 			}, 10);
 		}
 		link.href = url;
-		appendCssDom(link, invokerUrl, inverse);
+		appendCssDom(link, mthis, inverse);
 	};
 	cssAPI.pluginMain = function(cssId, onload, onerror, config) {
 		let inverse = !(config.css && config.css.inverse === false); //默认逆向
@@ -142,7 +232,7 @@ xsloader.define("css", function() {
 		//				cssId += ".css";
 		//			}
 		//		console.log("cssId="+cssId+",cssSrc="+this.invoker().getUrl(cssId, true)+",absUrl="+this.invoker().absUrl());
-		(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this.invoker().src(), inverse);
+		(useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this, inverse);
 	};
 	cssAPI.getCacheKey = function(cssId) {
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {

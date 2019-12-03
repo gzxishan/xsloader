@@ -6,8 +6,9 @@ const xsloader = global.xsloader;
 
 //新建模块实例
 //relyCallback(depModuleThis)
-function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
+function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index = 0) {
 	let instanceModule = {
+		index,
 		relyCallback: relyCallback,
 		_invoker: thatInvoker,
 		_module_: null,
@@ -143,6 +144,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 	};
 
 	let moduleMap = {
+		index,
 		module: module,
 		src: module.src,
 		absUrl: () => module.thiz.absUrl(),
@@ -159,9 +161,10 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
 	return instanceModule;
 }
 
-function _newModule(name, src, thatInvoker, callback) {
+function _newModule(name, src, thatInvoker, index) {
 	src = utils.removeQueryHash(src);
-	let defineObject = new script.DefineObject(src, null, [name, null, callback]);
+	let defineObject = new script.DefineObject(src, null, [name, null, null]);
+	defineObject.index = index;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.appendConfigDepsAndEmbedDeps(); //添加配置依赖，该模块对象是加载者、而不是define者
 	return newModule(defineObject);
@@ -184,6 +187,7 @@ function newModule(defineObject) {
 
 	let instances = []; //所有模块实例
 	let moduleMap = {
+		index: defineObject.index || 0, //在上级依赖数组中所处的索引位置
 		id: utils.getAndIncIdCount(),
 		selfname: defineObject.selfname,
 		parent: defineObject.parentDefine,
@@ -283,7 +287,7 @@ function newModule(defineObject) {
 			if(_state == 'defined' || thiz.loopObject) {
 				let theCallback = function() {
 					if(fun) {
-						let depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+						let depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.index);
 						depModule.initInstance();
 					}
 				};
@@ -356,16 +360,17 @@ function newModule(defineObject) {
 		 * @param {Object} callbackFun function(depModule,err)
 		 * @param {Object} pluginArgs
 		 */
-		relyIt(thatInvoker, callbackFun, pluginArgs) {
+		relyIt(thatInvoker, callbackFun, pluginArgs, index) {
 			if(this.refmodule) {
 				this.get(); //状态同步
-				this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs); //传递给refmodule
+				this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs, index); //传递给refmodule
 				return;
 			}
 			let fun = {
 				thatInvoker: thatInvoker,
 				relyCallback: callbackFun,
-				pluginArgs: pluginArgs
+				pluginArgs: pluginArgs,
+				index,
 			};
 			if(this._callback(fun)) {
 				this.relys.push(fun);
@@ -604,7 +609,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						isError = err;
 					}
 					checkFinish(index, originDep, depModule, syncHandle);
-				}, pluginArgs);
+				}, pluginArgs, index);
 		};
 
 		if(!moduleDef.getModule(dep)) {
@@ -647,7 +652,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				//TODO errCallback是否无效??
 				if(urls.length == 0) {
 					//提前依赖模块
-					moduleDef.preDependOn(dep);
+					moduleDef.preDependOn(dep, index);
 				} else {
 					utils.each(urls, function(url, index) {
 						if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
@@ -683,13 +688,13 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 							}
 						});
 
-						if(lastModule) {//已经被加载过,在dep最初为相对地址、接着变成绝对地址、且该模块被多个其他模块依赖时会出现这种情况
-							dep=lastModule.src;
+						if(lastModule) { //已经被加载过,在dep最初为相对地址、接着变成绝对地址、且该模块被多个其他模块依赖时会出现这种情况
+							dep = lastModule.src;
 							break;
 						}
 					}
 					let m2Name = isJsFile ? null : dep;
-					let module2 = _newModule(m2Name, urls[0], invoker_of_module);
+					let module2 = _newModule(m2Name, urls[0], invoker_of_module, index);
 					module2.setState("loading"); //只有此处才设置loading状态
 
 					let configDeps = [];

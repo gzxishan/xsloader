@@ -14,6 +14,7 @@ class ModuleDef {
 	modules; //define的其他模块（含有selfname）
 	isPreDependOn; //用于提前依赖
 	_preModule;
+	_preIndex;
 	targetDef; //用于提前依赖
 	constructor(src, isPreDependOn = false) {
 		this.src = src;
@@ -23,7 +24,7 @@ class ModuleDef {
 		this.targetDef = null;
 		if(isPreDependOn) {
 			this._preModule = {
-				preDependModule:true,
+				preDependModule: true,
 				relyQueue: [],
 				get() {
 					return this;
@@ -38,8 +39,10 @@ class ModuleDef {
 			};
 		}
 	}
+	//用于提前依赖
 	giveRelys(module) {
 		let queue = this._preModule.relyQueue;
+		module.index = module.index || this._preIndex || 0;
 		this._preModule = null;
 		while(queue.length) {
 			let args = queue.shift();
@@ -150,14 +153,15 @@ function getModule(nameOrUrl, selfname = null, ifoneThenGet = null) {
 }
 
 //提前依赖不存在的模块
-function preDependOn(name) {
+function preDependOn(name, index) {
 	let isSrc = _isSrc(name);
 	if(isSrc) {
 		throw new Error("expected name,but src:" + name);
 	} else if(theDefinedMap[name]) {
 		throw new Error("already defined:" + name);
 	} else {
-		let def = new ModuleDef(null, !!name);
+		let def = new ModuleDef(null, true);
+		def._preIndex = index;
 		theDefinedMap[name] = def;
 	}
 }

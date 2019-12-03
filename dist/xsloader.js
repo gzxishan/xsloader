@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 02 Dec 2019 14:47:09 GMT
+ * build time:Tue, 03 Dec 2019 16:39:32 GMT
  */
 (function () {
   'use strict';
@@ -2195,6 +2195,8 @@
 
       _defineProperty(this, "_preModule", void 0);
 
+      _defineProperty(this, "_preIndex", void 0);
+
       _defineProperty(this, "targetDef", void 0);
 
       this.src = src;
@@ -2227,6 +2229,7 @@
       key: "giveRelys",
       value: function giveRelys(module) {
         var queue = this._preModule.relyQueue;
+        module.index = module.index || this._preIndex || 0;
         this._preModule = null;
 
         while (queue.length) {
@@ -2342,7 +2345,7 @@
     }
   }
 
-  function preDependOn(name) {
+  function preDependOn(name, index) {
     var isSrc = _isSrc(name);
 
     if (isSrc) {
@@ -2350,7 +2353,8 @@
     } else if (theDefinedMap[name]) {
       throw new Error("already defined:" + name);
     } else {
-      var def = new ModuleDef(null, !!name);
+      var def = new ModuleDef(null, true);
+      def._preIndex = index;
       theDefinedMap[name] = def;
     }
   }
@@ -2453,7 +2457,9 @@
   var xsloader$9 = global$8.xsloader;
 
   function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs) {
+    var index = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : 0;
     var instanceModule = {
+      index: index,
       relyCallback: relyCallback,
       _invoker: thatInvoker,
       _module_: null,
@@ -2615,6 +2621,7 @@
       }
     };
     var moduleMap = {
+      index: index,
       module: module,
       src: module.src,
       absUrl: function absUrl() {
@@ -2627,9 +2634,10 @@
     return instanceModule;
   }
 
-  function _newModule(name, src, thatInvoker, callback) {
+  function _newModule(name, src, thatInvoker, index) {
     src = utils.removeQueryHash(src);
-    var defineObject = new script.DefineObject(src, null, [name, null, callback]);
+    var defineObject = new script.DefineObject(src, null, [name, null, null]);
+    defineObject.index = index;
     defineObject.thatInvoker = thatInvoker;
     defineObject.appendConfigDepsAndEmbedDeps();
     return newModule(defineObject);
@@ -2638,6 +2646,7 @@
   function newModule(defineObject) {
     var instances = [];
     var moduleMap = {
+      index: defineObject.index || 0,
       id: utils.getAndIncIdCount(),
       selfname: defineObject.selfname,
       parent: defineObject.parentDefine,
@@ -2754,7 +2763,7 @@
         if (_state == 'defined' || thiz.loopObject) {
           var theCallback = function theCallback() {
             if (fun) {
-              var depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs);
+              var depModule = newModuleInstance(thiz, fun.thatInvoker, fun.relyCallback, fun.pluginArgs, fun.index);
               depModule.initInstance();
             }
           };
@@ -2821,17 +2830,18 @@
           this._loadCallback = loadCallback;
         }
       },
-      relyIt: function relyIt(thatInvoker, callbackFun, pluginArgs) {
+      relyIt: function relyIt(thatInvoker, callbackFun, pluginArgs, index) {
         if (this.refmodule) {
           this.get();
-          this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs);
+          this.refmodule.relyIt(thatInvoker, callbackFun, pluginArgs, index);
           return;
         }
 
         var fun = {
           thatInvoker: thatInvoker,
           relyCallback: callbackFun,
-          pluginArgs: pluginArgs
+          pluginArgs: pluginArgs,
+          index: index
         };
 
         if (this._callback(fun)) {
@@ -3098,7 +3108,7 @@
           }
 
           checkFinish(index, originDep, depModule, syncHandle);
-        }, pluginArgs);
+        }, pluginArgs, index);
       };
 
       if (!moduleDef.getModule(dep)) {
@@ -3147,7 +3157,7 @@
           }
 
           if (urls.length == 0) {
-            moduleDef.preDependOn(dep);
+            moduleDef.preDependOn(dep, index);
           } else {
             utils.each(urls, function (url, index) {
               if (xsloader$9.startsWith(url, ".") || xsloader$9.startsWith(url, "/")) {
@@ -3241,7 +3251,7 @@
 
             var m2Name = isJsFile ? null : dep;
 
-            var module2 = _newModule(m2Name, urls[0], invoker_of_module);
+            var module2 = _newModule(m2Name, urls[0], invoker_of_module, index);
 
             module2.setState("loading");
             var configDeps = [];
@@ -3503,13 +3513,21 @@
 
       _defineProperty(this, "_im", void 0);
 
+      _defineProperty(this, "_id", void 0);
+
       this._im = new InVar(moduleMap);
+      this._id = utils.getAndIncIdCount();
       moduleMap.thiz = this;
 
       _buildInvoker(moduleMap);
     }
 
     _createClass(Invoker, [{
+      key: "getId",
+      value: function getId() {
+        return this._id;
+      }
+    }, {
       key: "getAbsoluteUrl",
       value: function getAbsoluteUrl() {
         return this._im.get().src;
@@ -3525,6 +3543,11 @@
         return this._im.get().selfname;
       }
     }, {
+      key: "getIndex",
+      value: function getIndex() {
+        return this._im.get().index;
+      }
+    }, {
       key: "invoker",
       value: function invoker() {
         return this._im.get().invoker;
@@ -3538,6 +3561,12 @@
       key: "exports",
       value: function exports() {
         return this._im.get().exports;
+      }
+    }, {
+      key: "root",
+      value: function root() {
+        var p = this.invoker();
+        return p ? p.invoker() : this;
       }
     }]);
 
@@ -3613,6 +3642,8 @@
       _defineProperty(this, "directDepLength", 0);
 
       _defineProperty(this, "names", []);
+
+      _defineProperty(this, "index", void 0);
 
       this.parentDefine = currentDefineModuleQueue.peek();
       this.thatInvoker = getInvoker(thiz);
@@ -4261,7 +4292,9 @@
     },
     theLoaderUrl: theLoaderUrl,
     thePageUrl: thePageUrl$1,
-    theHead: theHead,
+    head: function head() {
+      return theHead;
+    },
     appendHeadDom: appendHeadDom,
     initDefine: initDefine,
     Handle: Handle,
@@ -4290,10 +4323,6 @@
 
   xsloader$b.lastAppendHeadDom = function () {
     return script.lastAppendHeadDom();
-  };
-
-  xsloader$b.head = function () {
-    return script.theHead;
   };
 
   xsloader$b.scriptSrc = function () {
@@ -5010,41 +5039,145 @@
   var global$i = utils.global;
   var xsloader$j = global$i.xsloader;
   xsloader$j.define("css", function () {
+    var lastDom;
+
+    var Node = function () {
+      function Node(src) {
+        _classCallCheck(this, Node);
+
+        _defineProperty(this, "parent", void 0);
+
+        _defineProperty(this, "children", {});
+
+        _defineProperty(this, "_maxindex", -1);
+
+        _defineProperty(this, "_minindex", void 0);
+
+        _defineProperty(this, "doms", {});
+
+        _defineProperty(this, "src", void 0);
+
+        this.src = src;
+      }
+
+      _createClass(Node, [{
+        key: "addChild",
+        value: function addChild(src, node) {
+          this.children[src] = node;
+          node.parent = this;
+        }
+      }, {
+        key: "getChild",
+        value: function getChild(src) {
+          return this.children[src];
+        }
+      }, {
+        key: "findAnchor",
+        value: function findAnchor(index, dom) {
+          if (dom) {
+            this.doms[index] = dom;
+          }
+
+          var anchorDom;
+
+          if (this._maxindex == -1) {
+            this._maxindex = index;
+            this._minindex = index;
+            var p = this.parent;
+
+            while (p) {
+              if (p._maxindex == -1) {
+                p = p.parent;
+              } else {
+                anchorDom = p.doms[p._minindex];
+                break;
+              }
+            }
+          } else {
+            if (index > this._maxindex) {
+              anchorDom = this.doms[this._maxindex].nextSibling;
+              this._maxindex = index;
+            } else {
+              if (this._minindex > index) {
+                this._minindex = index;
+              }
+
+              for (var i = index + 1; i < this._maxindex; i++) {
+                if (this.doms[i]) {
+                  anchorDom = this.doms[i];
+                  break;
+                }
+              }
+            }
+          }
+
+          if (!anchorDom) {
+            anchorDom = lastDom ? lastDom.nextSibling : xsloader$j.script().nextSibling;
+          }
+
+          return anchorDom;
+        }
+      }]);
+
+      return Node;
+    }();
+
     var engine = window.navigator.userAgent.match(/Trident\/([^ ;]*)|AppleWebKit\/([^ ;]*)|Opera\/([^ ;]*)|rv\:([^ ;]*)(.*?)Gecko\/([^ ;]*)|MSIE\s([^ ;]*)|AndroidWebKit\/([^ ;]*)/) || 0;
     var useImportLoad = false;
     var useOnload = true;
     if (engine[1] || engine[7]) useImportLoad = parseInt(engine[1]) < 6 || parseInt(engine[7]) <= 9;else if (engine[2] || engine[8] || 'WebkitAppearance' in document.documentElement.style) useOnload = false;else if (engine[4]) useImportLoad = parseInt(engine[4]) < 18;
     var cssAPI = {};
-    var realFirstDom;
-    var invokerUrl2CssNodes = {};
+    var cssIndex = 0;
+    var rootNodes = {};
 
-    function appendCssDom(dom, invokerUrl, inverse) {
-      if (invokerUrl && inverse) {
-        if (!invokerUrl2CssNodes[invokerUrl]) {
-          invokerUrl2CssNodes[invokerUrl] = {
-            first: dom,
-            last: dom
-          };
-          var nextDom;
+    function domIndex(dom) {
+      var index = 0;
 
-          if (realFirstDom) {
-            nextDom = realFirstDom;
-          } else {
-            nextDom = xsloader$j.script().nextSibling;
-          }
+      while (dom = dom.previousSibling) {
+        index++;
+      }
 
-          var head = xsloader$j.head();
-          realFirstDom = dom;
-          head.insertBefore(dom, nextDom);
-        } else {
-          var lastDom = invokerUrl2CssNodes[invokerUrl].last;
-          var _nextDom = lastDom.nextSibling;
+      return index;
+    }
 
-          var _head = xsloader$j.head();
+    function buildAndGetNode(mthiz) {
+      var src = mthiz.src();
+      var p = mthiz.invoker();
 
-          invokerUrl2CssNodes[invokerUrl].last = dom;
+      while (p && p.src() == src) {
+        p = p.invoker();
+      }
 
-          _head.insertBefore(dom, _nextDom);
+      if (p) {
+        var pnode = buildAndGetNode(p);
+        var node = pnode.getChild(src);
+
+        if (!node) {
+          node = new Node(src);
+          pnode.addChild(src, node);
+        }
+
+        return node;
+      } else {
+        if (!rootNodes[src]) {
+          rootNodes[src] = new Node(src);
+        }
+
+        return rootNodes[src];
+      }
+    }
+
+    function appendCssDom(dom, cssThis, inverse) {
+      if (cssThis && inverse) {
+        var mthis = cssThis.invoker();
+        var node = buildAndGetNode(mthis);
+        dom.setAttribute("data-insert-index", cssIndex++);
+        var index = cssThis.getIndex();
+        var nextDom = node.findAnchor(index, dom);
+        script.head().insertBefore(dom, nextDom);
+
+        if (!lastDom || domIndex(dom) > domIndex(lastDom)) {
+          lastDom = dom;
         }
       } else {
         xsloader$j.appendHeadDom(dom);
@@ -5053,9 +5186,9 @@
 
     var curStyle, curSheet;
 
-    var createStyle = function createStyle(invokerUrl, inverse) {
+    var createStyle = function createStyle(mthis, inverse) {
       curStyle = document.createElement('style');
-      appendCssDom(curStyle, invokerUrl, inverse);
+      appendCssDom(curStyle, mthis, inverse);
       curSheet = curStyle.styleSheet || curStyle.sheet;
     };
 
@@ -5063,22 +5196,22 @@
     var ieLoads = [];
     var ieCurCallback;
 
-    var createIeLoad = function createIeLoad(url, invokerUrl, inverse) {
+    var createIeLoad = function createIeLoad(url, mthis, inverse) {
       curSheet.addImport(url);
 
       curStyle.onload = function () {
-        processIeLoad(invokerUrl, inverse);
+        processIeLoad(mthis, inverse);
       };
 
       ieCnt++;
 
       if (ieCnt == 31) {
-        createStyle(invokerUrl, inverse);
+        createStyle(mthis, inverse);
         ieCnt = 0;
       }
     };
 
-    var processIeLoad = function processIeLoad(invokerUrl, inverse) {
+    var processIeLoad = function processIeLoad(mthis, inverse) {
       ieCurCallback();
       var nextLoad = ieLoads.shift();
 
@@ -5088,19 +5221,19 @@
       }
 
       ieCurCallback = nextLoad[1];
-      createIeLoad(nextLoad[0], invokerUrl, inverse);
+      createIeLoad(nextLoad[0], mthis, inverse);
     };
 
-    var importLoad = function importLoad(url, callback, invokerUrl, inverse) {
+    var importLoad = function importLoad(url, callback, mthis, inverse) {
       callback = callback || function () {};
 
-      if (!curSheet || !curSheet.addImport) createStyle(invokerUrl, inverse);
+      if (!curSheet || !curSheet.addImport) createStyle(mthis, inverse);
 
       if (curSheet && curSheet.addImport) {
         if (ieCurCallback) {
           ieLoads.push([url, callback]);
         } else {
-          createIeLoad(url, invokerUrl, inverse);
+          createIeLoad(url, mthis, inverse);
           ieCurCallback = callback;
         }
       } else {
@@ -5117,7 +5250,7 @@
       }
     };
 
-    var linkLoad = function linkLoad(url, callback, invokerUrl, inverse) {
+    var linkLoad = function linkLoad(url, callback, mthis, inverse) {
       callback = callback || function () {};
 
       var link = document.createElement('link');
@@ -5140,12 +5273,12 @@
         }, 10);
       }
       link.href = url;
-      appendCssDom(link, invokerUrl, inverse);
+      appendCssDom(link, mthis, inverse);
     };
 
     cssAPI.pluginMain = function (cssId, onload, onerror, config) {
       var inverse = !(config.css && config.css.inverse === false);
-      (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this.invoker().src(), inverse);
+      (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this, inverse);
     };
 
     cssAPI.getCacheKey = function (cssId) {
