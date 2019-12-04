@@ -8,7 +8,7 @@ const global = utils.global;
 const xsloader = global.xsloader;
 const IE_VERSION = utils.IE_VERSION;
 
-polyfillInit(global,xsloader);
+polyfillInit(global, xsloader);
 
 if(!String.prototype.trim) {
 	String.prototype.trim = function() {
@@ -40,62 +40,62 @@ function xsEval(scriptString) {
  * @param {Object} option
  */
 function xsParseJson(str, option) {
-	if(str === "" || str === null || str === undefined || !xsloader.isString(str)) {
-		return str;
-	}
-
-	option = xsloader.extend({
-		fnStart: "", //"/*{f}*/",
-		fnEnd: "", //"/*{f}*/",
-		rcomment: "\\/\\/#\\/\\/"
-	}, option);
-
-	let fnMap = {};
-	let fnOffset = 0;
-	let replacer = undefined;
-	if(option.fnStart && option.fnEnd) {
-		while(true) {
-			let indexStart = str.indexOf(option.fnStart, fnOffset);
-			let indexEnd = str.indexOf(option.fnEnd, indexStart == -1 ? fnOffset : indexStart + option.fnStart.length);
-			if(indexStart == -1 && indexEnd == -1) {
-				break;
-			} else if(indexStart == -1) {
-				console.warn("found end:" + option.fnEnd + ",may lack start:" + option.fnStart);
-				break;
-			} else if(indexEnd == -1) {
-				console.warn("found start:" + option.fnStart + ",may lack end:" + option.fnEnd);
-				break;
-			}
-			let fnId = "_[_" + randId() + "_]_";
-			let fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
-			if(!xsloader.startsWith(fnStr, "function(")) {
-				throw "not a function:" + fnStr;
-			}
-			try {
-				str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-				let fn = xsloader.xsEval(fnStr);
-				fnMap[fnId] = fn;
-			} catch(e) {
-				console.error(fnStr);
-				throw e;
-			}
-			fnOffset = indexStart + fnId.length;
-		}
-		replacer = function(key, val) {
-			if(xsloader.isString(val) && fnMap[val]) {
-				return fnMap[val];
-			} else {
-				return val;
-			}
-		};
-	}
-
-	if(option.rcomment) {
-		str = str.replace(/(\r\n)|\r/g, "\n"); //统一换行符号
-		str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), ""); //去除行注释
-	}
-
 	try {
+		if(str === "" || str === null || str === undefined || !xsloader.isString(str)) {
+			return str;
+		}
+
+		option = xsloader.extend({
+			fnStart: "", //"/*{f}*/",
+			fnEnd: "", //"/*{f}*/",
+			rcomment: "\\/\\/#\\/\\/"
+		}, option);
+
+		let fnMap = {};
+		let fnOffset = 0;
+		let replacer = undefined;
+		if(option.fnStart && option.fnEnd) {
+			while(true) {
+				let indexStart = str.indexOf(option.fnStart, fnOffset);
+				let indexEnd = str.indexOf(option.fnEnd, indexStart == -1 ? fnOffset : indexStart + option.fnStart.length);
+				if(indexStart == -1 && indexEnd == -1) {
+					break;
+				} else if(indexStart == -1) {
+					console.warn("found end:" + option.fnEnd + ",may lack start:" + option.fnStart);
+					break;
+				} else if(indexEnd == -1) {
+					console.warn("found start:" + option.fnStart + ",may lack end:" + option.fnEnd);
+					break;
+				}
+				let fnId = "_[_" + randId() + "_]_";
+				let fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
+				if(!xsloader.startsWith(fnStr, "function(")) {
+					throw "not a function:" + fnStr;
+				}
+				try {
+					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
+					let fn = xsloader.xsEval(fnStr);
+					fnMap[fnId] = fn;
+				} catch(e) {
+					console.error(fnStr);
+					throw e;
+				}
+				fnOffset = indexStart + fnId.length;
+			}
+			replacer = function(key, val) {
+				if(xsloader.isString(val) && fnMap[val]) {
+					return fnMap[val];
+				} else {
+					return val;
+				}
+			};
+		}
+
+		if(option.rcomment) {
+			str = str.replace(/(\r\n)|\r/g, "\n"); //统一换行符号
+			str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), ""); //去除行注释
+		}
+
 		let jsonObj = xsJSON;
 		return jsonObj.parse(str, replacer);
 	} catch(e) {

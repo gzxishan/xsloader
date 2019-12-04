@@ -392,10 +392,14 @@ try {
 					console.log("receive from:" + event.origin + ",my page:" + location.href);
 					console.log(event.data);
 				}
+				if(!event.data || event.data.trim().indexOf("{") != 0) {
+					return;
+				}
 				let data;
 				try {
 					data = xsloader.xsParseJson(event.data);
 				} catch(e) {
+					console.warn("error data:", event.data);
 					console.warn(e);
 				}
 				if(!data || !(data.cmd && data.type)) {

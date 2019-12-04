@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Tue, 03 Dec 2019 16:39:32 GMT
+ * build time:Wed, 04 Dec 2019 10:46:01 GMT
  */
 (function () {
   'use strict';
@@ -1475,68 +1475,68 @@
   }
 
   function xsParseJson(str, option) {
-    if (str === "" || str === null || str === undefined || !xsloader$4.isString(str)) {
-      return str;
-    }
-
-    option = xsloader$4.extend({
-      fnStart: "",
-      fnEnd: "",
-      rcomment: "\\/\\/#\\/\\/"
-    }, option);
-    var fnMap = {};
-    var fnOffset = 0;
-    var replacer = undefined;
-
-    if (option.fnStart && option.fnEnd) {
-      while (true) {
-        var indexStart = str.indexOf(option.fnStart, fnOffset);
-        var indexEnd = str.indexOf(option.fnEnd, indexStart == -1 ? fnOffset : indexStart + option.fnStart.length);
-
-        if (indexStart == -1 && indexEnd == -1) {
-          break;
-        } else if (indexStart == -1) {
-          console.warn("found end:" + option.fnEnd + ",may lack start:" + option.fnStart);
-          break;
-        } else if (indexEnd == -1) {
-          console.warn("found start:" + option.fnStart + ",may lack end:" + option.fnEnd);
-          break;
-        }
-
-        var fnId = "_[_" + randId() + "_]_";
-        var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
-
-        if (!xsloader$4.startsWith(fnStr, "function(")) {
-          throw "not a function:" + fnStr;
-        }
-
-        try {
-          str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-          var fn = xsloader$4.xsEval(fnStr);
-          fnMap[fnId] = fn;
-        } catch (e) {
-          console.error(fnStr);
-          throw e;
-        }
-
-        fnOffset = indexStart + fnId.length;
+    try {
+      if (str === "" || str === null || str === undefined || !xsloader$4.isString(str)) {
+        return str;
       }
 
-      replacer = function replacer(key, val) {
-        if (xsloader$4.isString(val) && fnMap[val]) {
-          return fnMap[val];
-        } else {
-          return val;
+      option = xsloader$4.extend({
+        fnStart: "",
+        fnEnd: "",
+        rcomment: "\\/\\/#\\/\\/"
+      }, option);
+      var fnMap = {};
+      var fnOffset = 0;
+      var replacer = undefined;
+
+      if (option.fnStart && option.fnEnd) {
+        while (true) {
+          var indexStart = str.indexOf(option.fnStart, fnOffset);
+          var indexEnd = str.indexOf(option.fnEnd, indexStart == -1 ? fnOffset : indexStart + option.fnStart.length);
+
+          if (indexStart == -1 && indexEnd == -1) {
+            break;
+          } else if (indexStart == -1) {
+            console.warn("found end:" + option.fnEnd + ",may lack start:" + option.fnStart);
+            break;
+          } else if (indexEnd == -1) {
+            console.warn("found start:" + option.fnStart + ",may lack end:" + option.fnEnd);
+            break;
+          }
+
+          var fnId = "_[_" + randId() + "_]_";
+          var fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
+
+          if (!xsloader$4.startsWith(fnStr, "function(")) {
+            throw "not a function:" + fnStr;
+          }
+
+          try {
+            str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
+            var fn = xsloader$4.xsEval(fnStr);
+            fnMap[fnId] = fn;
+          } catch (e) {
+            console.error(fnStr);
+            throw e;
+          }
+
+          fnOffset = indexStart + fnId.length;
         }
-      };
-    }
 
-    if (option.rcomment) {
-      str = str.replace(/(\r\n)|\r/g, "\n");
-      str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), "");
-    }
+        replacer = function replacer(key, val) {
+          if (xsloader$4.isString(val) && fnMap[val]) {
+            return fnMap[val];
+          } else {
+            return val;
+          }
+        };
+      }
 
-    try {
+      if (option.rcomment) {
+        str = str.replace(/(\r\n)|\r/g, "\n");
+        str = str.replace(new RegExp(option.rcomment + "[^\\n]*(\\n|$)", "g"), "");
+      }
+
       var jsonObj = JSON;
       return jsonObj.parse(str, replacer);
     } catch (e) {
@@ -6352,11 +6352,16 @@
             console.log(event.data);
           }
 
+          if (!event.data || event.data.trim().indexOf("{") != 0) {
+            return;
+          }
+
           var data;
 
           try {
             data = xsloader$q.xsParseJson(event.data);
           } catch (e) {
+            console.warn("error data:", event.data);
             console.warn(e);
           }
 
