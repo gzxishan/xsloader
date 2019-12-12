@@ -388,42 +388,43 @@ try {
 			}
 
 			window.addEventListener('message', function(event) {
-				if(isDebug("postMessageBridge")) {
-					console.log("receive from:" + event.origin + ",my page:" + location.href);
-					console.log(event.data);
-				}
-				if(!event.data || event.data.trim().indexOf("{") != 0) {
-					return;
-				}
-				let data;
-				try {
-					data = xsloader.xsParseJson(event.data);
-				} catch(e) {
-					console.warn("error data:", event.data);
-					console.warn(e);
-				}
-				if(!data || !(data.cmd && data.type)) {
-					return;
-				}
+				if(event.data && (typeof event.data == "string") && event.data.substring(0, 1) == "{") {
+					if(isDebug("postMessageBridge")) {
+						console.log("receive from:" + event.origin + ",my page:" + location.href);
+						console.log(event.data);
+					}
 
-				let cmd = data.cmd;
-				let oinstanceid = data.id;
-				let rdata = data.data;
-				let type = data.type;
-				let msgid = data.msgid;
+					let data;
+					try {
+						data = xsloader.xsParseJson(event.data);
+					} catch(e) {
+						console.warn("error data:", event.data);
+						console.warn(e);
+					}
+					if(!data || !(data.cmd && data.type)) {
+						return;
+					}
 
-				if(type == "conn") {
-					handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "accept") {
-					handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-				} else if(type == "conned") {
-					handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "msg") {
-					handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-				} else if(type == "response") {
-					handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
-				} else if(type == "binded") {
-					handleBinded(cmd, event.source, event.origin, rdata);
+					let cmd = data.cmd;
+					let oinstanceid = data.id;
+					let rdata = data.data;
+					let type = data.type;
+					let msgid = data.msgid;
+
+					if(type == "conn") {
+						handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "accept") {
+						handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+					} else if(type == "conned") {
+						handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "msg") {
+						handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+					} else if(type == "response") {
+						handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
+					} else if(type == "binded") {
+						handleBinded(cmd, event.source, event.origin, rdata);
+					}
+
 				}
 
 			});
