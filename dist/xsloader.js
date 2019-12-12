@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.3
+ * xsloader.js v1.1.4
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 04 Dec 2019 10:46:01 GMT
+ * build time:Thu, 12 Dec 2019 03:34:23 GMT
  */
 (function () {
   'use strict';
@@ -3652,7 +3652,7 @@
       this.isRequire = isRequire;
       this.handle = {
         onError: function onError(err, invoker) {
-          console.warn(utils.unwrapError(err));
+          console.error(utils.unwrapError(err));
         },
         before: function before(deps) {},
         depBefore: function depBefore(index, dep, depDeps) {},
@@ -4075,6 +4075,8 @@
       throw new Error("not config");
     }
 
+    var thatInvoker = getInvoker(this);
+
     if (arguments.length == 1 && xsloader$a.isString(deps)) {
       if (deps == "exports") {
         var mineInvoker = getMineInvoker(this);
@@ -4087,7 +4089,6 @@
         }
       }
 
-      var thatInvoker = getInvoker(this);
       var originDeps = deps;
       var pluginArgs = undefined;
       var pluginIndex = deps.indexOf("!");
@@ -4191,15 +4192,23 @@
         }
       }
     }], true);
+    handle.waitTime = config.waitSeconds * 1000;
+
+    handle.logError = function (err, invoker) {
+      var logFun = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : "error";
+      invoker && console[logFun]("invoker.url=", invoker.getUrl());
+      thatInvoker && console[logFun]("require.invoker.url=", thatInvoker.getUrl());
+      console[logFun](utils.unwrapError(err));
+    };
+
     handle.error(function (err, invoker) {
-      isErr = err;
+      isErr = !!err;
       clearTimer(true);
 
       if (customerErrCallback) {
-        customerErrCallback(err, invoker);
+        customerErrCallback.call(handle, err, invoker);
       } else {
-        console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
-        console.warn(utils.unwrapError(err));
+        handle.logError(err, invoker);
       }
     });
 
@@ -4208,32 +4217,36 @@
       return this;
     };
 
-    var checkResultFun = function checkResultFun() {
-      try {
-        var ifmodule = moduleScript.getModule(selfname);
+    xsloader$a.asyncCall(function () {
+      if (handle.waitTime) {
+        var checkResultFun = function checkResultFun() {
+          try {
+            var ifmodule = moduleScript.getModule(selfname);
 
-        if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-          var _module = ifmodule;
-          handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
+            if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+              var _module = ifmodule;
+              handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
 
-          if (_module) {
-            utils.each(_module.deps, function (dep) {
-              var mod = moduleScript.getModule(dep);
+              if (_module) {
+                utils.each(_module.deps, function (dep) {
+                  var mod = moduleScript.getModule(dep);
 
-              if (mod && mod.printOnNotDefined) {
-                mod.printOnNotDefined();
+                  if (mod && mod.printOnNotDefined) {
+                    mod.printOnNotDefined();
+                  }
+                });
               }
-            });
+            }
+          } catch (e) {
+            console.error(e);
           }
-        }
-      } catch (e) {
-        console.error(e);
+
+          clearTimer();
+        };
+
+        timeid = setTimeout(checkResultFun, handle.waitTime);
       }
-
-      clearTimer();
-    };
-
-    timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+    });
 
     if (typeof Promise != "undefined" && arguments.length == 1 && !callback) {
       var promise = new Promise(function (resolve, inject) {
@@ -4918,12 +4931,17 @@
     pluginMain: function pluginMain(arg, onload, onerror, config) {
       var dep = arg;
 
-      this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
+      var handle = this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
         onload(mod);
-      }).error(function (e) {
-        console.warn(e);
+      }).error(function (err, invoker) {
+        console.info("try!:require '".concat(dep, "' failed"));
+        this.logError(err, invoker, "info");
         onload(null);
       });
+
+      if (handle.waitTime && handle.waitTime > 1000) {
+        handle.waitTime -= 1000;
+      }
     }
   });
 

@@ -9,11 +9,15 @@ xsloader.define("try", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
 		let dep = arg;
-		this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
+		let handle = this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			onload(mod);
-		}).error(function(e) {
-			console.warn(e);
+		}).error(function(err, invoker) {
+			console.info(`try!:require '${dep}' failed`)
+			this.logError(err, invoker, "info");
 			onload(null);
 		});
+		if(handle.waitTime && handle.waitTime > 1000) {
+			handle.waitTime -= 1000;
+		}
 	}
 });

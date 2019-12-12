@@ -289,7 +289,7 @@ class DefineObject {
 		this.isRequire = isRequire;
 		this.handle = {
 			onError(err, invoker) {
-				console.warn(utils.unwrapError(err));
+				console.error(utils.unwrapError(err));
 			},
 			before(deps) {},
 			depBefore(index, dep, depDeps) {},
@@ -713,7 +713,7 @@ function prerequire(deps, callback) {
 	if(!config) { //require必须是在config之后
 		throw new Error("not config");
 	}
-
+	let thatInvoker = getInvoker(this);
 	if(arguments.length == 1 && xsloader.isString(deps)) { //获取已经加载的模块
 		if(deps == "exports") { //当require("exports")时，必须依赖了exports
 			let mineInvoker = getMineInvoker(this);
@@ -725,7 +725,6 @@ function prerequire(deps, callback) {
 			}
 		}
 
-		let thatInvoker = getInvoker(this);
 		let originDeps = deps;
 		let pluginArgs = undefined;
 		let pluginIndex = deps.indexOf("!");
@@ -813,15 +812,21 @@ function prerequire(deps, callback) {
 			}
 		}
 	}], true);
+	handle.waitTime = config.waitSeconds * 1000;
+
+	handle.logError = function(err, invoker,logFun="error") {
+		invoker && console[logFun]("invoker.url=", invoker.getUrl());
+		thatInvoker && console[logFun]("require.invoker.url=", thatInvoker.getUrl());
+		console[logFun](utils.unwrapError(err));
+	};
 
 	handle.error(function(err, invoker) {
-		isErr = err;
+		isErr = !!err;
 		clearTimer(true);
 		if(customerErrCallback) {
-			customerErrCallback(err, invoker);
+			customerErrCallback.call(handle, err, invoker);
 		} else {
-			console.warn("invoker.url:" + (invoker ? invoker.getUrl() : ""));
-			console.warn(utils.unwrapError(err));
+			handle.logError(err, invoker);
 		}
 	});
 	handle.error = function(errCallback) {
@@ -829,28 +834,34 @@ function prerequire(deps, callback) {
 		return this;
 	};
 
-	let checkResultFun = function() {
-		try {
-			let ifmodule = moduleScript.getModule(selfname);
-			//console.log(isErr)
-			if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-				let module = ifmodule;
-				handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
-				if(module) {
-					utils.each(module.deps, function(dep) {
-						let mod = moduleScript.getModule(dep);
-						if(mod && mod.printOnNotDefined) {
-							mod.printOnNotDefined();
+	xsloader.asyncCall(() => {
+
+		if(handle.waitTime) {
+			let checkResultFun = function() {
+				try {
+					let ifmodule = moduleScript.getModule(selfname);
+					//console.log(isErr)
+					if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+						let module = ifmodule;
+						handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
+						if(module) {
+							utils.each(module.deps, function(dep) {
+								let mod = moduleScript.getModule(dep);
+								if(mod && mod.printOnNotDefined) {
+									mod.printOnNotDefined();
+								}
+							});
 						}
-					});
+					}
+				} catch(e) {
+					console.error(e);
 				}
-			}
-		} catch(e) {
-			console.error(e);
+				clearTimer();
+			};
+			timeid = setTimeout(checkResultFun, handle.waitTime);
 		}
-		clearTimer();
-	};
-	timeid = setTimeout(checkResultFun, config.waitSeconds * 1000);
+
+	});
 
 	if(typeof Promise != "undefined" && arguments.length == 1 && !callback) {
 		let promise = new Promise((resolve, inject) => {

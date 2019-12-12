@@ -37,7 +37,7 @@
         delay: 500,
 	},
 	css:{
-		inverse:true,//是否逆向添加css：即不同模块间添加style的顺序是与时间调用顺序相反的
+		inverse:true,//是否逆向添加css：不同模块间添加style的顺序是与依赖顺序相反的，如A（内部加载A.css）依赖B（内部加载B.css），则在head中A.css在B.css的后面
 	}
 }
 二、xsloader说明
