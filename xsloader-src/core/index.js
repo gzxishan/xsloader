@@ -197,10 +197,11 @@ loader.loaderFun((option) => {
 			url = utils.getPathWithRelative(location.href, url);
 			return this.dealUrl(url, url);
 		},
-		defaultVersion: {}
+		defaultVersion: {},
+		plugins:{},
 	}, option);
 
-	option.loading = xsloader.extend({
+	option.plugins.loading = xsloader.extend({
 		enable: true,
 		color: '#2196f3',
 		bgColor: 'rgba(0,0,0,0.1)',
@@ -208,8 +209,12 @@ loader.loaderFun((option) => {
 		duration: 0.2,
 		height: 1,
 		delay: 500,
-	}, option.loading);
+	}, option.plugins.loading);
 
+	option.plugins.image = xsloader.extend({
+		timeout: 10000, //超时时间，毫秒
+	}, option.plugins.image);
+	
 	if(!xsloader.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";
 	}

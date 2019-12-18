@@ -227,7 +227,7 @@ xsloader.define("css", function() {
 		appendCssDom(link, mthis, inverse);
 	};
 	cssAPI.pluginMain = function(cssId, onload, onerror, config) {
-		let inverse = !(config.css && config.css.inverse === false); //默认逆向
+		let inverse = !(config.plugins.css && config.plugins.css.inverse === false); //默认逆向
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {
 		//				cssId += ".css";
 		//			}

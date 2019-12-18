@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.4
+ * xsloader.js v1.1.5
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu, 12 Dec 2019 07:14:51 GMT
+ * build time:Wed, 18 Dec 2019 02:04:03 GMT
  */
 (function () {
   'use strict';
@@ -4145,19 +4145,19 @@
     var customerErrCallback;
     var isErr;
 
-    if (isFirstRequire && config.loading.enable) {
+    if (isFirstRequire && config.plugins.loading.enable) {
       isFirstRequire = false;
       setTimeout(function () {
         if (!isOk) {
-          loading = new utils.ToProgress(config.loading);
+          loading = new utils.ToProgress(config.plugins.loading);
           loading.autoIncrement();
 
           if (isErr) {
-            loading.toError(config.loading.errColor);
+            loading.toError(config.plugins.loading.errColor);
             loading = null;
           }
         }
-      }, config.loading.delay);
+      }, config.plugins.loading.delay);
     }
 
     var clearTimer = function clearTimer() {
@@ -4165,7 +4165,7 @@
 
       if (loading) {
         if (isErr) {
-          loading.toError(config.loading.errColor);
+          loading.toError(config.plugins.loading.errColor);
         } else {
           loading.stopAuto();
           loading.finish();
@@ -4510,9 +4510,10 @@
         url = utils.getPathWithRelative(location.href, url);
         return this.dealUrl(url, url);
       },
-      defaultVersion: {}
+      defaultVersion: {},
+      plugins: {}
     }, option);
-    option.loading = xsloader$b.extend({
+    option.plugins.loading = xsloader$b.extend({
       enable: true,
       color: '#2196f3',
       bgColor: 'rgba(0,0,0,0.1)',
@@ -4520,7 +4521,10 @@
       duration: 0.2,
       height: 1,
       delay: 500
-    }, option.loading);
+    }, option.plugins.loading);
+    option.plugins.image = xsloader$b.extend({
+      timeout: 10000
+    }, option.plugins.image);
 
     if (!xsloader$b.endsWith(option.baseUrl, "/")) {
       option.baseUrl += "/";
@@ -5295,7 +5299,7 @@
     };
 
     cssAPI.pluginMain = function (cssId, onload, onerror, config) {
-      var inverse = !(config.css && config.css.inverse === false);
+      var inverse = !(config.plugins.css && config.plugins.css.inverse === false);
       (useImportLoad ? importLoad : linkLoad)(this.invoker().getUrl(cssId, true), onload, this, inverse);
     };
 
@@ -6451,7 +6455,43 @@
 
   var global$q = utils.global;
   var xsloader$r = global$q.xsloader;
-  var http = global$q._xshttp_request_;
+  xsloader$r.define("image", {
+    pluginMain: function pluginMain(name, onload, onerror, config) {
+      var src = this.invoker().getUrl(name, false);
+      var img = new Image();
+
+      var callback = function callback(ok) {
+        var image = img;
+        img = null;
+        image.onload = null;
+        image.οnerrοr = null;
+        onload(ok ? image : null);
+      };
+
+      img.onload = function () {
+        callback(true);
+      };
+
+      img.οnerrοr = function () {
+        callback(false);
+      };
+
+      img.src = src;
+      xsloader$r.asyncCall(function () {
+        if (img) {
+          setTimeout(function () {
+            if (img) {
+              callback(false);
+            }
+          }, config.plugins.image.timeout);
+        }
+      });
+    }
+  });
+
+  var global$r = utils.global;
+  var xsloader$s = global$r.xsloader;
+  var http = global$r._xshttp_request_;
   var DATA_CONF = "data-conf",
       DATA_CONFX = "data-xsloader-conf";
   var DATA_CONF2 = "data-conf2",
@@ -6460,9 +6500,9 @@
       DATA_MAINX = "data-xsloader-main";
   var DATA_CONF_TYPE = "data-conf-type";
   var serviceConfigUrl;
-  var dataConf = xsloader$r.script().getAttribute(DATA_CONF) || xsloader$r.script().getAttribute(DATA_CONFX);
-  var dataMain = xsloader$r.script().getAttribute(DATA_MAIN) || xsloader$r.script().getAttribute(DATA_MAINX);
-  var dataConfType = xsloader$r.script().getAttribute(DATA_CONF_TYPE);
+  var dataConf = xsloader$s.script().getAttribute(DATA_CONF) || xsloader$s.script().getAttribute(DATA_CONFX);
+  var dataMain = xsloader$s.script().getAttribute(DATA_MAIN) || xsloader$s.script().getAttribute(DATA_MAINX);
+  var dataConfType = xsloader$s.script().getAttribute(DATA_CONF_TYPE);
 
   if (dataConfType !== "json" && dataConfType != "js") {
     dataConfType = "auto";
@@ -6479,7 +6519,7 @@
         name = "index";
       }
 
-      if (xsloader$r.endsWith(name, ".html")) {
+      if (xsloader$s.endsWith(name, ".html")) {
         name = name.substring(0, name.length - 5);
       }
 
@@ -6492,7 +6532,7 @@
     }
 
     function extendConfig(config) {
-      config = xsloader$r.extendDeep({
+      config = xsloader$s.extendDeep({
         properties: {},
         main: {
           getPath: function getPath() {
@@ -6534,14 +6574,14 @@
           var conf;
 
           if (dataConfType == "js") {
-            conf = xsloader$r.xsEval(confText);
+            conf = xsloader$s.xsEval(confText);
           } else if (dataConfType == "json") {
-            conf = xsloader$r.xsParseJson(confText);
+            conf = xsloader$s.xsParseJson(confText);
           } else {
-            if (xsloader$r.startsWith(url, location.protocol + "//" + location.host + "/")) {
-              conf = xsloader$r.xsEval(confText);
+            if (xsloader$s.startsWith(url, location.protocol + "//" + location.host + "/")) {
+              conf = xsloader$s.xsEval(confText);
             } else {
-              conf = xsloader$r.xsParseJson(confText);
+              conf = xsloader$s.xsParseJson(confText);
             }
           }
 
@@ -6551,13 +6591,13 @@
             conf.beforeDealProperties();
           }
 
-          conf = xsloader$r.dealProperties(conf, conf.properties);
+          conf = xsloader$s.dealProperties(conf, conf.properties);
 
           if (isLocal && conf.service.hasGlobal) {
             loadServiceConfig("global servie", conf.service.confUrl, function (globalConfig) {
               var localConfig = conf;
-              global$q[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
-              global$q[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
+              global$r[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
+              global$r[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
               var mainName, mainPath, loaderName;
               loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
               var conf;
@@ -6597,7 +6637,7 @@
 
     function startLoad() {
       loadServiceConfig("local", serviceConfigUrl, function (localConfig) {
-        global$q[localConfig.main.localConfigVar] = localConfig;
+        global$r[localConfig.main.localConfigVar] = localConfig;
         var mainName = localConfig.main.name;
         var href = location.href;
         var index = href.lastIndexOf("?");
@@ -6627,10 +6667,10 @@
       conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
       localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
-      xsloader$r._resUrlBuilder = function (groupModule) {
+      xsloader$s._resUrlBuilder = function (groupModule) {
         var as = [];
         utils.each(resUrls, function (url) {
-          as.push(xsloader$r.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
+          as.push(xsloader$s.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
         });
         return as;
       };
@@ -6640,7 +6680,7 @@
       loader.depsPaths = loader.depsPaths || {};
 
       if (mainPath.indexOf("!") != -1) {
-        var theConfig = xsloader$r(loader);
+        var theConfig = xsloader$s(loader);
         mainName = "_plugin_main_";
         var deps = [];
 
@@ -6655,31 +6695,31 @@
         }
 
         deps.push(mainPath);
-        xsloader$r.define(mainName, deps, function () {}).then({
+        xsloader$s.define(mainName, deps, function () {}).then({
           absUrl: pageHref
         });
-      } else if (!xsloader$r.hasDefine(mainName)) {
+      } else if (!xsloader$s.hasDefine(mainName)) {
         loader.depsPaths[mainName] = mainPath;
-        xsloader$r(loader);
+        xsloader$s(loader);
       } else {
-        xsloader$r(loader);
+        xsloader$s(loader);
       }
 
       loader.defineFunction[mainName] = function (originCallback, originThis, originArgs) {
-        if (xsloader$r.isFunction(conf.main.before)) {
+        if (xsloader$s.isFunction(conf.main.before)) {
           conf.main.before.call(conf, mainName);
         }
 
         var rt = originCallback.apply(originThis, originArgs);
 
-        if (xsloader$r.isFunction(conf.main.after)) {
+        if (xsloader$s.isFunction(conf.main.after)) {
           conf.main.after.call(conf, mainName);
         }
 
         return rt;
       };
 
-      xsloader$r.require([mainName], function (main) {}).error(function (err, invoker) {
+      xsloader$s.require([mainName], function (main) {}).error(function (err, invoker) {
         if (invoker) {
           console.error("error occured:invoker.url=", invoker.getUrl());
         }
@@ -6689,13 +6729,13 @@
       });
     }
 
-    xsloader$r.asyncCall(startLoad, true);
+    xsloader$s.asyncCall(startLoad, true);
   };
 
   if (dataConf) {
     serviceConfigUrl = utils.getPathWithRelative(location.href, dataConf);
-  } else if (dataConf = xsloader$r.script().getAttribute(DATA_CONF2) || xsloader$r.script().getAttribute(DATA_CONF2X)) {
-    serviceConfigUrl = utils.getPathWithRelative(xsloader$r.scriptSrc(), dataConf);
+  } else if (dataConf = xsloader$s.script().getAttribute(DATA_CONF2) || xsloader$s.script().getAttribute(DATA_CONF2X)) {
+    serviceConfigUrl = utils.getPathWithRelative(xsloader$s.scriptSrc(), dataConf);
   } else {
     initFun = null;
   }

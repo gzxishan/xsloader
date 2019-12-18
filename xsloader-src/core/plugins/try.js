@@ -12,7 +12,7 @@ xsloader.define("try", {
 		let handle = this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			onload(mod);
 		}).error(function(err, invoker) {
-			console.info(`try!:require '${dep}' failed`)
+			console.info(`try!:require '${dep}' failed`);
 			this.logError(err, invoker, "info");
 			onload(null);
 		});

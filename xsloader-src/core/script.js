@@ -228,7 +228,7 @@ class Invoker {
 
 	root() {
 		let p = this.invoker();
-		return p ? p.invoker() : this
+		return p ? p.invoker() : this;
 	}
 }
 
@@ -770,23 +770,23 @@ function prerequire(deps, callback) {
 	let isOk = false;
 	let customerErrCallback;
 	let isErr;
-	if(isFirstRequire && config.loading.enable) {
+	if(isFirstRequire && config.plugins.loading.enable) {
 		isFirstRequire = false;
 		setTimeout(() => {
 			if(!isOk) {
-				loading = new utils.ToProgress(config.loading);
+				loading = new utils.ToProgress(config.plugins.loading);
 				loading.autoIncrement();
 				if(isErr) {
-					loading.toError(config.loading.errColor);
+					loading.toError(config.plugins.loading.errColor);
 					loading = null;
 				}
 			}
-		}, config.loading.delay);
+		}, config.plugins.loading.delay);
 	}
 	let clearTimer = function(isErr = false) {
 		if(loading) {
 			if(isErr) {
-				loading.toError(config.loading.errColor);
+				loading.toError(config.plugins.loading.errColor);
 			} else {
 				loading.stopAuto();
 				loading.finish();
