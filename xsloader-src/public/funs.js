@@ -50,6 +50,15 @@ function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
 	}
 }
 
+function getUrl2(relativeUrl, appendArgs, optionalAbsUrl) {
+	let url = getUrl(relativeUrl, false, optionalAbsUrl);
+	if(appendArgs) {
+		return theConfig.dealUrl({}, url);
+	} else {
+		return url;
+	}
+}
+
 function tryCall(fun, defaultReturn, thiz, exCallback) {
 	let rs;
 	try {
@@ -242,7 +251,7 @@ function setObjectAttr(obj, attrNames, value) {
 	return _obj;
 }
 
-function clone(obj, isDeep=false) {
+function clone(obj, isDeep = false) {
 	// Handle the 3 simple types, and null or undefined or function
 	if(!obj || xsloader.isFunction(obj) || xsloader.isString(obj)) return obj;
 
@@ -272,6 +281,7 @@ function clone(obj, isDeep=false) {
 export default {
 	queryParam,
 	getUrl,
+	getUrl2,
 	tryCall,
 	dealProperties,
 	extend,

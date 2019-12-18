@@ -130,6 +130,16 @@ function _buildInvoker(module) {
 			return url;
 		}
 	};
+	
+	invoker.getUrl2=function(relativeUrl, appendArgs = true, optionalAbsUrl) {
+		let url=this.getUrl(relativeUrl,false,optionalAbsUrl);
+		if(appendArgs) {
+			return xsloader.config().dealUrl(module, url);
+		} else {
+			return url;
+		}
+	};
+	
 	invoker.require = function() {
 		//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
 		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);

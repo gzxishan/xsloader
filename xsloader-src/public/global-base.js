@@ -175,9 +175,9 @@ function appendArgs2Url(url, urlArgs) {
 			has = true;
 		}
 	}
-	if(!has) {
-		return url; //参数没有变化直接返回
-	}
+	//	if(!has) {
+	//		return url; //参数没有变化直接返回
+	//	}
 
 	let paramKeys = [];
 	for(let k in oldParams) {
@@ -194,7 +194,9 @@ function appendArgs2Url(url, urlArgs) {
 	}
 	params = params.join("&");
 	let hash = "";
-	if(hashIndex >= 0 && hashIndex < url.length) {
+	if(urlArgs.lastIndexOf("#") >= 0) {
+		hash = urlArgs.substring(urlArgs.lastIndexOf("#"));
+	} else if(hashIndex >= 0 && hashIndex < url.length) {
 		hash = url.substring(hashIndex);
 	}
 	return path + (params ? "?" + params : "") + (hash ? hash : "");

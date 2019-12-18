@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 18 Dec 2019 02:04:03 GMT
+ * build time:Wed, 18 Dec 2019 10:36:43 GMT
  */
 (function () {
   'use strict';
@@ -307,10 +307,6 @@
       } else if ("." != str) {
         stack.push(str);
       }
-    }
-
-    if (stack.length == 0) {
-      return "";
     }
 
     var result = prefix + stack.join("/");
@@ -1626,17 +1622,10 @@
 
     var newParams = _toParamsMap(urlArgs, false);
 
-    var has = false;
-
     for (var k in newParams) {
       if (oldParams[k] != newParams[k]) {
         oldParams[k] = newParams[k];
-        has = true;
       }
-    }
-
-    if (!has) {
-      return url;
     }
 
     var paramKeys = [];
@@ -1657,7 +1646,9 @@
     params = params.join("&");
     var hash = "";
 
-    if (hashIndex >= 0 && hashIndex < url.length) {
+    if (urlArgs.lastIndexOf("#") >= 0) {
+      hash = urlArgs.substring(urlArgs.lastIndexOf("#"));
+    } else if (hashIndex >= 0 && hashIndex < url.length) {
       hash = url.substring(hashIndex);
     }
 
@@ -1770,6 +1761,16 @@
         url += location.search + location.hash;
       }
 
+      return theConfig.dealUrl({}, url);
+    } else {
+      return url;
+    }
+  }
+
+  function getUrl2(relativeUrl, appendArgs, optionalAbsUrl) {
+    var url = getUrl(relativeUrl, false, optionalAbsUrl);
+
+    if (appendArgs) {
       return theConfig.dealUrl({}, url);
     } else {
       return url;
@@ -2018,6 +2019,7 @@
   var funs = {
     queryParam: queryParam,
     getUrl: getUrl,
+    getUrl2: getUrl2,
     tryCall: tryCall,
     dealProperties: dealProperties,
     extend: extend,
@@ -3456,6 +3458,18 @@
       }
     };
 
+    invoker.getUrl2 = function (relativeUrl) {
+      var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+      var optionalAbsUrl = arguments.length > 2 ? arguments[2] : undefined;
+      var url = this.getUrl(relativeUrl, false, optionalAbsUrl);
+
+      if (appendArgs) {
+        return xsloader$a.config().dealUrl(module, url);
+      } else {
+        return url;
+      }
+    };
+
     invoker.require = function () {
       var h = xsloader$a.require.apply(new ThisInvoker(invoker), arguments);
 
@@ -4323,11 +4337,11 @@
   var global$a = utils.global;
   var xsloader$b = global$a.xsloader;
   var theContext;
-  var theConfig;
+  var theConfig$1;
   var argsObject = {};
 
   xsloader$b.config = function () {
-    return theConfig;
+    return theConfig$1;
   };
 
   xsloader$b.script = function () {
@@ -4727,10 +4741,10 @@
       _loop(keyName);
     }
 
-    theConfig = option;
+    theConfig$1 = option;
     theContext = _newContext();
     script.onConfigedCallback();
-    return theConfig;
+    return theConfig$1;
   });
 
   var global$b = utils.global;

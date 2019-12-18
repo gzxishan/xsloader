@@ -155,9 +155,9 @@ function getPathWithRelative(path, relative, isPathDir) {
 			stack.push(str);
 		}
 	}
-	if(stack.length == 0) {
-		return "";
-	}
+//	if(stack.length == 0) {
+//		return "";
+//	}
 	let result = prefix + stack.join("/");
 	if(isRelativeDir && !xsloader.endsWith(result, "/")) {
 		result += "/";
