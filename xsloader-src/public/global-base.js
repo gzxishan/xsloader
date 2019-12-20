@@ -156,6 +156,11 @@ function _toParamsMap(argsStr, decode = true) {
 	return ret;
 }
 
+/**
+ * 
+ * @param {Object} url
+ * @param {Object} urlArgs "a=b&b=c#hash","#hash",Object
+ */
 function appendArgs2Url(url, urlArgs) {
 	if(url === undefined || url === null || !urlArgs) {
 		return url;
@@ -194,7 +199,7 @@ function appendArgs2Url(url, urlArgs) {
 	}
 	params = params.join("&");
 	let hash = "";
-	if(urlArgs.lastIndexOf("#") >= 0) {
+	if((typeof urlArgs == "string") && urlArgs.lastIndexOf("#") >= 0) {
 		hash = urlArgs.substring(urlArgs.lastIndexOf("#"));
 	} else if(hashIndex >= 0 && hashIndex < url.length) {
 		hash = url.substring(hashIndex);
