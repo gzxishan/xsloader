@@ -27,6 +27,10 @@ function isRegExp(it) {
 	return it && (it instanceof RegExp) || ostring.call(it) === '[object RegExp]';
 }
 
+function isEmpty(it) {
+	return it === null || it === undefined || it === "";
+}
+
 export default {
 	isArray,
 	isFunction,
@@ -34,4 +38,5 @@ export default {
 	isString,
 	isDate,
 	isRegExp,
+	isEmpty,
 };

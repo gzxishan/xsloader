@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Fri, 20 Dec 2019 04:04:36 GMT
+ * build time:Mon, 23 Dec 2019 17:02:19 GMT
  */
 (function () {
   'use strict';
@@ -1700,13 +1700,18 @@
     return it && it instanceof RegExp || ostring.call(it) === '[object RegExp]';
   }
 
+  function isEmpty(it) {
+    return it === null || it === undefined || it === "";
+  }
+
   var is = {
     isArray: isArray,
     isFunction: isFunction,
     isObject: isObject,
     isString: isString,
     isDate: isDate,
-    isRegExp: isRegExp
+    isRegExp: isRegExp,
+    isEmpty: isEmpty
   };
 
   var global$4 = utils.global;
