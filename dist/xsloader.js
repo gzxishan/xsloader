@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 23 Dec 2019 18:10:25 GMT
+ * build time:Mon, 23 Dec 2019 18:16:13 GMT
  */
 (function () {
   'use strict';
@@ -2021,6 +2021,27 @@
     return obj;
   }
 
+  function sortObject(obj) {
+    if (!obj || !xsloader$5.isObject(obj)) {
+      return obj;
+    } else {
+      var keys = [];
+
+      for (var k in obj) {
+        keys.push(k);
+      }
+
+      keys.sort();
+      var newObj = {};
+
+      for (var i = 0; i < keys.length; i++) {
+        newObj[keys[i]] = obj[keys[i]];
+      }
+
+      return newObj;
+    }
+  }
+
   var funs = {
     queryParam: queryParam,
     getUrl: getUrl,
@@ -2032,7 +2053,8 @@
     asyncCall: asyncCall,
     getObjectAttr: getObjectAttr,
     setObjectAttr: setObjectAttr,
-    clone: clone
+    clone: clone,
+    sortObject: sortObject
   };
 
   var global$5 = utils.global;

@@ -306,5 +306,6 @@ export default {
 	asyncCall,
 	getObjectAttr,
 	setObjectAttr,
-	clone
+	clone,
+	sortObject,
 };
