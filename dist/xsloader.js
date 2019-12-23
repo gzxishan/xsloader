@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2019 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 23 Dec 2019 17:02:19 GMT
+ * build time:Mon, 23 Dec 2019 18:10:25 GMT
  */
 (function () {
   'use strict';

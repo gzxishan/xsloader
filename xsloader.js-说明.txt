@@ -159,6 +159,7 @@
     xsloader.isDate(arg)
     xsloader.isRegExp(arg)
     xsloader.isEmpty(arg):判断对象是否为null、undefined或空字符串
+    xsloader.sortObject(obj):返回一个排序后的对象
     xsloader.getObjectAttr(obj, attrNames,defaultValue);
     xsloader.setObjectAttr(obj, attrNames, value);
     xsloader.tryCall(fun, defaultReturn,thiz)

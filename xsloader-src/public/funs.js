@@ -278,6 +278,23 @@ function clone(obj, isDeep = false) {
 	return obj;
 }
 
+function sortObject(obj) {
+	if(!obj || !xsloader.isObject(obj)) {
+		return obj;
+	} else {
+		let keys = [];
+		for(let k in obj) {
+			keys.push(k);
+		}
+		keys.sort();
+		let newObj = {};
+		for(let i = 0; i < keys.length; i++) {
+			newObj[keys[i]] = obj[keys[i]];
+		}
+		return newObj;
+	}
+}
+
 export default {
 	queryParam,
 	getUrl,
