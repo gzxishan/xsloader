@@ -120,6 +120,9 @@ let initFun = () => {
 								mainPath = utils.getPathWithRelative(location.href, getMainPath(globalConfig));
 								loader = globalConfig.loader[loaderName];
 								conf = globalConfig;
+								if(loader){
+									globalConfig.current=loaderName;
+								}
 							}
 
 							if(!loader) {
@@ -128,6 +131,9 @@ let initFun = () => {
 								mainPath = utils.getPathWithRelative(location.href, getMainPath(localConfig));
 								loader = localConfig.loader[loaderName];
 								conf = localConfig;
+								if(loader){
+									localConfig.current=loaderName;
+								}
 							}
 
 							if(!loader) {
@@ -170,6 +176,7 @@ let initFun = () => {
 				console.error("unknown local loader:" + loaderName);
 				return;
 			}
+			localConfig.current=loaderName;
 			initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
 		}, true);
 	}

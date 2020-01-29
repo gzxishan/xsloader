@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2020 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 29 Jan 2020 12:39:21 GMT
+ * build time:Wed, 29 Jan 2020 12:49:18 GMT
  */
 (function () {
   'use strict';
@@ -6715,6 +6715,10 @@
                 mainPath = utils.getPathWithRelative(location.href, getMainPath(globalConfig));
                 loader = globalConfig.loader[loaderName];
                 conf = globalConfig;
+
+                if (loader) {
+                  globalConfig.current = loaderName;
+                }
               }
 
               if (!loader) {
@@ -6723,6 +6727,10 @@
                 mainPath = utils.getPathWithRelative(location.href, getMainPath(localConfig));
                 loader = localConfig.loader[loaderName];
                 conf = localConfig;
+
+                if (loader) {
+                  localConfig.current = loaderName;
+                }
               }
 
               if (!loader) {
@@ -6763,6 +6771,7 @@
           return;
         }
 
+        localConfig.current = loaderName;
         initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
       }, true);
     }
