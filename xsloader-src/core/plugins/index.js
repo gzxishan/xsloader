@@ -13,3 +13,4 @@ import "./xshttp.js";
 import "./request.js";
 import "./xsmsg.js";
 import "./image.js";
+import "./default.js";

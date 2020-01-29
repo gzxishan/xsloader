@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>主页面</title>
+		<script src="../../../dist/xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<p>
+			<div id="logDiv">
+
+			</div>
+		</p>
+		<script type="text/javascript">
+			window.divLog = function(obj) {
+				var div = document.getElementById("logDiv");
+				var txt = (typeof obj == "string") && obj || xsJson2String(obj) || "";
+				txt = txt.replace(/\\r\\n|\\n/g, "\n");
+				txt = txt.replace(/\\t/g, "    ");
+
+				div.innerText = div.innerText + "\n" + txt;
+			};
+			xsloader({});
+			require(["xsmsg"], function(xsmsg) {
+				xsmsg.listenMessage({
+					timeout:10000,
+					cmd:"test"
+				});
+			});
+		</script>
+	</body>
+
+</html>

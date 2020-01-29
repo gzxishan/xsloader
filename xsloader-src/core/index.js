@@ -198,7 +198,7 @@ loader.loaderFun((option) => {
 			return this.dealUrl(url, url);
 		},
 		defaultVersion: {},
-		plugins:{},
+		plugins: {},
 	}, option);
 
 	option.plugins.loading = xsloader.extend({
@@ -214,7 +214,12 @@ loader.loaderFun((option) => {
 	option.plugins.image = xsloader.extend({
 		timeout: 10000, //超时时间，毫秒
 	}, option.plugins.image);
-	
+
+	option.plugins.xsmsg = xsloader.extend({
+		timeout: 30000, //连接超时时间，毫秒
+		sleep:500,//连接检测的休眠时间，毫秒
+	}, option.plugins.xsmsg);
+
 	if(!xsloader.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";
 	}

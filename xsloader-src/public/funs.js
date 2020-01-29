@@ -23,13 +23,13 @@ function queryParam(name, otherValue, optionUrl) {
 	return otherValue !== undefined ? otherValue : null;
 }
 
-function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
+function getUrl(relativeUrl, appendArgs=true, optionalAbsUrl) {
 	if(optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
 		throw new Error("expected absolute url:" + optionalAbsUrl);
 	}
-	if(appendArgs === undefined) {
-		appendArgs = true;
-	}
+//	if(appendArgs === undefined) {
+//		appendArgs = true;
+//	}
 	let theConfig = xsloader.config();
 	let thePageUrl = utils.thePageUrl;
 	let url;
@@ -50,10 +50,10 @@ function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
 	}
 }
 
-function getUrl2(relativeUrl, appendArgs, optionalAbsUrl) {
+function getUrl2(relativeUrl, appendArgs=false, optionalAbsUrl) {
 	let url = getUrl(relativeUrl, false, optionalAbsUrl);
 	if(appendArgs) {
-		return theConfig.dealUrl({}, url);
+		return xsloader.config().dealUrl({}, url);
 	} else {
 		return url;
 	}

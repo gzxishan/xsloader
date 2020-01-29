@@ -1,9 +1,9 @@
 /*!
- * xsloader.js v1.1.5
+ * xsloader.js v1.1.6
  * home:https://github.com/gzxishan/xsloader#readme
- * (c) 2018-2019 gzxishan
+ * (c) 2018-2020 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Mon, 23 Dec 2019 18:16:13 GMT
+ * build time:Wed, 29 Jan 2020 12:39:21 GMT
  */
 (function () {
   'use strict';
@@ -1740,13 +1740,12 @@
     return otherValue !== undefined ? otherValue : null;
   }
 
-  function getUrl(relativeUrl, appendArgs, optionalAbsUrl) {
+  function getUrl(relativeUrl) {
+    var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
+    var optionalAbsUrl = arguments.length > 2 ? arguments[2] : undefined;
+
     if (optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
       throw new Error("expected absolute url:" + optionalAbsUrl);
-    }
-
-    if (appendArgs === undefined) {
-      appendArgs = true;
     }
 
     var theConfig = xsloader$5.config();
@@ -1772,11 +1771,13 @@
     }
   }
 
-  function getUrl2(relativeUrl, appendArgs, optionalAbsUrl) {
+  function getUrl2(relativeUrl) {
+    var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    var optionalAbsUrl = arguments.length > 2 ? arguments[2] : undefined;
     var url = getUrl(relativeUrl, false, optionalAbsUrl);
 
     if (appendArgs) {
-      return theConfig.dealUrl({}, url);
+      return xsloader$5.config().dealUrl({}, url);
     } else {
       return url;
     }
@@ -4364,11 +4365,11 @@
   var global$a = utils.global;
   var xsloader$b = global$a.xsloader;
   var theContext;
-  var theConfig$1;
+  var theConfig;
   var argsObject = {};
 
   xsloader$b.config = function () {
-    return theConfig$1;
+    return theConfig;
   };
 
   xsloader$b.script = function () {
@@ -4566,6 +4567,10 @@
     option.plugins.image = xsloader$b.extend({
       timeout: 10000
     }, option.plugins.image);
+    option.plugins.xsmsg = xsloader$b.extend({
+      timeout: 30000,
+      sleep: 500
+    }, option.plugins.xsmsg);
 
     if (!xsloader$b.endsWith(option.baseUrl, "/")) {
       option.baseUrl += "/";
@@ -4768,10 +4773,10 @@
       _loop(keyName);
     }
 
-    theConfig$1 = option;
+    theConfig = option;
     theContext = _newContext();
     script.onConfigedCallback();
-    return theConfig$1;
+    return theConfig;
   });
 
   var global$b = utils.global;
@@ -6030,12 +6035,12 @@
     };
 
     if (window.addEventListener) {
-      var CommunicationUnit = function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata) {
+      var CommunicationUnit = function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata, timeout, sleep) {
         var msgQueue = new LinkedList();
-        var MAX_TRY = 100,
-            SLEEP = 500;
-        var isConnected = false,
-            connectCount = 0;
+        var SLEEP = sleep;
+        var starttime;
+        var isFailed = false;
+        var isConnected = false;
         var isCanceled = false;
         var thiz = this;
         var handleId;
@@ -6055,29 +6060,37 @@
           postMessageBridge.remove(handleId);
         };
 
+        function couldChat() {
+          return !isFailed && !isCanceled;
+        }
+
         function _onConned(_source, data) {
-          thiz.onConnectedListener.call(thiz, data);
-          isConnected = true;
-          sendTop();
+          if (couldChat()) {
+            thiz.onConnectedListener.call(thiz, data);
+            isConnected = true;
+            sendTop();
+          }
         }
 
         function _onMsg(data, msgid) {
-          try {
-            thiz.onReceiveListener.call(thiz, data);
-          } catch (e) {
-            console.warn(e);
-          }
+          if (couldChat()) {
+            try {
+              thiz.onReceiveListener.call(thiz, data);
+            } catch (e) {
+              console.warn(e);
+            }
 
-          postMessageBridge.sendResponse({
-            id: msgid
-          }, handleId);
+            postMessageBridge.sendResponse({
+              id: msgid
+            }, handleId);
+          }
         }
 
         function _onResponse(data) {
           msgQueue.remove(function (elem) {
             return elem.id = data.id;
           });
-          sendTop();
+          couldChat() && sendTop();
         }
 
         function _onElse(type) {
@@ -6102,25 +6115,48 @@
           }
         }
 
-        function init() {
-          if (isConnected || connectCount > MAX_TRY || isCanceled) {
+        function isTimeout() {
+          var dt = new Date().getTime() - starttime;
+          return dt > timeout;
+        }
+
+        function initActively() {
+          if (isConnected || isTimeout() || isCanceled) {
             if (!isConnected && !isCanceled) {
-              onfailed("timeout");
+              isFailed = true;
+              onfailed("timeout:connect");
             }
 
             return;
           }
 
           postMessageBridge.sendConn(handleId);
-          connectCount++;
-          postMessageBridge.runAfter(SLEEP, init);
+          postMessageBridge.runAfter(SLEEP, initActively);
         }
 
-        if (source) {
-          initListen();
-          init();
-        } else if (!isActive) {
-          initListen();
+        function checkPassively() {
+          if (isConnected || isTimeout() || isCanceled) {
+            if (!isConnected && !isCanceled) {
+              isFailed = true;
+              onfailed("timeout:wait connect");
+            }
+
+            return;
+          }
+
+          postMessageBridge.runAfter(SLEEP, checkPassively);
+        }
+
+        {
+          starttime = new Date().getTime();
+
+          if (source) {
+            initListen();
+            initActively();
+          } else if (!isActive) {
+            initListen();
+            checkPassively();
+          }
         }
 
         this.setSource = function (_source) {
@@ -6128,24 +6164,27 @@
 
           if (source) {
             initListen();
-            init();
+            initActively();
           }
         };
       };
 
       var _connectWindow = function _connectWindow(winObjOrCallback, option, notActive) {
+        var gconfig = xsloader$q.config().plugins.xsmsg;
         option = xsloader$q.extendDeep({
           cmd: "default-cmd",
           listener: null,
           connected: null,
           conndata: null,
+          timeout: gconfig.timeout,
+          sleep: gconfig.sleep,
           connectingSource: function connectingSource(source, origin, conndata, callback) {
             var mine = location.protocol + "//" + location.host;
             callback(mine == origin, "default");
           },
           onfailed: function onfailed(errtype) {
-            if (errtype == "timeout") {
-              console.warn("connect may timeout:cmd=" + option.cmd + ",my page=" + location.href);
+            if (errtype.indexOf("timeout:") == 0) {
+              console.warn("connect may timeout:cmd=" + option.cmd + " ,err='" + errtype + "' ,my page=" + location.href);
             }
           }
         }, option);
@@ -6154,14 +6193,16 @@
         var receiveCallback = option.listener;
         var conndata = option.conndata;
         var onfailed = option.onfailed;
+        var timeout = option.timeout;
+        var sleep = option.sleep;
         var isActive = !notActive;
         var connectingSource = option.connectingSource;
         var unit;
 
         if (typeof winObjOrCallback == "function") {
-          unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata);
+          unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata, timeout, sleep);
         } else {
-          unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata);
+          unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata, timeout, sleep);
         }
 
         connectedCallback = connectedCallback || function (sender, conndata) {
@@ -6532,7 +6573,32 @@
 
   var global$r = utils.global;
   var xsloader$s = global$r.xsloader;
-  var http = global$r._xshttp_request_;
+  xsloader$s.define("default", {
+    isSingle: true,
+    pluginMain: function pluginMain(arg, onload, onerror, config) {
+      var dep = arg;
+
+      var handle = this.invoker().withAbsUrl().require([dep], function (mod, depModuleArgs) {
+        if (xsloader$s.isObject(mod)) {
+          mod = mod["default"];
+
+          if (mod === undefined) {
+            mod = null;
+          }
+        } else {
+          mod = null;
+        }
+
+        onload(mod);
+      }).error(function (err, invoker) {
+        onerror(err);
+      });
+    }
+  });
+
+  var global$s = utils.global;
+  var xsloader$t = global$s.xsloader;
+  var http = global$s._xshttp_request_;
   var DATA_CONF = "data-conf",
       DATA_CONFX = "data-xsloader-conf";
   var DATA_CONF2 = "data-conf2",
@@ -6541,9 +6607,9 @@
       DATA_MAINX = "data-xsloader-main";
   var DATA_CONF_TYPE = "data-conf-type";
   var serviceConfigUrl;
-  var dataConf = xsloader$s.script().getAttribute(DATA_CONF) || xsloader$s.script().getAttribute(DATA_CONFX);
-  var dataMain = xsloader$s.script().getAttribute(DATA_MAIN) || xsloader$s.script().getAttribute(DATA_MAINX);
-  var dataConfType = xsloader$s.script().getAttribute(DATA_CONF_TYPE);
+  var dataConf = xsloader$t.script().getAttribute(DATA_CONF) || xsloader$t.script().getAttribute(DATA_CONFX);
+  var dataMain = xsloader$t.script().getAttribute(DATA_MAIN) || xsloader$t.script().getAttribute(DATA_MAINX);
+  var dataConfType = xsloader$t.script().getAttribute(DATA_CONF_TYPE);
 
   if (dataConfType !== "json" && dataConfType != "js") {
     dataConfType = "auto";
@@ -6560,7 +6626,7 @@
         name = "index";
       }
 
-      if (xsloader$s.endsWith(name, ".html")) {
+      if (xsloader$t.endsWith(name, ".html")) {
         name = name.substring(0, name.length - 5);
       }
 
@@ -6573,7 +6639,7 @@
     }
 
     function extendConfig(config) {
-      config = xsloader$s.extendDeep({
+      config = xsloader$t.extendDeep({
         properties: {},
         main: {
           getPath: function getPath() {
@@ -6615,14 +6681,14 @@
           var conf;
 
           if (dataConfType == "js") {
-            conf = xsloader$s.xsEval(confText);
+            conf = xsloader$t.xsEval(confText);
           } else if (dataConfType == "json") {
-            conf = xsloader$s.xsParseJson(confText);
+            conf = xsloader$t.xsParseJson(confText);
           } else {
-            if (xsloader$s.startsWith(url, location.protocol + "//" + location.host + "/")) {
-              conf = xsloader$s.xsEval(confText);
+            if (xsloader$t.startsWith(url, location.protocol + "//" + location.host + "/")) {
+              conf = xsloader$t.xsEval(confText);
             } else {
-              conf = xsloader$s.xsParseJson(confText);
+              conf = xsloader$t.xsParseJson(confText);
             }
           }
 
@@ -6632,13 +6698,13 @@
             conf.beforeDealProperties();
           }
 
-          conf = xsloader$s.dealProperties(conf, conf.properties);
+          conf = xsloader$t.dealProperties(conf, conf.properties);
 
           if (isLocal && conf.service.hasGlobal) {
             loadServiceConfig("global servie", conf.service.confUrl, function (globalConfig) {
               var localConfig = conf;
-              global$r[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
-              global$r[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
+              global$s[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
+              global$s[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
               var mainName, mainPath, loaderName;
               loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
               var conf;
@@ -6678,7 +6744,7 @@
 
     function startLoad() {
       loadServiceConfig("local", serviceConfigUrl, function (localConfig) {
-        global$r[localConfig.main.localConfigVar] = localConfig;
+        global$s[localConfig.main.localConfigVar] = localConfig;
         var mainName = localConfig.main.name;
         var href = location.href;
         var index = href.lastIndexOf("?");
@@ -6708,10 +6774,10 @@
       conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
       localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
-      xsloader$s._resUrlBuilder = function (groupModule) {
+      xsloader$t._resUrlBuilder = function (groupModule) {
         var as = [];
         utils.each(resUrls, function (url) {
-          as.push(xsloader$s.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
+          as.push(xsloader$t.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));
         });
         return as;
       };
@@ -6721,7 +6787,7 @@
       loader.depsPaths = loader.depsPaths || {};
 
       if (mainPath.indexOf("!") != -1) {
-        var theConfig = xsloader$s(loader);
+        var theConfig = xsloader$t(loader);
         mainName = "_plugin_main_";
         var deps = [];
 
@@ -6736,31 +6802,31 @@
         }
 
         deps.push(mainPath);
-        xsloader$s.define(mainName, deps, function () {}).then({
+        xsloader$t.define(mainName, deps, function () {}).then({
           absUrl: pageHref
         });
-      } else if (!xsloader$s.hasDefine(mainName)) {
+      } else if (!xsloader$t.hasDefine(mainName)) {
         loader.depsPaths[mainName] = mainPath;
-        xsloader$s(loader);
+        xsloader$t(loader);
       } else {
-        xsloader$s(loader);
+        xsloader$t(loader);
       }
 
       loader.defineFunction[mainName] = function (originCallback, originThis, originArgs) {
-        if (xsloader$s.isFunction(conf.main.before)) {
+        if (xsloader$t.isFunction(conf.main.before)) {
           conf.main.before.call(conf, mainName);
         }
 
         var rt = originCallback.apply(originThis, originArgs);
 
-        if (xsloader$s.isFunction(conf.main.after)) {
+        if (xsloader$t.isFunction(conf.main.after)) {
           conf.main.after.call(conf, mainName);
         }
 
         return rt;
       };
 
-      xsloader$s.require([mainName], function (main) {}).error(function (err, invoker) {
+      xsloader$t.require([mainName], function (main) {}).error(function (err, invoker) {
         if (invoker) {
           console.error("error occured:invoker.url=", invoker.getUrl());
         }
@@ -6770,13 +6836,13 @@
       });
     }
 
-    xsloader$s.asyncCall(startLoad, true);
+    xsloader$t.asyncCall(startLoad, true);
   };
 
   if (dataConf) {
     serviceConfigUrl = utils.getPathWithRelative(location.href, dataConf);
-  } else if (dataConf = xsloader$s.script().getAttribute(DATA_CONF2) || xsloader$s.script().getAttribute(DATA_CONF2X)) {
-    serviceConfigUrl = utils.getPathWithRelative(xsloader$s.scriptSrc(), dataConf);
+  } else if (dataConf = xsloader$t.script().getAttribute(DATA_CONF2) || xsloader$t.script().getAttribute(DATA_CONF2X)) {
+    serviceConfigUrl = utils.getPathWithRelative(xsloader$t.scriptSrc(), dataConf);
   } else {
     initFun = null;
   }

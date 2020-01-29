@@ -436,13 +436,24 @@ try {
 			return handle;
 		})();
 
-		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata) {
+		/**
+		 * 
+		 * @param {Object} cmd
+		 * @param {Object} source
+		 * @param {Object} connectingSource
+		 * @param {Object} onfailed
+		 * @param {Object} isActive
+		 * @param {Object} conndata 连接传送的数据
+		 * @param {Object} timeout 连接超时时间，毫秒
+		 * @param {Object} sleep 连接检测的休眠时间，毫秒
+		 */
+		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata, timeout,sleep) {
 			let msgQueue = new LinkedList();
 
-			let MAX_TRY = 100,
-				SLEEP = 500;
-			let isConnected = false,
-				connectCount = 0;
+			let SLEEP = sleep;
+			let starttime;
+			let isFailed = false;
+			let isConnected = false;
 			let isCanceled = false;
 
 			let thiz = this;
@@ -463,28 +474,36 @@ try {
 				postMessageBridge.remove(handleId);
 			};
 
+			function couldChat() {
+				return !isFailed && !isCanceled;
+			}
+
 			function _onConned(_source, data) {
-				thiz.onConnectedListener.call(thiz, data);
-				isConnected = true;
-				sendTop();
+				if(couldChat()) {
+					thiz.onConnectedListener.call(thiz, data);
+					isConnected = true;
+					sendTop();
+				}
 			}
 
 			function _onMsg(data, msgid) {
-				try {
-					thiz.onReceiveListener.call(thiz, data);
-				} catch(e) {
-					console.warn(e);
+				if(couldChat()) {
+					try {
+						thiz.onReceiveListener.call(thiz, data);
+					} catch(e) {
+						console.warn(e);
+					}
+					postMessageBridge.sendResponse({ //回应已经收到
+						id: msgid
+					}, handleId);
 				}
-				postMessageBridge.sendResponse({ //回应已经收到
-					id: msgid
-				}, handleId);
 			}
 
 			function _onResponse(data) {
 				msgQueue.remove(function(elem) {
 					return elem.id = data.id;
 				});
-				sendTop();
+				couldChat() && sendTop();
 			}
 
 			function _onElse(type) {
@@ -508,29 +527,56 @@ try {
 				}
 			}
 
-			function init() {
-				if(isConnected || connectCount > MAX_TRY || isCanceled) {
+			function isTimeout() {
+				let dt = new Date().getTime() - starttime;
+				return dt > timeout;
+			}
+
+			/**
+			 * 主动方初始化
+			 */
+			function initActively() {
+				if(isConnected || isTimeout() || isCanceled) {
 					if(!isConnected && !isCanceled) {
-						onfailed("timeout");
+						isFailed = true;
+						onfailed("timeout:connect");
 					}
 					return;
 				}
 				postMessageBridge.sendConn(handleId);
-				connectCount++;
-				postMessageBridge.runAfter(SLEEP, init);
+				postMessageBridge.runAfter(SLEEP, initActively);
 			}
-			if(source) {
-				initListen();
-				init();
-			} else if(!isActive) {
-				initListen();
+
+			/**
+			 * 被动方检查
+			 */
+			function checkPassively() {
+				if(isConnected || isTimeout() || isCanceled) {
+					if(!isConnected && !isCanceled) {
+						isFailed = true;
+						onfailed("timeout:wait connect");
+					}
+					return;
+				}
+				postMessageBridge.runAfter(SLEEP, checkPassively);
+			}
+
+			{
+				starttime = new Date().getTime();
+				if(source) {
+					initListen();
+					initActively();
+				} else if(!isActive) {
+					initListen();
+					checkPassively();
+				}
 			}
 
 			this.setSource = function(_source) {
 				source = _source;
 				if(source) {
 					initListen();
-					init();
+					initActively();
 				}
 			};
 		}
@@ -544,18 +590,21 @@ try {
 		 * @param {Object} notActive
 		 */
 		function _connectWindow(winObjOrCallback, option, notActive) {
+			const gconfig = xsloader.config().plugins.xsmsg;
 			option = xsloader.extendDeep({
 				cmd: "default-cmd",
 				listener: null,
 				connected: null,
 				conndata: null,
+				timeout: gconfig.timeout,
+				sleep:gconfig.sleep,
 				connectingSource: function(source, origin, conndata, callback) {
 					let mine = location.protocol + "//" + location.host;
 					callback(mine == origin, "default");
 				},
 				onfailed: function(errtype) {
-					if(errtype == "timeout") {
-						console.warn("connect may timeout:cmd=" + option.cmd + ",my page=" + location.href);
+					if(errtype.indexOf("timeout:")==0) {
+						console.warn("connect may timeout:cmd=" + option.cmd+" ,err='"+errtype + "' ,my page=" + location.href);
 					}
 				}
 			}, option);
@@ -565,15 +614,17 @@ try {
 			let receiveCallback = option.listener;
 			let conndata = option.conndata;
 			let onfailed = option.onfailed;
+			let timeout = option.timeout;
+			let sleep = option.sleep;
 
 			let isActive = !notActive;
 			let connectingSource = option.connectingSource;
 
 			let unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata);
+				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata, timeout,sleep);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata, timeout,sleep);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
@@ -682,6 +733,8 @@ try {
 		 * option.connected:function(sender,conndata)
 		 * option.onfailed:function(errtype):errtype,timeout,canceled
 		 * option.conndata:
+		 * option.timeout:连接超时时间
+		 * option.sleep:连接检测休眠时间
 		 **************
 		 * 回调的extra参数
 		 **************
