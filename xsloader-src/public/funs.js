@@ -50,7 +50,7 @@ function getUrl(relativeUrl, appendArgs=true, optionalAbsUrl) {
 	}
 }
 
-function getUrl2(relativeUrl, appendArgs=false, optionalAbsUrl) {
+function getUrl2(relativeUrl, appendArgs=true, optionalAbsUrl) {
 	let url = getUrl(relativeUrl, false, optionalAbsUrl);
 	if(appendArgs) {
 		return xsloader.config().dealUrl({}, url);
