@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2020 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 29 Jan 2020 12:49:18 GMT
+ * build time:Wed, 29 Jan 2020 12:54:56 GMT
  */
 (function () {
   'use strict';
@@ -1772,7 +1772,7 @@
   }
 
   function getUrl2(relativeUrl) {
-    var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+    var appendArgs = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : true;
     var optionalAbsUrl = arguments.length > 2 ? arguments[2] : undefined;
     var url = getUrl(relativeUrl, false, optionalAbsUrl);
 
