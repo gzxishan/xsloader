@@ -405,24 +405,28 @@ try {
 						return;
 					}
 
-					let cmd = data.cmd;
-					let oinstanceid = data.id;
-					let rdata = data.data;
-					let type = data.type;
-					let msgid = data.msgid;
+					try {
+						let cmd = data.cmd;
+						let oinstanceid = data.id;
+						let rdata = data.data;
+						let type = data.type;
+						let msgid = data.msgid;
 
-					if(type == "conn") {
-						handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
-					} else if(type == "accept") {
-						handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-					} else if(type == "conned") {
-						handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
-					} else if(type == "msg") {
-						handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
-					} else if(type == "response") {
-						handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
-					} else if(type == "binded") {
-						handleBinded(cmd, event.source, event.origin, rdata);
+						if(type == "conn") {
+							handleConn(cmd, event.source, event.origin, rdata, oinstanceid);
+						} else if(type == "accept") {
+							handleAccept(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+						} else if(type == "conned") {
+							handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
+						} else if(type == "msg") {
+							handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+						} else if(type == "response") {
+							handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
+						} else if(type == "binded") {
+							handleBinded(cmd, event.source, event.origin, rdata);
+						}
+					} catch(e) {
+						console.error(e);
 					}
 
 				}
@@ -447,7 +451,7 @@ try {
 		 * @param {Object} timeout 连接超时时间，毫秒
 		 * @param {Object} sleep 连接检测的休眠时间，毫秒
 		 */
-		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata, timeout,sleep) {
+		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata, timeout, sleep) {
 			let msgQueue = new LinkedList();
 
 			let SLEEP = sleep;
@@ -597,14 +601,14 @@ try {
 				connected: null,
 				conndata: null,
 				timeout: gconfig.timeout,
-				sleep:gconfig.sleep,
+				sleep: gconfig.sleep,
 				connectingSource: function(source, origin, conndata, callback) {
 					let mine = location.protocol + "//" + location.host;
 					callback(mine == origin, "default");
 				},
 				onfailed: function(errtype) {
-					if(errtype.indexOf("timeout:")==0) {
-						console.warn("connect may timeout:cmd=" + option.cmd+" ,err='"+errtype + "' ,my page=" + location.href);
+					if(errtype.indexOf("timeout:") == 0) {
+						console.warn("connect may timeout:cmd=" + option.cmd + " ,err='" + errtype + "' ,my page=" + location.href);
 					}
 				}
 			}, option);
@@ -622,9 +626,9 @@ try {
 
 			let unit;
 			if(typeof winObjOrCallback == "function") {
-				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata, timeout,sleep);
+				unit = new CommunicationUnit(cmd, null, connectingSource, onfailed, isActive, conndata, timeout, sleep);
 			} else {
-				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata, timeout,sleep);
+				unit = new CommunicationUnit(cmd, winObjOrCallback, connectingSource, onfailed, isActive, conndata, timeout, sleep);
 			}
 
 			connectedCallback = connectedCallback || function(sender, conndata) {
