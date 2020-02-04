@@ -29,7 +29,7 @@
 	},
 	plugins:{
 		loading:{//顶部加载进度条
-			enable: true,
+			enable: true,//在xsloader的script标签上增加disabled-loading属性也可以禁止
 	        color: '#2196f3',
 	        bgColor:'rgba(0,0,0,0.1)',
 	        errColor: '#f5222d',

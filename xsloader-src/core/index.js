@@ -211,13 +211,17 @@ loader.loaderFun((option) => {
 		delay: 500,
 	}, option.plugins.loading);
 
+	if(script.theLoaderScript.getAttribute("disable-loading") !== undefined) {
+		option.plugins.loading.enable = false;
+	}
+
 	option.plugins.image = xsloader.extend({
 		timeout: 10000, //超时时间，毫秒
 	}, option.plugins.image);
 
 	option.plugins.xsmsg = xsloader.extend({
 		timeout: 30000, //连接超时时间，毫秒
-		sleep:500,//连接检测的休眠时间，毫秒
+		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
 
 	if(!xsloader.endsWith(option.baseUrl, "/")) {
