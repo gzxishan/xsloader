@@ -153,6 +153,13 @@ require.has = function() {
 	}
 	return true;
 };
+require.get = function(name) {
+	if(!xsloader.isString(name)) {
+		throw new Error("expected string type for module name");
+	} else {
+		return require(name);
+	}
+};
 
 xsloader.define = define;
 //deprecated

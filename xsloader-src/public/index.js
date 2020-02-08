@@ -27,7 +27,8 @@ let justLoader = {
 	_ignoreAspect_: {
 
 	},
-	each: utils.each
+	each: utils.each,
+	Base64: utils.base64,
 };
 for(let k in justLoader) {
 	xsloader[k] = justLoader[k];

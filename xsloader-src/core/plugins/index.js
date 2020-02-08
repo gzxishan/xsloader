@@ -14,3 +14,4 @@ import "./request.js";
 import "./xsmsg.js";
 import "./image.js";
 import "./default.js";
+import "./xsloader4j-server-bridge.js";

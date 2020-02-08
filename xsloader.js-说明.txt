@@ -29,7 +29,7 @@
 	},
 	plugins:{
 		loading:{//顶部加载进度条
-			enable: true,//在xsloader的script标签上增加disabled-loading属性也可以禁止
+			enable: true,//在xsloader的script标签上增加disabled-loading属性可以高优先级地设置enable为false
 	        color: '#2196f3',
 	        bgColor:'rgba(0,0,0,0.1)',
 	        errColor: '#f5222d',
@@ -57,12 +57,13 @@
  2、xsloader.onError=function(code,errinfo)回调函数
                               
  3、require基础方法：
-  	（1）require("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常。
+  	（1）require("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常（在define或require内部时会自动添加为顶部依赖）。
   	（2）require.has(...)是否含有指定的所有模块，如var exists = require.has("a","b","c");
   	（3）require([deps],function(dep1,dep2,...){})
   	（4）require.then({onError:function(err,invoker),orderDep:false,absUrl:url,before:function(deps),depBefore:function(index,dep,depDeps)})
   	（5）require.error(function(err,invoker){})同then的onError
   	（6）require([deps]),当只有一个参数、且为依赖数组时，返回Promise:若数组大小为1、则Promise的then为该模块，若大于1、则为模块数组.
+  	（7）require.get("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常。
  4、define基础方法：
   	content可以是任何类型。
   	（1）define([deps],content)
@@ -113,7 +114,7 @@
      （2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
      （3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖
      （4）nodeps!插件用于加载某些js文件，忽略其所有依赖，可用于忽略在加载webpack等打包的模块时自动添加内部require('...')的依赖
-     （5）exists!插件格式：exists!module|windowVar1|windowVar2...
+     （5）exists!插件格式：exists!module1 or module2 or module3|windowVar1|windowVar2...
      （6）image!用于预加载图片
      （7）default!用于获取es6+的默认模块，在define或require的依赖里使用。
  10、config参数详解

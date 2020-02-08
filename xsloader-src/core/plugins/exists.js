@@ -3,6 +3,9 @@ import utils from "../../util/index.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
+/**
+ * exists!module1 or module2 or module3|windowVar1|windowVar2...
+ */
 xsloader.define("exists", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
@@ -13,8 +16,16 @@ xsloader.define("exists", {
 		if(vars.length == 0) {
 			onerror("args error for exists!");
 		} else {
-			let moduleName = vars[0];
-			let module = moduleScript.getModule(moduleName);
+			let moduleNames = (vars[0].replace(/\s/g, " ")).split(" or ");
+			let moduleName;
+			let module;
+			for(let i = 0; i < moduleNames.length; i++) {
+				moduleName = moduleNames[i].trim();
+				module = moduleScript.getModule(moduleName);
+				if(module) {
+					break;
+				}
+			}
 			if(module) {
 				this.invoker().withAbsUrl().require([moduleName], function(mod, depModuleArgs) {
 					onload(mod);
