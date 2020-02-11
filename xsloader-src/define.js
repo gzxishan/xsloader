@@ -140,6 +140,14 @@ const require = function() {
 	return defineHandle.prerequire.apply(this, arguments);
 };
 
+require.get = function(name) {
+	if(!xsloader.isString(name)) {
+		throw new Error("expected string type for module name");
+	} else {
+		return require.call(this,name);
+	}
+};
+
 require.has = function() {
 	var args = arguments;
 	if(args.length == 0) {
@@ -152,13 +160,6 @@ require.has = function() {
 		}
 	}
 	return true;
-};
-require.get = function(name) {
-	if(!xsloader.isString(name)) {
-		throw new Error("expected string type for module name");
-	} else {
-		return require(name);
-	}
 };
 
 xsloader.define = define;

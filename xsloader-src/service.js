@@ -67,7 +67,7 @@ let initFun = () => {
 			},
 			loader: {
 				"default": {
-					autoUrlArgs: true
+					
 				}
 			}
 		}, config);

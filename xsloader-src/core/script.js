@@ -130,16 +130,16 @@ function _buildInvoker(module) {
 			return url;
 		}
 	};
-	
-	invoker.getUrl2=function(relativeUrl, appendArgs = true, optionalAbsUrl) {
-		let url=this.getUrl(relativeUrl,false,optionalAbsUrl);
+
+	invoker.getUrl2 = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
+		let url = this.getUrl(relativeUrl, false, optionalAbsUrl);
 		if(appendArgs) {
 			return xsloader.config().dealUrl(module, url);
 		} else {
 			return url;
 		}
 	};
-	
+
 	invoker.require = function() {
 		//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
 		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);
@@ -150,6 +150,11 @@ function _buildInvoker(module) {
 		}
 		return h;
 	};
+
+	invoker.require.get = function(name) {
+		return xsloader.require.get.apply(new ThisInvoker(invoker), [name]);
+	};
+
 	invoker.define = function() {
 		//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
 		let h = xsloader.define.apply(new ThisInvoker(invoker), arguments);
@@ -389,14 +394,14 @@ class DefineObject {
 			this.handle.orderDep = false;
 		}
 
-		//处理嵌套依赖
-		_dealEmbedDeps(deps, this);
+		_dealEmbedDeps(deps, this); //处理嵌套依赖
 		utils.replaceModulePrefix(config, deps); //前缀替换
+
 		if(module) {
 			module.deps = deps;
 			module._dealApplyArgs = (function(directDepLength, hasOrderDep) {
 				return function(applyArgs) {
-					if(directDepLength == 0) {
+					if(directDepLength == 0 || applyArgs.length == 0) {
 						return [];
 					}
 					//顺序依赖,还原成最初的顺序,移除额外的依赖。
@@ -824,7 +829,7 @@ function prerequire(deps, callback) {
 	}], true);
 	handle.waitTime = config.waitSeconds * 1000;
 
-	handle.logError = function(err, invoker,logFun="error") {
+	handle.logError = function(err, invoker, logFun = "error") {
 		invoker && console[logFun]("invoker.url=", invoker.getUrl());
 		thatInvoker && console[logFun]("require.invoker.url=", thatInvoker.getUrl());
 		console[logFun](utils.unwrapError(err));

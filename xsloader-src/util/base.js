@@ -1,7 +1,7 @@
 import global from './global.js';
 const xsloader = global.xsloader;
 const commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
-const cjsRequireRegExp = /[^.]require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const cjsRequireRegExp = /[^.]require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
 
 //基于有向图进行循环依赖检测
 function GraphPath() {
@@ -140,7 +140,8 @@ function each(ary, func, isSync, fromEnd) {
 function __commentReplace(match, singlePrefix) {
 	return singlePrefix || '';
 }
-//添加内部直接require('...')的模块
+
+//添加内部直接require.get('...')的模块
 function appendInnerDeps(deps, callback) {
 	if(xsloader.isFunction(callback)) {
 		callback

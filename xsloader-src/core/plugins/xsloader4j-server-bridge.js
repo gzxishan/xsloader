@@ -43,7 +43,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 		},
 		getVueCompiler(thiz) {
 			let rt = function(exports) {
-				let Vue = xsloader.require.get("vue");
+				let Vue = xsloader.require("vue");
 				let _default = exports['default'] || exports;
 				if(_default.template) {
 

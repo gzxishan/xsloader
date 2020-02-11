@@ -2,6 +2,9 @@ import utils from "../../util/index.js";
 const global = utils.global;
 const xsloader = global.xsloader;
 
+/**
+ * 用于加载某些js文件，忽略其所有依赖
+ */
 xsloader.define("nodeps", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
