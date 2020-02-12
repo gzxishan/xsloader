@@ -14,7 +14,7 @@ const banner =
 	` * home:${pkg.homepage}\n` +
 	` * (c) 2018-${new Date().getFullYear()} ${pkg.author}\n` +
 	` * Released under the ${pkg.license} License.\n` +
-	` * build time:${new Date().toGMTString()}\n` +
+	` * build time:${new Date().toString()}\n` +
 	' */'
 
 export default {
@@ -42,7 +42,11 @@ export default {
 		}),
 		(isProduct && uglify({
 			compress: {
-
+				join_vars: true, //合并连续 var 声明
+				sequences: true, //连续声明变量，用逗号隔开来。
+				conditionals: false, //优化if等判断以及条件选择
+				if_return: false, //优化 if/return 和 if/continue
+				passes: 3
 			},
 			output: {
 				semicolons: false,
@@ -50,6 +54,5 @@ export default {
 				comments: true //注释的保留已在babel里面进行过滤
 			}
 		})),
-
 	],
 };

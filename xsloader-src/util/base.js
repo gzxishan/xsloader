@@ -1,8 +1,9 @@
 import global from './global.js';
 const xsloader = global.xsloader;
 const COMMENT_REGEXP = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
-const REPLACE_REQUIRE_GET_REGEXP = /([\s]|^)require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
-const REPLACE_REQUIRE_REGEXP = /([\s]|^)require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const REPLACE_REQUIRE_GET_REGEXP = /(^|[\s\(\),;.\?:]+)require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const REPLACE_REQUIRE_REGEXP = /(^|[\s\(\),;.\?:]+)require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const NOT_REQUIRE_REGEXP = /\.\s*$/;
 
 //基于有向图进行循环依赖检测
 function GraphPath() {
@@ -142,10 +143,10 @@ function __commentReplace(match, singlePrefix) {
 	return singlePrefix || '';
 }
 
-function __appendInnerDeps(deps, callbackString, reg, depIndex) {
+function __appendInnerDeps(deps, callbackString, reg, depIndex, notIndex) {
 	callbackString.replace(reg, function() {
 		let dep = arguments[depIndex]
-		if(xsloader.indexInArray(deps, dep) == -1) {
+		if((!notIndex || !NOT_REQUIRE_REGEXP.test(arguments[notIndex])) && xsloader.indexInArray(deps, dep) == -1) {
 			deps.push(dep);
 		}
 	});
@@ -154,7 +155,8 @@ function __appendInnerDeps(deps, callbackString, reg, depIndex) {
 //添加内部直接require.get('...')或require('...')的模块
 function appendInnerDeps(deps, callback) {
 	if(xsloader.isFunction(callback)) {
-		let innerDepType = xsloader.config().props.innerDepType;
+		let theConfig = xsloader.config();
+		let innerDepType = !theConfig ? "disable" : theConfig.props.innerDepType;
 		if(innerDepType != "disable") {
 
 			const callbackString = callback
@@ -168,12 +170,12 @@ function appendInnerDeps(deps, callback) {
 			}
 
 			if(innerDepType == "auto") {
-				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2);
-				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2);
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2, 1);
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2, 1);
 			} else if(innerDepType == "require") {
-				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2);
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2, 1);
 			} else if(innerDepType == "require.get") {
-				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2);
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2, 1);
 			}
 
 		}
