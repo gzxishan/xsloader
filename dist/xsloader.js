@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2020 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Wed, 12 Feb 2020 07:51:27 GMT
+ * build time:Wed, 12 Feb 2020 08:11:13 GMT
  */
 (function () {
   'use strict';
@@ -3356,7 +3356,7 @@
                 dep = url;
               }
 
-              urls[index] = config.dealUrl(dep, url);
+              urls[index] = config.dealUrl(dep, url, true);
             });
           }
 
@@ -4639,6 +4639,7 @@
         return deps;
       },
       dealUrl: function dealUrl(module, url) {
+        var addVersion = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
         var urlArg;
         var nameOrUrl;
 
@@ -4694,7 +4695,7 @@
           urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
         }
 
-        if (this.props.addVersion) {
+        if (addVersion && this.props.addVersion) {
           urlArg += "&_xsv=" + encodeURIComponent(xsloader$b.env.version);
         }
 

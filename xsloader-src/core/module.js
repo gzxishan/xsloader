@@ -672,7 +672,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						if(urls[index] == dep) {
 							dep = url; //替换为绝对路径
 						}
-						urls[index] = config.dealUrl(dep, url);
+						urls[index] = config.dealUrl(dep, url,true);
 					});
 				}
 

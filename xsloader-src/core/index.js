@@ -131,7 +131,7 @@ loader.loaderFun((option) => {
 			}
 			return deps;
 		},
-		dealUrl(module, url) {
+		dealUrl(module, url, addVersion = false) {
 			let urlArg;
 			let nameOrUrl;
 			if(this.autoUrlArgs()) {
@@ -189,7 +189,7 @@ loader.loaderFun((option) => {
 				urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
 			}
 
-			if(this.props.addVersion) {
+			if(addVersion && this.props.addVersion) {
 				urlArg += "&_xsv=" + encodeURIComponent(xsloader.env.version);
 			}
 
@@ -206,7 +206,7 @@ loader.loaderFun((option) => {
 
 	option.props = xsloader.extend({
 		addVersion: true,
-		innerDepType: "auto",//auto,require.get,require,disable
+		innerDepType: "auto", //auto,require.get,require,disable
 	}, option.props);
 
 	option.plugins.loading = xsloader.extend({
