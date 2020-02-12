@@ -77,7 +77,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	//一个模块的所有名字，包括src
 	utils.each(defineObject.names, (name) => {
 		moduleScript.setModule(name, ifmodule);
-		if(xsloader._ignoreAspect_[name]) {
+		if(xsloader.ignoreAspect_[name]) {
 			ifmodule.ignoreAspect = true;
 		}
 	});
@@ -144,7 +144,7 @@ require.get = function(name) {
 	if(!xsloader.isString(name)) {
 		throw new Error("expected string type for module name");
 	} else {
-		return require.call(this,name);
+		return require.call(this, name);
 	}
 };
 

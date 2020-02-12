@@ -54,7 +54,7 @@ xsloader.hasDefine = function(name) {
 };
 
 //用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
-xsloader._resUrlBuilder = function(groupName) {
+xsloader.resUrlBuilder = function(groupName) {
 	throw new Error('resUrlBuilder not found!');
 };
 
@@ -89,9 +89,6 @@ loader.loaderFun((option) => {
 		deps: {},
 		jsExts: undefined,
 		properties: {},
-		loading: { //顶部加载进度条
-
-		},
 		modulePrefix: {},
 		defineFunction: {},
 		modulePrefixCount: 0,
@@ -191,6 +188,11 @@ loader.loaderFun((option) => {
 			for(let k in argsObject) { //加入全局的参数
 				urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
 			}
+
+			if(this.props.addVersion) {
+				urlArg += "&_xsv=" + encodeURIComponent(xsloader.env.version);
+			}
+
 			return xsloader.appendArgs2Url(url, urlArg);
 		},
 		dealUrlArgs(url) {
@@ -199,7 +201,13 @@ loader.loaderFun((option) => {
 		},
 		defaultVersion: {},
 		plugins: {},
+		props: {},
 	}, option);
+
+	option.props = xsloader.extend({
+		addVersion: true,
+		innerDepType: "auto",//auto,require.get,require,disable
+	}, option.props);
 
 	option.plugins.loading = xsloader.extend({
 		enable: true,

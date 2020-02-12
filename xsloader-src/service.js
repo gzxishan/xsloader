@@ -189,7 +189,7 @@ let initFun = () => {
 		conf.service.resUrls && Array.pushAll(resUrls, conf.service.resUrls);
 		localConfig !== conf && localConfig.service.resUrls && Array.pushAll(resUrls, localConfig.service.resUrls);
 
-		xsloader._resUrlBuilder = function(groupModule) {
+		xsloader.resUrlBuilder = function(groupModule) {
 			let as = [];
 			utils.each(resUrls, function(url) {
 				as.push(xsloader.appendArgs2Url(url, "m=" + encodeURIComponent(groupModule)));

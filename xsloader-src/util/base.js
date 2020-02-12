@@ -1,7 +1,8 @@
 import global from './global.js';
 const xsloader = global.xsloader;
-const commentRegExp = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
-const cjsRequireRegExp = /[^.]require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const COMMENT_REGEXP = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
+const REPLACE_REQUIRE_GET_REGEXP = /([\s]|^)require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
+const REPLACE_REQUIRE_REGEXP = /([\s]|^)require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
 
 //基于有向图进行循环依赖检测
 function GraphPath() {
@@ -141,17 +142,42 @@ function __commentReplace(match, singlePrefix) {
 	return singlePrefix || '';
 }
 
-//添加内部直接require.get('...')的模块
+function __appendInnerDeps(deps, callbackString, reg, depIndex) {
+	callbackString.replace(reg, function() {
+		let dep = arguments[depIndex]
+		if(xsloader.indexInArray(deps, dep) == -1) {
+			deps.push(dep);
+		}
+	});
+}
+
+//添加内部直接require.get('...')或require('...')的模块
 function appendInnerDeps(deps, callback) {
 	if(xsloader.isFunction(callback)) {
-		callback
-			.toString()
-			.replace(commentRegExp, __commentReplace)
-			.replace(cjsRequireRegExp, function(match, dep) {
-				if(xsloader.indexInArray(deps, dep) == -1) {
-					deps.push(dep);
+		let innerDepType = xsloader.config().props.innerDepType;
+		if(innerDepType != "disable") {
+
+			const callbackString = callback
+				.toString()
+				.replace(COMMENT_REGEXP, __commentReplace);
+
+			if(innerDepType == "auto") {
+				if(callbackString.indexOf("__webpack_require__") >= 0) {
+					innerDepType = "disable";
 				}
-			});
+			}
+
+			if(innerDepType == "auto") {
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2);
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2);
+			} else if(innerDepType == "require") {
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_REGEXP, 2);
+			} else if(innerDepType == "require.get") {
+				__appendInnerDeps(deps, callbackString, REPLACE_REQUIRE_GET_REGEXP, 2);
+			}
+
+		}
+
 	}
 }
 

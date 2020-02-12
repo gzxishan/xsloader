@@ -168,10 +168,13 @@ function _buildInvoker(module) {
 	invoker.rurl = function(defineObject) {
 		return defineObject && defineObject.absUrlFromDefineObject() || this.absUrl();
 	};
+
+	//deprecated
 	invoker.defineAsync = function() {
 		let h = invoker.define.apply(invoker, arguments);
 		return h;
 	};
+
 	invoker.withAbsUrl = function(absUrlStr) {
 		if(!absUrlStr) {
 			absUrlStr = invoker.absUrl();

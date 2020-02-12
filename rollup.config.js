@@ -3,6 +3,7 @@ import { eslint } from 'rollup-plugin-eslint';
 import babel from 'rollup-plugin-babel'
 import resolve from 'rollup-plugin-node-resolve'
 import pkg from './package.json';
+import replace from 'rollup-plugin-replace';
 
 const NODE_ENV = (process.env.NODE_ENV || "").trim();
 const isProduct = NODE_ENV == 'production';
@@ -10,10 +11,10 @@ const isProduct = NODE_ENV == 'production';
 const banner =
 	'/*!\n' +
 	` * xsloader.js v${pkg.version}\n` +
-	` * home:${pkg.homepage}\n`+
+	` * home:${pkg.homepage}\n` +
 	` * (c) 2018-${new Date().getFullYear()} ${pkg.author}\n` +
 	` * Released under the ${pkg.license} License.\n` +
-	` * build time:${new Date().toGMTString()}\n`+
+	` * build time:${new Date().toGMTString()}\n` +
 	' */'
 
 export default {
@@ -28,22 +29,26 @@ export default {
 	},
 	treeshake: true,
 	plugins: [
+		replace({
+			ENV_XSLOADER_VERSION: JSON.stringify(pkg.version)
+		}),
 		resolve({
 			browser: true
-		}),
-		!isProduct&&eslint({
+		}), !isProduct && eslint({
 			exclude: 'node_modules/**'
 		}),
 		babel({
 			exclude: 'node_modules/**'
 		}),
-		(isProduct && uglify(
-		{
+		(isProduct && uglify({
+			compress: {
+
+			},
 			output: {
-				semicolons:false,
+				semicolons: false,
 				beautify: false,
-                comments: true//注释的保留已在babel里面进行过滤
-            }
+				comments: true //注释的保留已在babel里面进行过滤
+			}
 		})),
 
 	],

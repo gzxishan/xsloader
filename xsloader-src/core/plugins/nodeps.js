@@ -3,7 +3,7 @@ const global = utils.global;
 const xsloader = global.xsloader;
 
 /**
- * 用于加载某些js文件，忽略其所有依赖
+ * 插件用于加载某些js文件，忽略其所有依赖，可用于忽略在加载webpack等打包的模块时自动添加内部require('...')的依赖
  */
 xsloader.define("nodeps", {
 	isSingle: true,

@@ -639,7 +639,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						errCallback(isError, invoker_of_module);
 						break;
 					}
-					let _url = xsloader._resUrlBuilder(groupModule);
+					let _url = xsloader.resUrlBuilder(groupModule);
 					urls = xsloader.isArray(_url) ? _url : [_url];
 				} else if(config.isInUrls(dep)) {
 					urls = config.getUrls(dep);

@@ -11,6 +11,10 @@ import browser from './browser.js';
 const global = utils.global;
 const xsloader = global.xsloader;
 
+const env = {
+	version: ENV_XSLOADER_VERSION
+}
+
 let toGlobal = {
 	...deprecated,
 	...base
@@ -24,11 +28,12 @@ let justLoader = {
 	...is,
 	...funs,
 	...browser,
-	_ignoreAspect_: {
+	ignoreAspect_: {
 
 	},
 	each: utils.each,
 	Base64: utils.base64,
+	env,
 };
 for(let k in justLoader) {
 	xsloader[k] = justLoader[k];
