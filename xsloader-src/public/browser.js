@@ -1,7 +1,7 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const G = U.global;
+const L = G.xsloader;
 
 let isDOM = (typeof HTMLElement === 'object') ?
 	function(obj) {
@@ -66,9 +66,9 @@ let onReadyFun = (function() {
 				ready();
 			};
 
-			if(document.documentElement.doScroll && typeof global.frameElement === "undefined")(fun2)();
+			if(document.documentElement.doScroll && typeof G.frameElement === "undefined")(fun2)();
 		} else {
-			xsloader.asyncCall(null, true).next(function() {
+			L.asyncCall(null, true).next(function() {
 				ready();
 			});
 		}
@@ -91,17 +91,17 @@ let onReadyFun = (function() {
 		isGlobalReady = true;
 	} else {
 		let addEventHandle;
-		if(global.addEventListener) {
+		if(G.addEventListener) {
 			addEventHandle = function(type, callback) {
-				global.addEventListener(type, callback, false);
+				G.addEventListener(type, callback, false);
 			};
-		} else if(global.attachEvent) {
+		} else if(G.attachEvent) {
 			addEventHandle = function(type, callback) {
-				global.attachEvent("on" + type, callback);
+				G.attachEvent("on" + type, callback);
 			};
 		} else {
 			addEventHandle = function(type, callback) {
-				xsloader.asyncCall(null, true).next(function() {
+				L.asyncCall(null, true).next(function() {
 					callback();
 				});
 			};

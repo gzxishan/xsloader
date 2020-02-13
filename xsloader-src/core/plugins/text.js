@@ -1,8 +1,7 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
-xsloader.define("text", ["xshttp"], {
+L.define("text", ["xshttp"], {
 	isSingle: true,
 	pluginMain(name, onload, onerror, config, http) {
 		let url = this.invoker().getUrl(name, true);

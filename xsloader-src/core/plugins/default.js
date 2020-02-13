@@ -1,16 +1,15 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 格式:default!module
  */
-xsloader.define("default", {
+L.define("default", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
 		let dep = arg;
 		let handle = this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
-			if(xsloader.isObject(mod)) {
+			if(L.isObject(mod)) {
 				mod = mod["default"];
 				if(mod === undefined) {
 					mod = null;

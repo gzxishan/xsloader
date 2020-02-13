@@ -1,10 +1,9 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 /**
  * 格式:withdeps!modulePath=>>[deps]
  */
-xsloader.define("withdeps", {
+L.define("withdeps", {
 	pluginMain(arg, onload, onerror, config) {
 		let index = arg.indexOf("=>>");
 		if(index == -1) {
@@ -15,8 +14,8 @@ xsloader.define("withdeps", {
 		let depsStr = arg.substring(index + 3);
 		let deps;
 		try {
-			deps = xsloader.xsParseJson(depsStr);
-			if(!xsloader.isArray(deps)) {
+			deps = L.xsParseJson(depsStr);
+			if(!L.isArray(deps)) {
 				onerror("deps is not Array:" + depsStr);
 				return;
 			}

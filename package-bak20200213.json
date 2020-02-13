@@ -1,6 +1,6 @@
 {
   "name": "xsloader.js",
-  "version": "1.1.12",
+  "version": "1.1.10",
   "description": "xsloader is a JavaScript file and module loader like requirejs but not requirejs",
   "main": "dist/xsloader.js",
   "scripts": {
@@ -18,21 +18,22 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/gzxishan/xsloader#readme",
   "devDependencies": {
-    "@babel/core": "^7.8.4",
-    "@babel/plugin-external-helpers": "^7.8.3",
-    "@babel/plugin-proposal-class-properties": "^7.8.3",
-    "@babel/plugin-proposal-export-default-from": "^7.8.3",
-    "@babel/plugin-proposal-object-rest-spread": "^7.8.3",
-    "@babel/preset-env": "^7.8.4",
-    "@rollup/plugin-node-resolve": "^7.1.1",
-    "babel-eslint": "^10.0.3",
-    "babel-preset-minify": "^0.5.1",
-    "eslint": "^6.8.0",
-    "rollup": "^1.31.0",
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/plugin-external-helpers": "^7.2.0",
+    "@babel/plugin-proposal-class-properties": "^7.5.5",
+    "@babel/plugin-proposal-export-default-from": "^7.5.2",
+    "@babel/plugin-proposal-object-rest-spread": "^7.5.5",
+    "@babel/plugin-transform-reserved-words": "^7.2.0",
+    "@babel/preset-env": "^7.5.5",
+    "babel-plugin-transform-es3-member-expression-literals": "^6.22.0",
+    "babel-plugin-transform-es3-property-literals": "^6.22.0",
+    "rollup": "^1.20.3",
     "rollup-plugin-babel": "^4.3.3",
-    "rollup-plugin-eslint": "^7.0.0",
-    "rollup-plugin-replace": "^2.2.0",
-    "rollup-plugin-uglify": "^6.0.4"
+    "rollup-plugin-eslint": "^6.0.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-uglify": "^6.0.3",
+    "rollup-plugin-replace": "^2.2.0"
   },
   "dependencies": {}
 }

@@ -1,18 +1,18 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const G = U.global;
+const L = G.xsloader;
 
 //ie9
 try {
 	if(Function.prototype.bind && console && (typeof console['log'] == "object")) {
-		utils.each(["log", "info", "warn", "error", "assert", "dir", "clear", "profile", "profileEnd"], (method) => {
+		U.each(["log", "info", "warn", "error", "assert", "dir", "clear", "profile", "profileEnd"], (method) => {
 			let thiz = Function.prototype.bind;
 			console[method] = thiz.call(console[method], console);
 		});
 	}
 } catch(e) {
-	global.console = {
+	G.console = {
 		log: function() {},
 		error: function() {},
 		warn: function() {}
@@ -34,7 +34,7 @@ try {
 
 	if(!Array.pushAll) {
 		Array.pushAll = function(thiz, arr) {
-			if(!xsloader.isArray(arr)) {
+			if(!L.isArray(arr)) {
 				throw new Error("not array:" + arr);
 			}
 			for(let i = 0; i < arr.length; i++) {

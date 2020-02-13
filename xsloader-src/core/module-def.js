@@ -1,6 +1,5 @@
-import utils from "../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../util/index.js";
+const L = U.global.xsloader;
 const theDefinedMap = {};
 const lastDefinObjectMap = {};
 
@@ -57,12 +56,12 @@ function _isSrc(nameOrUrl) {
 }
 
 function setLastDefineObject(src, defineObject) {
-	src = utils.removeQueryHash(src);
+	src = U.removeQueryHash(src);
 	lastDefinObjectMap[src] = defineObject;
 }
 
 function getLastDefineObject(src) {
-	src = utils.removeQueryHash(src);
+	src = U.removeQueryHash(src);
 	return lastDefinObjectMap[src];
 }
 
@@ -77,8 +76,8 @@ function appendLoadingModuleDeps(defineObject) {
 	if(moduleDef) {
 		let mod = moduleDef.defaultModule && moduleDef.defaultModule.state == "loading" && moduleDef.defaultModule;
 		let _deps = mod && mod.deps;
-		utils.each(_deps, (dep) => {
-			if(xsloader.indexInArray(deps, dep) == -1) {
+		U.each(_deps, (dep) => {
+			if(L.indexInArray(deps, dep) == -1) {
 				deps.push(dep);
 			}
 		});
@@ -93,8 +92,8 @@ function appendLoadingModuleDeps(defineObject) {
 				defineObject.pushName(mod.selfname);
 			}
 
-			utils.each(_deps, (dep) => {
-				if(xsloader.indexInArray(deps, dep) == -1) {
+			U.each(_deps, (dep) => {
+				if(L.indexInArray(deps, dep) == -1) {
 					deps.push(dep);
 				}
 			});
@@ -109,7 +108,7 @@ function appendLoadingModuleDeps(defineObject) {
  * @param ifoneThenGet 如果没有找到(排除此模块)，且只有唯一的一个、且状态为loaded或defined、则返回该模块对象。获取的模块不等于此模块。
  */
 function getModule(nameOrUrl, selfname = null, ifoneThenGet = null) {
-	nameOrUrl = utils.removeQueryHash(nameOrUrl);
+	nameOrUrl = U.removeQueryHash(nameOrUrl);
 	let isSrc = _isSrc(nameOrUrl);
 
 	let moduleDef = theDefinedMap[nameOrUrl];

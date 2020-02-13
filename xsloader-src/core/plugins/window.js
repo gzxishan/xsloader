@@ -1,11 +1,10 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 /**
  * 格式：window!varNameInWindow=>>modulePath
  */
 //window插件,用于添加模块到window对象中
-xsloader.define("window", {
+L.define("window", {
 	isSingle: true,
 	pluginMain: function(arg, onload, onerror, config, http) {
 		let index = arg.indexOf("=>>");

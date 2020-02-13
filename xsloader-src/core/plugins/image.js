@@ -1,11 +1,10 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 用于图片加载
  */
-xsloader.define("image", {
+L.define("image", {
 	pluginMain(name, onload, onerror, config) {
 		let src = this.invoker().getUrl(name, false);
 		let img = new Image();
@@ -23,7 +22,7 @@ xsloader.define("image", {
 			callback(false);
 		};
 		img.src = src;
-		xsloader.asyncCall(() => {
+		L.asyncCall(() => {
 			if(img) {
 				setTimeout(() => {
 					if(img) {

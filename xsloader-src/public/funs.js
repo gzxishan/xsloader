@@ -1,7 +1,7 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const G = U.global;
+const L = G.xsloader;
 
 function queryParam(name, otherValue, optionUrl) {
 	let search;
@@ -23,20 +23,20 @@ function queryParam(name, otherValue, optionUrl) {
 	return otherValue !== undefined ? otherValue : null;
 }
 
-function getUrl(relativeUrl, appendArgs=true, optionalAbsUrl) {
-	if(optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+function getUrl(relativeUrl, appendArgs = true, optionalAbsUrl) {
+	if(optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
 		throw new Error("expected absolute url:" + optionalAbsUrl);
 	}
-//	if(appendArgs === undefined) {
-//		appendArgs = true;
-//	}
-	let theConfig = xsloader.config();
-	let thePageUrl = utils.thePageUrl;
+	//	if(appendArgs === undefined) {
+	//		appendArgs = true;
+	//	}
+	let theConfig = L.config();
+	let thePageUrl = U.thePageUrl;
 	let url;
 	if(relativeUrl === undefined) {
 		url = thePageUrl;
-	} else if(xsloader.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
-		url = utils.getPathWithRelative(optionalAbsUrl || thePageUrl, relativeUrl);
+	} else if(L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
+		url = U.getPathWithRelative(optionalAbsUrl || thePageUrl, relativeUrl);
 	} else {
 		url = theConfig.baseUrl + relativeUrl;
 	}
@@ -50,10 +50,10 @@ function getUrl(relativeUrl, appendArgs=true, optionalAbsUrl) {
 	}
 }
 
-function getUrl2(relativeUrl, appendArgs=true, optionalAbsUrl) {
+function getUrl2(relativeUrl, appendArgs = true, optionalAbsUrl) {
 	let url = getUrl(relativeUrl, false, optionalAbsUrl);
 	if(appendArgs) {
-		return xsloader.config().dealUrl({}, url);
+		return L.config().dealUrl({}, url);
 	} else {
 		return url;
 	}
@@ -65,7 +65,7 @@ function tryCall(fun, defaultReturn, thiz, exCallback) {
 		thiz = thiz === undefined ? this : thiz;
 		rs = fun.call(thiz);
 	} catch(e) {
-		if(xsloader.isFunction(exCallback)) {
+		if(L.isFunction(exCallback)) {
 			exCallback(e);
 		} else {
 			console.warn(e);
@@ -78,7 +78,7 @@ function tryCall(fun, defaultReturn, thiz, exCallback) {
 }
 
 function dealProperties(obj, properties) {
-	return utils.propertiesDeal(obj, properties);
+	return U.propertiesDeal(obj, properties);
 }
 
 function extend(target) {
@@ -113,8 +113,8 @@ function extendDeep(target) {
 			if(value === undefined) {
 				continue;
 			}
-			if(xsloader.isObject(value) && xsloader.isObject(target[x])) {
-				target[x] = xsloader.extendDeep(target[x], value);
+			if(L.isObject(value) && L.isObject(target[x])) {
+				target[x] = L.extendDeep(target[x], value);
 			} else {
 				target[x] = obj[x];
 			}
@@ -157,8 +157,8 @@ function _AsyncCall(useTimer) {
 				}
 			};
 			ctrlCallbackMap[mineCount] = [];
-			if(!useTimer && global.Promise && global.Promise.resolve) {
-				global.Promise.resolve().then(ctrlCallback);
+			if(!useTimer && G.Promise && G.Promise.resolve) {
+				G.Promise.resolve().then(ctrlCallback);
 			} else {
 				setTimeout(ctrlCallback, 0);
 			}
@@ -253,25 +253,24 @@ function setObjectAttr(obj, attrNames, value) {
 
 function clone(obj, isDeep = false) {
 	// Handle the 3 simple types, and null or undefined or function
-	if(!obj || xsloader.isFunction(obj) || xsloader.isString(obj)) return obj;
+	if(!obj || L.isFunction(obj) || L.isString(obj)) return obj;
 
-	if(xsloader.isRegExp(obj)) {
+	if(L.isRegExp(obj)) {
 		return new RegExp(obj.source, obj.flags);
 	}
 
 	// Handle Date
-	if(xsloader.isDate(obj)) {
+	if(L.isDate(obj)) {
 		let copy = new Date();
 		copy.setTime(obj.getTime());
 		return copy;
 	}
 	// Handle Array or Object
-	if(xsloader.isArray(obj) || xsloader.isObject(obj)) {
-		let copy = xsloader.isArray(obj) ? [] : {};
+	if(L.isArray(obj) || L.isObject(obj)) {
+		let copy = L.isArray(obj) ? [] : {};
 		for(let attr in obj) {
-			if(obj.hasOwnProperty(attr)) {
-				copy[attr] = isDeep ? clone(obj[attr]) : obj[attr];
-			}
+			let v = obj[attr];
+			copy[attr] = isDeep ? clone(v) : v;
 		}
 		return copy;
 	}
@@ -279,7 +278,7 @@ function clone(obj, isDeep = false) {
 }
 
 function sortObject(obj) {
-	if(!obj || !xsloader.isObject(obj)) {
+	if(!obj || !L.isObject(obj)) {
 		return obj;
 	} else {
 		let keys = [];

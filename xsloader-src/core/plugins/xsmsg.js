@@ -1,6 +1,5 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 try {
 	let isXsMsgDebug = false;
@@ -200,7 +199,7 @@ try {
 					osource: source,
 					active: isActive,
 					connectingSource: connectingSource,
-					id: xsloader.randId(),
+					id: L.randId(),
 					refused: {}
 				};
 
@@ -384,7 +383,7 @@ try {
 					console.log("send from:" + location.href);
 					console.log(msg);
 				}
-				source.postMessage(xsloader.xsJson2String(msg), "*");
+				source.postMessage(L.xsJson2String(msg), "*");
 			}
 
 			window.addEventListener('message', function(event) {
@@ -396,7 +395,7 @@ try {
 
 					let data;
 					try {
-						data = xsloader.xsParseJson(event.data);
+						data = L.xsParseJson(event.data);
 					} catch(e) {
 						console.warn("error data:", event.data);
 						console.warn(e);
@@ -467,7 +466,7 @@ try {
 			this.onReceiveListener = null;
 			this.send = function(data) {
 				let msg = {
-					id: xsloader.randId(),
+					id: L.randId(),
 					data: data
 				};
 				msgQueue.append(msg);
@@ -594,8 +593,8 @@ try {
 		 * @param {Object} notActive
 		 */
 		function _connectWindow(winObjOrCallback, option, notActive) {
-			const gconfig = xsloader.config().plugins.xsmsg;
-			option = xsloader.extendDeep({
+			const gconfig = L.config().plugins.xsmsg;
+			option = L.extendDeep({
 				cmd: "default-cmd",
 				listener: null,
 				connected: null,
@@ -744,10 +743,10 @@ try {
 		 **************
 		 * originStr:对方页面的地址
 		 */
-		xsloader.define("xsmsg", handleApi); //TODO STRONG xsmsg
+		L.define("xsmsg", handleApi); //TODO STRONG xsmsg
 	}
 
-	xsloader.define("XsLinkedList", function() {
+	L.define("XsLinkedList", function() {
 		return LinkedList;
 	});
 } catch(e) {

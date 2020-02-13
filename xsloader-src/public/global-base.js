@@ -2,13 +2,13 @@ import {
 	JSON as xsJSON,
 	polyfillInit
 } from "../polyfill/index.js";
-import utils from "../util/index.js";
+import U from "../util/index.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
-const IE_VERSION = utils.IE_VERSION;
+const G = U.global;
+const L = G.xsloader;
+const IE_VERSION = U.IE_VERSION;
 
-polyfillInit(global, xsloader);
+polyfillInit(G, L);
 
 if(!String.prototype.trim) {
 	String.prototype.trim = function() {
@@ -18,7 +18,7 @@ if(!String.prototype.trim) {
 
 //生成一个随机的id，只保证在本页面是唯一的
 function randId(suffix) {
-	let id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + utils.getAndIncIdCount();
+	let id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + U.getAndIncIdCount();
 	if(suffix !== undefined) {
 		id += suffix;
 	}
@@ -26,12 +26,8 @@ function randId(suffix) {
 }
 
 function xsEval(scriptString) {
-	try {
-		let rs = IE_VERSION > 0 && IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
-		return rs;
-	} catch(e) {
-		throw e;
-	}
+	let rs = IE_VERSION > 0 && IE_VERSION < 9 ? eval("[" + scriptString + "][0]") : eval("(" + scriptString + ")");
+	return rs;
 }
 
 /**
@@ -41,11 +37,11 @@ function xsEval(scriptString) {
  */
 function xsParseJson(str, option) {
 	try {
-		if(str === "" || str === null || str === undefined || !xsloader.isString(str)) {
+		if(str === "" || str === null || str === undefined || !L.isString(str)) {
 			return str;
 		}
 
-		option = xsloader.extend({
+		option = L.extend({
 			fnStart: "", //"/*{f}*/",
 			fnEnd: "", //"/*{f}*/",
 			rcomment: "\\/\\/#\\/\\/"
@@ -69,12 +65,12 @@ function xsParseJson(str, option) {
 				}
 				let fnId = "_[_" + randId() + "_]_";
 				let fnStr = str.substring(indexStart + option.fnStart.length, indexEnd).trim();
-				if(!xsloader.startsWith(fnStr, "function(")) {
+				if(!L.startsWith(fnStr, "function(")) {
 					throw "not a function:" + fnStr;
 				}
 				try {
 					str = str.substring(0, indexStart) + '"' + fnId + '"' + str.substring(indexEnd + option.fnEnd.length);
-					let fn = xsloader.xsEval(fnStr);
+					let fn = L.xsEval(fnStr);
 					fnMap[fnId] = fn;
 				} catch(e) {
 					console.error(fnStr);
@@ -83,7 +79,7 @@ function xsParseJson(str, option) {
 				fnOffset = indexStart + fnId.length;
 			}
 			replacer = function(key, val) {
-				if(xsloader.isString(val) && fnMap[val]) {
+				if(L.isString(val) && fnMap[val]) {
 					return fnMap[val];
 				} else {
 					return val;
@@ -119,10 +115,10 @@ function xsJson2String(obj) {
 	return jsonObj.stringify(obj);
 }
 
-const getPathWithRelative = utils.getPathWithRelative;
+const getPathWithRelative = U.getPathWithRelative;
 
 function _toParamsMap(argsStr, decode = true) {
-	if(xsloader.isObject(argsStr)) {
+	if(L.isObject(argsStr)) {
 		return argsStr;
 	}
 	if(!argsStr) {
@@ -133,7 +129,7 @@ function _toParamsMap(argsStr, decode = true) {
 	if(index >= 0) {
 		argsStr = argsStr.substring(index + 1);
 	} else {
-		if(utils.dealPathMayAbsolute(argsStr).absolute) {
+		if(U.dealPathMayAbsolute(argsStr).absolute) {
 			return {};
 		}
 	}

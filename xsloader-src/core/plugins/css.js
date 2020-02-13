@@ -1,7 +1,6 @@
-import utils from "../../util/index.js";
+import U from "../../util/index.js";
 import script from "../script.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+const L = U.global.xsloader;
 
 /*
  * Require-CSS RequireJS css! loader plugin
@@ -9,7 +8,7 @@ const xsloader = global.xsloader;
  * Guy Bedford 2014
  * MIT
  */
-xsloader.define("css", function() {
+L.define("css", function() {
 
 	let lastDom; //始终执行最后一个style（inverse处理的）
 	//层级之间，越顶层的、越在后面；同级之间，索引越大的、越在后面
@@ -73,7 +72,7 @@ xsloader.define("css", function() {
 			}
 
 			if(!anchorDom) {
-				anchorDom = lastDom ? lastDom.nextSibling : xsloader.script().nextSibling;
+				anchorDom = lastDom ? lastDom.nextSibling : L.script().nextSibling;
 			}
 
 			return anchorDom;
@@ -141,7 +140,7 @@ xsloader.define("css", function() {
 				lastDom = dom;
 			}
 		} else {
-			xsloader.appendHeadDom(dom);
+			L.appendHeadDom(dom);
 		}
 
 	}
@@ -242,13 +241,13 @@ xsloader.define("css", function() {
 		return invoker ? invoker.getUrl(cssId, true) : cssId;
 	};
 	cssAPI.loadCss = function(cssPath, callback) {
-		(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(cssPath), callback);
+		(useImportLoad ? importLoad : linkLoad)(L.getUrl(cssPath), callback);
 	};
 
 	cssAPI.loadCsses = function() {
 		let args = arguments;
 		for(let i = 0; i < args.length; i++) {
-			(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(args[i]), null);
+			(useImportLoad ? importLoad : linkLoad)(L.getUrl(args[i]), null);
 		}
 	};
 	return cssAPI;

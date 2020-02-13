@@ -1,10 +1,9 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
-xsloader.define("ready", {
+L.define("ready", {
 	pluginMain(depId, onload, onerror, config) {
-		xsloader.onReady(function() {
+		L.onReady(function() {
 			onload();
 		});
 	}

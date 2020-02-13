@@ -1,6 +1,5 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 let progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
 /**
@@ -122,8 +121,8 @@ function httpRequest(option) {
 			let formData = new FormData();
 			for(let x in option.params) {
 				let value = option.params[x];
-				if(xsloader.isArray(value)) {
-					formData.append(x, xsloader.xsJson2String(value));
+				if(L.isArray(value)) {
+					formData.append(x, L.xsJson2String(value));
 				} else {
 					formData.append(x, value);
 				}
@@ -138,7 +137,7 @@ function httpRequest(option) {
 					continue;
 				}
 				if(typeof value == "object") {
-					value = xsloader.xsJson2String(value);
+					value = L.xsJson2String(value);
 				}
 				body += "&" + encodeURIComponent(x) + "=" + encodeURIComponent(value);
 			}
@@ -153,7 +152,7 @@ function httpRequest(option) {
 		}
 
 		xhr.open(option.method, option.url, option.async);
-		if((option.method == "POST" || option.method == "PUT") && !option.multiPart && !option.headers.hasOwnProperty("Content-Type")) {
+		if((option.method == "POST" || option.method == "PUT") && !option.multiPart && option.headers["Content-Type"] === undefined) {
 
 			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
 		}
@@ -203,7 +202,7 @@ function httpRequest(option) {
 					let result;
 					if(option.handleType === "json") {
 						try {
-							result = xsloader.xsParseJson(xhr.responseText);
+							result = L.xsParseJson(xhr.responseText);
 						} catch(e) {
 							_doOnFailResponseHook(option, xhr, new Error("parse-json-error:" + e), "parse-json-error");
 							return;
@@ -356,6 +355,6 @@ httpRequest._onFailResponseHook = function(option, callback, xhr, extraErrorType
 
 window._xshttp_request_ = httpRequest;
 
-xsloader.define("xshttp", [], function() {
+L.define("xshttp", [], function() {
 	return httpRequest;
 });

@@ -1,11 +1,10 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 返回Request返回一个Promise
  */
-xsloader.define("request", ["xshttp"], function(http) {
+L.define("request", ["xshttp"], function(http) {
 	/**
 	 * 参数列表:
 	 * async:始终为true
@@ -15,7 +14,7 @@ xsloader.define("request", ["xshttp"], function(http) {
 	 * @param {Object} option
 	 */
 	let Request = function(option) {
-		option = xsloader.extend({
+		option = L.extend({
 			params: undefined,
 			headers: undefined,
 			method: undefined,

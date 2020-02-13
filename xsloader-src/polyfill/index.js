@@ -2,12 +2,12 @@ import JSON from './json.js';
 import "./ie.js";
 import ProxyUtil from './proxy.js';
 
-function polyfillInit(global, xsloader) {
+function polyfillInit(G, L) {
 	let proxy = ProxyUtil();
-	if(!global['Proxy']) {
-		global.Proxy = proxy;
+	if(!G['Proxy']) {
+		G.Proxy = proxy;
 	}
-	xsloader.Proxy = proxy;
+	L.Proxy = proxy;
 }
 
 export {

@@ -3,10 +3,10 @@ const ABSOLUTE_PROTOCOL_REG2 = /^([a-zA-Z0-9_]+:)\/\/([^/\s]+)/;
 const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue"];
 
 import global from './global.js';
-const xsloader = global.xsloader;
+const L = global.xsloader;
 
 function isJsFile(path) {
-	if(!xsloader.isString(path) || path.indexOf(".") == -1) {
+	if(!L.isString(path) || path.indexOf(".") == -1) {
 		return false;
 	}
 	var pluginIndex = path.indexOf("!");
@@ -21,11 +21,11 @@ function isJsFile(path) {
 	if(index > 0) {
 		path = path.substring(0, index);
 	}
-	let theConfig = xsloader.config();
+	let theConfig = L.config();
 
 	var jsExts = theConfig && theConfig.jsExts || defaultJsExts;
 	for(var i = 0; i < jsExts.length; i++) {
-		if(xsloader.endsWith(path, jsExts[i])) {
+		if(L.endsWith(path, jsExts[i])) {
 			return {
 				ext: jsExts[i],
 				path: path
@@ -111,15 +111,15 @@ function getPathWithRelative(path, relative, isPathDir) {
 		}
 	}
 
-	if(xsloader.endsWith(path, "/")) {
+	if(L.endsWith(path, "/")) {
 		path = path.substring(0, path.length - 1);
 	}
 
 	let isRelativeDir = false;
-	if(relative == "." || xsloader.endsWith(relative, "/")) {
+	if(relative == "." || L.endsWith(relative, "/")) {
 		relative = relative.substring(0, relative.length - 1);
 		isRelativeDir = true;
-	} else if(relative == "." || relative == ".." || xsloader.endsWith("/.") || xsloader.endsWith("/..")) {
+	} else if(relative == "." || relative == ".." || L.endsWith("/.") || L.endsWith("/..")) {
 		isRelativeDir = true;
 	}
 
@@ -159,10 +159,10 @@ function getPathWithRelative(path, relative, isPathDir) {
 //		return "";
 //	}
 	let result = prefix + stack.join("/");
-	if(isRelativeDir && !xsloader.endsWith(result, "/")) {
+	if(isRelativeDir && !L.endsWith(result, "/")) {
 		result += "/";
 	}
-	result = xsloader.appendArgs2Url(result, relativeQuery);
+	result = L.appendArgs2Url(result, relativeQuery);
 	return result;
 }
 
@@ -201,7 +201,7 @@ function propertiesDeal(configObject, properties) {
 		rs = ALL_TYPE_PROPERTIES_EXP.exec(str);
 		if(rs) {
 			let propKey = rs[1];
-			let propValue = xsloader.getObjectAttr(properties, propKey);
+			let propValue = L.getObjectAttr(properties, propKey);
 			if(propValue === undefined) {
 				return str;
 			} else {
@@ -223,7 +223,7 @@ function propertiesDeal(configObject, properties) {
 					property.has = true;
 				}
 				result += str.substring(0, rs.index);
-				result += xsloader.getObjectAttr(properties, propKey);
+				result += L.getObjectAttr(properties, propKey);
 				str = str.substring(rs.index + rs[0].length);
 			}
 		}
@@ -235,15 +235,15 @@ function propertiesDeal(configObject, properties) {
 		if(!obj) {
 			return obj;
 		}
-		if(xsloader.isFunction(obj)) {
+		if(L.isFunction(obj)) {
 			return obj;
-		} else if(xsloader.isArray(obj)) {
+		} else if(L.isArray(obj)) {
 			for(let i = 0; i < obj.length; i++) {
 				obj[i] = replaceProperties(obj[i], property, enableKeyAttr);
 			}
-		} else if(xsloader.isString(obj)) {
+		} else if(L.isString(obj)) {
 			obj = replaceStringProperties(obj, properties, property);
-		} else if(xsloader.isObject(obj)) {
+		} else if(L.isObject(obj)) {
 			if(property) {
 				property.has = false;
 			}
@@ -278,7 +278,7 @@ function propertiesDeal(configObject, properties) {
 
 		for(let x in properties) {
 			let fun = properties[x];
-			if(xsloader.isFunction(fun)) {
+			if(L.isFunction(fun)) {
 				properties[x] = fun.call(properties);
 			}
 		}
@@ -309,7 +309,7 @@ function replaceModulePrefix(config, deps) {
 			m = index > 0 ? m.substring(0, index) : m;
 
 			let is = isJsFile(m);
-			if(!is && !/\.[^\/\s]*$/.test(m) && (xsloader.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+			if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
@@ -329,7 +329,7 @@ function replaceModulePrefix(config, deps) {
 						pluginName = m.substring(0, pluginIndex + 1);
 						m = m.substring(pluginIndex + 1);
 					}
-					if(xsloader.startsWith(m, prefix)) {
+					if(L.startsWith(m, prefix)) {
 						let dep = replaceStr + m.substring(len);
 						deps[i] = pluginName ? pluginName + dep : dep;
 					}

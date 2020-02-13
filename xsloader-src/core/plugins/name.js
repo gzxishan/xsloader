@@ -1,13 +1,12 @@
 import moduleScript from "../module.js";
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 格式:name!moduleName=>>modulePath
  */
 
-xsloader.define("name", {
+L.define("name", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
 		let index = arg.indexOf("=>>");

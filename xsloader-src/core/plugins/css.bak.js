@@ -1,6 +1,5 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /*
  * Require-CSS RequireJS css! loader plugin
@@ -8,7 +7,7 @@ const xsloader = global.xsloader;
  * Guy Bedford 2014
  * MIT
  */
-xsloader.define("css", function() {
+L.define("css", function() {
 	if(typeof window == 'undefined')
 		return {
 			load: function(n, r, load) {
@@ -28,7 +27,7 @@ xsloader.define("css", function() {
 	let curStyle, curSheet;
 	let createStyle = function() {
 		curStyle = document.createElement('style');
-		xsloader.appendHeadDom(curStyle);
+		L.appendHeadDom(curStyle);
 		curSheet = curStyle.styleSheet || curStyle.sheet;
 	};
 	let ieCnt = 0;
@@ -103,7 +102,7 @@ xsloader.define("css", function() {
 			}, 10);
 		}
 		link.href = url;
-		xsloader.appendHeadDom(link);
+		L.appendHeadDom(link);
 	};
 	cssAPI.pluginMain = function(cssId, onload, onerror, config) {
 		//			if(cssId.indexOf(".css") != cssId.length - 4) {
@@ -120,13 +119,13 @@ xsloader.define("css", function() {
 		return invoker ? invoker.getUrl(cssId, true) : cssId;
 	};
 	cssAPI.loadCss = function(cssPath, callback) {
-		(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(cssPath), callback);
+		(useImportLoad ? importLoad : linkLoad)(L.getUrl(cssPath), callback);
 	};
 
 	cssAPI.loadCsses = function() {
 		let args = arguments;
 		for(let i = 0; i < args.length; i++) {
-			(useImportLoad ? importLoad : linkLoad)(xsloader.getUrl(args[i]), null);
+			(useImportLoad ? importLoad : linkLoad)(L.getUrl(args[i]), null);
 		}
 	};
 	return cssAPI;

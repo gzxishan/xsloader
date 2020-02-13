@@ -1,8 +1,7 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 import moduleScript from "./module.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const L = U.global.xsloader;
 
 const defContextName = "xsloader1.1.x";
 const DATA_ATTR_MODULE = 'data-xsloader-module';
@@ -19,9 +18,9 @@ const safariVersion = (function() {
 })();
 
 const readyRegExp = navigator.platform === 'PLAYSTATION 3' ? /^complete$/ : /^(complete|loaded)$/;
-const theLoaderScript = document.currentScript || utils.getScriptBySubname("xsloader.js");
-const theLoaderUrl = utils.removeQueryHash(utils.getNodeAbsolutePath(theLoaderScript));
-const thePageUrl = utils.thePageUrl;
+const theLoaderScript = document.currentScript || U.getScriptBySubname("xsloader.js");
+const theLoaderUrl = U.removeQueryHash(U.getNodeAbsolutePath(theLoaderScript));
+const thePageUrl = U.thePageUrl;
 const theHead = document.head || document.getElementsByTagName('head')[0];
 
 const currentDefineModuleQueue = []; //当前回调的模块
@@ -43,7 +42,7 @@ if(safariVersion > 0 && safariVersion <= 7) {
 function _dealEmbedDeps(deps, defineObject) {
 	for(let i = 0; i < deps.length; i++) {
 		let dep = deps[i];
-		if(xsloader.isArray(dep)) {
+		if(L.isArray(dep)) {
 			//内部的模块顺序加载
 			let modName = "inner_order_" + moduleScript.getModuleId();
 			let isOrderDep = !(dep.length > 0 && dep[0] === false);
@@ -81,7 +80,7 @@ class Handle {
 
 	then(option) {
 		let defineObject = this.defineObject;
-		defineObject.handle = xsloader.extend(defineObject.handle, option);
+		defineObject.handle = L.extend(defineObject.handle, option);
 		return this;
 	}
 	error(onError) {
@@ -104,28 +103,28 @@ class ThisInvoker {
 function _buildInvoker(module) {
 	let invoker = module["thiz"];
 	module = module.module || module;
-	let id = xsloader.randId();
+	let id = L.randId();
 	invoker.getId = function() {
 		return id;
 	};
 	invoker.getUrl = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
-		if(optionalAbsUrl && !utils.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+		if(optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
 			throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
 		}
 
 		let url;
 		if(relativeUrl === undefined) {
 			url = this.src();
-		} else if(xsloader.startsWith(relativeUrl, ".") || utils.dealPathMayAbsolute(relativeUrl).absolute) {
-			url = utils.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
+		} else if(L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
+			url = U.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
 		} else {
-			url = xsloader.config().baseUrl + relativeUrl;
+			url = L.config().baseUrl + relativeUrl;
 		}
 		if(appendArgs) {
 			if(url == thePageUrl) {
 				url += location.search + location.hash;
 			}
-			return xsloader.config().dealUrl(module, url);
+			return L.config().dealUrl(module, url);
 		} else {
 			return url;
 		}
@@ -134,7 +133,7 @@ function _buildInvoker(module) {
 	invoker.getUrl2 = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
 		let url = this.getUrl(relativeUrl, false, optionalAbsUrl);
 		if(appendArgs) {
-			return xsloader.config().dealUrl(module, url);
+			return L.config().dealUrl(module, url);
 		} else {
 			return url;
 		}
@@ -142,7 +141,7 @@ function _buildInvoker(module) {
 
 	invoker.require = function() {
 		//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
-		let h = xsloader.require.apply(new ThisInvoker(invoker), arguments);
+		let h = L.require.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
 				absUrl: invoker.src()
@@ -152,12 +151,12 @@ function _buildInvoker(module) {
 	};
 
 	invoker.require.get = function(name) {
-		return xsloader.require.get.apply(new ThisInvoker(invoker), [name]);
+		return L.require.get.apply(new ThisInvoker(invoker), [name]);
 	};
 
 	invoker.define = function() {
 		//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
-		let h = xsloader.define.apply(new ThisInvoker(invoker), arguments);
+		let h = L.define.apply(new ThisInvoker(invoker), arguments);
 		if(h instanceof Handle) {
 			h.then({
 				absUrl: invoker.src()
@@ -195,7 +194,7 @@ class Invoker {
 	_id;
 	constructor(moduleMap) {
 		this._im = new InVar(moduleMap);
-		this._id = utils.getAndIncIdCount();
+		this._id = U.getAndIncIdCount();
 		moduleMap.thiz = this;
 		_buildInvoker(moduleMap);
 	}
@@ -307,7 +306,7 @@ class DefineObject {
 		this.isRequire = isRequire;
 		this.handle = {
 			onError(err, invoker) {
-				console.error(utils.unwrapError(err));
+				console.error(U.unwrapError(err));
 			},
 			before(deps) {},
 			depBefore(index, dep, depDeps) {},
@@ -336,7 +335,7 @@ class DefineObject {
 			selfname = null; //为空的、表示定义默认模块
 		}
 
-		if(deps && !xsloader.isArray(deps)) {
+		if(deps && !L.isArray(deps)) {
 			callback = deps;
 			deps = null;
 		}
@@ -344,12 +343,12 @@ class DefineObject {
 		if(!deps) {
 			deps = [];
 		} else {
-			deps = xsloader.clone(deps);
+			deps = L.clone(deps);
 		}
 
 		//获取函数体里直接require('...')的依赖
 		//if(!isRequire) {
-		utils.appendInnerDeps(deps, callback);
+		U.appendInnerDeps(deps, callback);
 		//}
 
 		this.selfname = selfname;
@@ -361,7 +360,7 @@ class DefineObject {
 	}
 
 	pushName(name) {
-		if(name && xsloader.indexInArray(this.names, name) == -1) {
+		if(name && L.indexInArray(this.names, name) == -1) {
 			this.names.push(name);
 		}
 	}
@@ -370,20 +369,20 @@ class DefineObject {
 	 * 处理配置依赖及嵌套依赖,同时会替换前缀
 	 */
 	appendConfigDepsAndEmbedDeps(module) {
-		let config = xsloader.config();
+		let config = L.config();
 		let src = this.src;
 		let deps = this.deps;
 
 		let _deps = config.getDeps(src);
-		utils.each(_deps, (dep) => {
-			if(xsloader.indexInArray(deps, dep) == -1) {
+		U.each(_deps, (dep) => {
+			if(L.indexInArray(deps, dep) == -1) {
 				deps.push(dep);
 			}
 		});
-		utils.each(this.names, (name) => {
+		U.each(this.names, (name) => {
 			_deps = config.getDeps(name);
-			utils.each(_deps, (dep) => {
-				if(xsloader.indexInArray(deps, dep) == -1) {
+			U.each(_deps, (dep) => {
+				if(L.indexInArray(deps, dep) == -1) {
 					deps.push(dep);
 				}
 			});
@@ -398,7 +397,7 @@ class DefineObject {
 		}
 
 		_dealEmbedDeps(deps, this); //处理嵌套依赖
-		utils.replaceModulePrefix(config, deps); //前缀替换
+		U.replaceModulePrefix(config, deps); //前缀替换
 
 		if(module) {
 			module.deps = deps;
@@ -430,15 +429,15 @@ class DefineObject {
 		for(let i = 0; i < deps.length; i++) {
 			//console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
 			let m = deps[i];
-			let jsFilePath = utils.isJsFile(m);
+			let jsFilePath = U.isJsFile(m);
 
 			//替换相对路径为绝对路径
-			if(jsFilePath && xsloader.startsWith(m, ".")) {
-				m = utils.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
+			if(jsFilePath && L.startsWith(m, ".")) {
+				m = U.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
 				deps[i] = m;
 			}
 
-			let paths = utils.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
+			let paths = U.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
 			if(paths.length > 0) {
 				let moduleLoop = moduleScript.getModule(m); //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
@@ -472,9 +471,9 @@ function getCurrentScript(isRemoveQueryHash = true) {
 				};
 			}
 		}
-		if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
+		if(U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
 			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
-			//			utils.each(nodes, (node) => {
+			//			U.each(nodes, (node) => {
 			//				console.log("node.src=" + node.src + ",node.readyState=" + node.readyState);
 			//			});
 			for(let i = nodes.length - 1; i >= 0; i--) {
@@ -534,17 +533,17 @@ function getCurrentScript(isRemoveQueryHash = true) {
 		};
 	}
 
-	if(utils.isLoaderEnd() && rs.src == theLoaderUrl) {
+	if(U.isLoaderEnd() && rs.src == theLoaderUrl) {
 		rs.src = thePageUrl;
 		rs.node = null;
 	}
 
 	if(!rs.node && rs.src != thePageUrl) {
-		let src = utils.removeQueryHash(rs.src);
+		let src = U.removeQueryHash(rs.src);
 		let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
 		for(let i = 0; i < nodes.length; i++) {
 			let node = nodes[i];
-			if(src == utils.removeQueryHash(node.src)) {
+			if(src == U.removeQueryHash(node.src)) {
 				rs.node = node;
 				break;
 			}
@@ -552,10 +551,10 @@ function getCurrentScript(isRemoveQueryHash = true) {
 	}
 
 	if(rs.node) {
-		rs.src = utils.getNodeAbsolutePath(rs.node);
+		rs.src = U.getNodeAbsolutePath(rs.node);
 	}
 	if(isRemoveQueryHash) {
-		rs.src = utils.removeQueryHash(rs.src);
+		rs.src = U.removeQueryHash(rs.src);
 	}
 	return rs;
 
@@ -589,7 +588,7 @@ function __browserLoader(moduleName, url, callbackObj) {
 	moduleName && node.setAttribute(DATA_ATTR_MODULE, moduleName);
 	node.setAttribute(DATA_ATTR_CONTEXT, defContextName);
 
-	let useAttach = !xsloader.isFunction(node.addEventListener) && node.attachEvent &&
+	let useAttach = !L.isFunction(node.addEventListener) && node.attachEvent &&
 		!(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) &&
 		!isOpera;
 
@@ -605,8 +604,8 @@ function __browserLoader(moduleName, url, callbackObj) {
 		node.addEventListener('error', errListen, true);
 	}
 	appendHeadDom(node);
-	if(utils.IE_VERSION > 0 && utils.IE_VERSION <= 10) {
-		xsloader.asyncCall(() => {
+	if(U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
+		L.asyncCall(() => {
 			node.src = url; //在ie10-以下，必须在脚本插入head后再进行src的设置、且需要异步设置。
 		});
 	} else {
@@ -621,12 +620,12 @@ function __getScriptData(evt, callbackObj) {
 	return {
 		node: node,
 		name: node && node.getAttribute(DATA_ATTR_MODULE),
-		src: utils.removeQueryHash(node && utils.getNodeAbsolutePath(node))
+		src: U.removeQueryHash(node && U.getNodeAbsolutePath(node))
 	};
 }
 
 function appendHeadDom(dom) {
-	if(!xsloader.isDOM(dom)) {
+	if(!L.isDOM(dom)) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
@@ -648,12 +647,12 @@ function loadScript(moduleName, url, onload, onerror) {
 			let scriptData = __getScriptData(evt, callbackObj);
 			if(isSrcFromScriptLoad) {
 				lastScriptSrc = scriptData.src; //已经不含参数
-				xsloader.asyncCall(() => {
+				L.asyncCall(() => {
 					onload(scriptData);
 				});
 			} else {
-				if(utils.IE_VERSION > 0 || utils.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
-					xsloader.asyncCall(() => {
+				if(U.IE_VERSION > 0 || U.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
+					L.asyncCall(() => {
 						onload(scriptData);
 					});
 				} else {
@@ -692,21 +691,21 @@ function doDefine(thiz, args, isRequire) {
 				let node = document.currentScript;
 				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
 					defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
-					console.error("unknown js script module:" + xsloader.xsJson2String(defineObject.src));
+					console.error("unknown js script module:" + L.xsJson2String(defineObject.src));
 					console.error(node);
 					return;
 				}
 			}
 		} catch(e) {
-			xsloader.config().error(e);
+			L.config().error(e);
 		}
 
 	}
 
 	let handle = new Handle(defineObject);
 
-	let isLoaderEnd = utils.isLoaderEnd();
-	xsloader.asyncCall(() => {
+	let isLoaderEnd = U.isLoaderEnd();
+	L.asyncCall(() => {
 		if(isSrcFromScriptLoad && isLoaderEnd) {
 			//执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
 			defineObject.src = lastScriptSrc;
@@ -727,12 +726,12 @@ function predefine() {
 let isFirstRequire = true;
 
 function prerequire(deps, callback) {
-	let config = xsloader.config();
+	let config = L.config();
 	if(!config) { //require必须是在config之后
 		throw new Error("not config");
 	}
 	let thatInvoker = getInvoker(this);
-	if(arguments.length == 1 && xsloader.isString(deps)) { //获取已经加载的模块
+	if(arguments.length == 1 && L.isString(deps)) { //获取已经加载的模块
 		if(deps == "exports") { //当require("exports")时，必须依赖了exports
 			let mineInvoker = getMineInvoker(this);
 			let exports = mineInvoker && mineInvoker.exports();
@@ -751,7 +750,7 @@ function prerequire(deps, callback) {
 			deps = deps.substring(0, pluginIndex);
 			if(pluginArgs) {
 				let argArr = [pluginArgs];
-				utils.replaceModulePrefix(config, argArr); //前缀替换
+				U.replaceModulePrefix(config, argArr); //前缀替换
 				pluginArgs = argArr[0];
 			}
 		}
@@ -775,14 +774,14 @@ function prerequire(deps, callback) {
 		return theMod;
 	}
 
-	let selfname = xsloader.randId("_require");
-	if(xsloader.isFunction(deps)) {
+	let selfname = L.randId("_require");
+	if(L.isFunction(deps)) {
 		callback = deps;
 		deps = [];
-	} else if(!xsloader.isArray(deps)) {
+	} else if(!L.isArray(deps)) {
 		throw new Error("unexpected argument:" + deps);
 	}
-	utils.appendInnerDeps(deps, callback);
+	U.appendInnerDeps(deps, callback);
 	let timeid;
 	let loading;
 	let isOk = false;
@@ -792,7 +791,7 @@ function prerequire(deps, callback) {
 		isFirstRequire = false;
 		setTimeout(() => {
 			if(!isOk) {
-				loading = new utils.ToProgress(config.plugins.loading);
+				loading = new U.ToProgress(config.plugins.loading);
 				loading.autoIncrement();
 				if(isErr) {
 					loading.toError(config.plugins.loading.errColor);
@@ -822,7 +821,7 @@ function prerequire(deps, callback) {
 		clearTimer();
 		//		console.log("2======require:"+selfname);
 		//		console.log(callback);
-		if(xsloader.isFunction(callback)) {
+		if(L.isFunction(callback)) {
 			try {
 				callback.apply(this, arguments);
 			} catch(e) {
@@ -835,7 +834,7 @@ function prerequire(deps, callback) {
 	handle.logError = function(err, invoker, logFun = "error") {
 		invoker && console[logFun]("invoker.url=", invoker.getUrl());
 		thatInvoker && console[logFun]("require.invoker.url=", thatInvoker.getUrl());
-		console[logFun](utils.unwrapError(err));
+		console[logFun](U.unwrapError(err));
 	};
 
 	handle.error(function(err, invoker) {
@@ -852,7 +851,7 @@ function prerequire(deps, callback) {
 		return this;
 	};
 
-	xsloader.asyncCall(() => {
+	L.asyncCall(() => {
 
 		if(handle.waitTime) {
 			let checkResultFun = function() {
@@ -863,7 +862,7 @@ function prerequire(deps, callback) {
 						let module = ifmodule;
 						handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
 						if(module) {
-							utils.each(module.deps, function(dep) {
+							U.each(module.deps, function(dep) {
 								let mod = moduleScript.getModule(dep);
 								if(mod && mod.printOnNotDefined) {
 									mod.printOnNotDefined();
@@ -909,7 +908,7 @@ function prerequire(deps, callback) {
 
 const initDefine = function(theDefine) {
 	theRealDefine = (defines, loaded) => {
-		if(!xsloader.config()) { //还没有配置
+		if(!L.config()) { //还没有配置
 			globalDefineQueue.push(defines);
 		} else {
 			theDefine(defines, loaded);

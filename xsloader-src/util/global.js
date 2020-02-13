@@ -1,10 +1,10 @@
-let g;
+let G;
 if(typeof window !== undefined) {
-	g = window;
+	G = window;
 } else if(typeof self !== undefined) {
-	g = self;
+	G = self;
 } else if(typeof global !== undefined) {
-	g = global;
+	G = global;
 } else {
 	throw new Error("not found global var!");
 }
@@ -24,6 +24,6 @@ function InVar(val) {
 		return old;
 	};
 }
-g.InVar = InVar;
+G.InVar = InVar;
 
-export default g;
+export default G;

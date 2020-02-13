@@ -1,8 +1,7 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 import script from "./script.js";
 import moduleDef from "./module-def";
-const global = utils.global;
-const xsloader = global.xsloader;
+const L = U.global.xsloader;
 
 //新建模块实例
 //relyCallback(depModuleThis)
@@ -32,12 +31,12 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 
 			let isSingle = module.instanceType != "clone";
 
-			if(xsloader.isObject(obj)) {
+			if(L.isObject(obj)) {
 				if(module.loopObject && !isSingle) {
 					throw new Error("loop dependency not support single option:" + module.description());
 				}
-				this._object = addTheAttrs(isSingle ? obj : xsloader.clone(obj));
-			} else if(xsloader.isFunction(obj)) {
+				this._object = addTheAttrs(isSingle ? obj : L.clone(obj));
+			} else if(L.isFunction(obj)) {
 				this._object = addTheAttrs(obj);
 			}
 
@@ -113,7 +112,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 				};
 				let onerror = (err) => {
 					hasFinished = true;
-					relyCallback(this, new utils.PluginError(err || false));
+					relyCallback(this, new U.PluginError(err || false));
 				};
 
 				try {
@@ -122,7 +121,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 						let last = cacheResult;
 						onload(last.result, last.ignoreAspect);
 					} else {
-						let args = [pluginArgs, onload, onerror, xsloader.config()].concat(this.module.args);
+						let args = [pluginArgs, onload, onerror, L.config()].concat(this.module.args);
 						this._object.pluginMain.apply(this.thiz, args);
 					}
 				} catch(e) {
@@ -134,7 +133,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 						if(!hasFinished) {
 							console.warn("invoke plugin may failed:page=" + location.href + ",plugin=" + module.selfname + "!" + pluginArgs);
 						}
-					}, xsloader.config().waitSeconds * 1000);
+					}, L.config().waitSeconds * 1000);
 				}
 			} else {
 				relyCallback(this);
@@ -162,7 +161,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 }
 
 function _newModule(name, src, thatInvoker, index) {
-	src = utils.removeQueryHash(src);
+	src = U.removeQueryHash(src);
 	let defineObject = new script.DefineObject(src, null, [name, null, null]);
 	defineObject.index = index;
 	defineObject.thatInvoker = thatInvoker;
@@ -188,7 +187,7 @@ function newModule(defineObject) {
 	let instances = []; //所有模块实例
 	let moduleMap = {
 		index: defineObject.index || 0, //在上级依赖数组中所处的索引位置
-		id: utils.getAndIncIdCount(),
+		id: U.getAndIncIdCount(),
 		selfname: defineObject.selfname,
 		parent: defineObject.parentDefine,
 		description() {
@@ -237,7 +236,7 @@ function newModule(defineObject) {
 			args = this._dealApplyArgs(args);
 			this.args = args;
 			let obj;
-			if(xsloader.isFunction(this.getCallback())) {
+			if(L.isFunction(this.getCallback())) {
 				try {
 					script.currentDefineModuleQueue.push(this);
 					obj = this.getCallback().apply(this.thiz, args);
@@ -263,7 +262,7 @@ function newModule(defineObject) {
 				};
 			}
 			if(this.loopObject) {
-				if(!xsloader.isObject(obj)) {
+				if(!L.isObject(obj)) {
 					throw new Error("循环依赖的模块必须是对象：" + this.description());
 				}
 				for(let x in obj) {
@@ -292,11 +291,11 @@ function newModule(defineObject) {
 					}
 				};
 				//已经加载了模块，仍然需要判断为其另外设置的依赖模块是否已被加载
-				let deps = !thiz.loopObject && xsloader.config().getDeps(thiz.selfname);
+				let deps = !thiz.loopObject && L.config().getDeps(thiz.selfname);
 				//console.log(this.selfname,":",deps);
 				//deps=null;
 				if(deps && deps.length > 0) {
-					xsloader.require(deps, () => {
+					L.require(deps, () => {
 						theCallback();
 					}).then({
 						defined_module_for_deps: this.selfname
@@ -397,9 +396,9 @@ function newModule(defineObject) {
 				this.opId = opId;
 
 				let obj = {};
-				if(xsloader.isString(name)) {
+				if(L.isString(name)) {
 					obj[name] = value;
-				} else if(xsloader.isObject(name)) {
+				} else if(L.isObject(name)) {
 					for(let k in name) {
 						obj[k] = name[k];
 					}
@@ -407,13 +406,13 @@ function newModule(defineObject) {
 					throw new Error("unknown param:" + name);
 				}
 
-				utils.each(instances, function(ins) {
+				U.each(instances, function(ins) {
 					let mobj = ins.moduleObject();
 					for(let k in obj) {
 						mobj[k] = obj[k];
 					}
 					if(mobj._modules_) {
-						utils.each(mobj._modules_, function(_m_) {
+						U.each(mobj._modules_, function(_m_) {
 							_m_.setToAll(name, value, opId);
 						});
 					}
@@ -433,7 +432,7 @@ function newModule(defineObject) {
 
 		function findLeaf(node) {
 			if(node.nodes.length) {
-				utils.each(node.nodes, function(item) {
+				U.each(node.nodes, function(item) {
 					findLeaf(item);
 				});
 			} else {
@@ -450,7 +449,7 @@ function newModule(defineObject) {
 		}
 		console.error("{-----------------------------------------------------------------------------------------------");
 		console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," : "") + "my page=" + location.href);
-		utils.each(leafs, function(leaf) {
+		U.each(leafs, function(leaf) {
 			let infos = [];
 			genErrs(leaf, infos);
 			infos = infos.reverse();
@@ -510,7 +509,7 @@ function newModule(defineObject) {
 			return;
 		}
 
-		utils.each(this.deps, function(dep) {
+		U.each(this.deps, function(dep) {
 			let indexPlguin = dep.indexOf("!");
 			if(indexPlguin > 0) {
 				dep = dep.substring(0, indexPlguin);
@@ -552,7 +551,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 	//处理相对路径,此时模块的依赖已经全部处理好了
 	defineObject.dealRelative(module);
 
-	let config = xsloader.config();
+	let config = L.config();
 
 	let isError = false,
 		hasCallErr = false,
@@ -572,7 +571,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 			module.setState('error', isError);
 			if(!hasCallErr) {
 				hasCallErr = true;
-				let err = new utils.PluginError(isError, invoker_of_module, {
+				let err = new U.PluginError(isError, invoker_of_module, {
 					index: index,
 					dep_name: dep_name
 				});
@@ -581,8 +580,8 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		}!isError && syncHandle && syncHandle();
 	}
 
-	utils.each(module.deps, function(dep, index, ary, syncHandle) {
-		//		if(xsloader.startsWith(dep, "css!")) {
+	U.each(module.deps, function(dep, index, ary, syncHandle) {
+		//		if(L.startsWith(dep, "css!")) {
 		//			console.log("src=" + module.src + ",absUrl=" + invoker_of_module.absUrl() + ",absolute=" + invoker_of_module.src());
 		//		}
 		let originDep = dep;
@@ -613,7 +612,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 		};
 
 		if(!moduleDef.getModule(dep)) {
-			let isJsFile = utils.isJsFile(dep);
+			let isJsFile = U.isJsFile(dep);
 			do {
 				let urls;
 				if(!isJsFile && dep.indexOf("/") < 0 && dep.indexOf(":") >= 0) {
@@ -639,8 +638,8 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						errCallback(isError, invoker_of_module);
 						break;
 					}
-					let _url = xsloader.resUrlBuilder(groupModule);
-					urls = xsloader.isArray(_url) ? _url : [_url];
+					let _url = L.resUrlBuilder(groupModule);
+					urls = L.isArray(_url) ? _url : [_url];
 				} else if(config.isInUrls(dep)) {
 					urls = config.getUrls(dep);
 				} else if(isJsFile) {
@@ -654,15 +653,15 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					//提前依赖模块
 					moduleDef.preDependOn(dep, index);
 				} else {
-					utils.each(urls, function(url, index) {
-						if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/")) {
+					U.each(urls, function(url, index) {
+						if(L.startsWith(url, ".") || L.startsWith(url, "/")) {
 							if(!invoker_of_module.rurl(defineObject)) {
 								isError = "script url is null:'" + module.description();
 								errCallback(isError, invoker_of_module);
 							}
-							url = utils.getPathWithRelative(invoker_of_module.rurl(defineObject), url);
+							url = U.getPathWithRelative(invoker_of_module.rurl(defineObject), url);
 						} else {
-							let absolute = utils.dealPathMayAbsolute(url);
+							let absolute = U.dealPathMayAbsolute(url);
 							if(absolute.absolute) {
 								url = absolute.path;
 							} else {
@@ -677,11 +676,11 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 				}
 
 				if(!isError && urls.length) {
-					utils.replaceModulePrefix(config, urls); //前缀替换
+					U.replaceModulePrefix(config, urls); //前缀替换
 
 					if(isJsFile) {
 						let lastModule;
-						utils.each([dep].concat(urls), (item) => {
+						U.each([dep].concat(urls), (item) => {
 							lastModule = moduleDef.getModule(item);
 							if(lastModule) {
 								return false;
@@ -700,17 +699,17 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					let configDeps = [];
 					if(m2Name) {
 						let _deps = config.getDeps(m2Name);
-						utils.each(_deps, (d) => {
-							if(xsloader.indexInArray(configDeps, d) == -1) {
+						U.each(_deps, (d) => {
+							if(L.indexInArray(configDeps, d) == -1) {
 								configDeps.push(d);
 							}
 						});
 					}
 
-					utils.each(urls, (url) => {
+					U.each(urls, (url) => {
 						let _deps = config.getDeps(url);
-						utils.each(_deps, (d) => {
-							if(xsloader.indexInArray(configDeps, d) == -1) {
+						U.each(_deps, (d) => {
+							if(L.indexInArray(configDeps, d) == -1) {
 								configDeps.push(d);
 							}
 						});
@@ -718,7 +717,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 
 					if(configDeps.length) {
 						//先加载配置依赖
-						xsloader.require(configDeps, () => {
+						L.require(configDeps, () => {
 							loadModule();
 						});
 					} else {
@@ -734,7 +733,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						moduleDef.setLastDefineObject(url, defineObject);
 						if(index > 0) {
 							let oldSrc = module2.src;
-							module2.src = utils.removeQueryHash(url);
+							module2.src = U.removeQueryHash(url);
 							moduleDef.replaceModuleSrc(oldSrc, module2);
 						}
 						script.loadScript(module2.selfname, url, (scriptData) => {

@@ -1,9 +1,8 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
-xsloader.define("xsloader4j-server-bridge", [], function() {
-	const base64 = new xsloader.Base64();
+L.define("xsloader4j-server-bridge", [], function() {
+	const base64 = new L.Base64();
 	let isDebug = false;
 
 	/**
@@ -13,7 +12,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 	function __renderJsx(vm) {
 		return function(component, props /*, ...children*/ ) {
 			if(!vm || !vm.$createElement) {
-				let Vue = xsloader.require.get("vue");
+				let Vue = L.require.get("vue");
 				vm = new Vue();
 			}
 			let $createElement = vm.$createElement;
@@ -43,7 +42,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 		},
 		getVueCompiler(thiz) {
 			let rt = function(exports) {
-				let Vue = xsloader.require("vue");
+				let Vue = L.require("vue");
 				let _default = exports['default'] || exports;
 				if(_default.template) {
 
@@ -63,7 +62,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 								let rurl = rs[group].trim();
 
 								result += str.substring(0, rs.index);
-								if(xsloader.startsWith(rurl, "url(")) {
+								if(L.startsWith(rurl, "url(")) {
 									result += rs[0];
 								} else {
 									result += fun(rs, thiz.getUrl(rurl, appendArgs));
@@ -118,7 +117,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 		getStyleBuilder(thiz) {
 			return function(cssContent) {
 				if(cssContent) {
-					let id = xsloader.randId();
+					let id = L.randId();
 					let count = 0;
 					let styleDom = document.createElement("style");
 					styleDom.setAttribute("id", id);
@@ -128,7 +127,7 @@ xsloader.define("xsloader4j-server-bridge", [], function() {
 					let obj = {
 						init() {
 							if(count <= 0) {
-								xsloader.appendHeadDom(styleDom);
+								L.appendHeadDom(styleDom);
 							}
 							count++;
 							return {

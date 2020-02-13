@@ -1,13 +1,13 @@
-import utils from "./util/index.js";
+import U from "./util/index.js";
 import script from "./core/script.js";
 import moduleScript from "./core/module.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const G = U.global;
+const L = G.xsloader;
 
 const defineHandle = script.initDefine(function theRealDefine(defines, loaded = () => {}) {
-	utils.each(defines, (defineObject) => {
-		if(xsloader.isFunction(defineObject.callback)) {
+	U.each(defines, (defineObject) => {
+		if(L.isFunction(defineObject.callback)) {
 			let originCallback = defineObject.callback;
 			defineObject.callback = function() {
 				//				if(defineObject.isRequire) {
@@ -15,13 +15,13 @@ const defineHandle = script.initDefine(function theRealDefine(defines, loaded = 
 				//					console.log(defineObject);
 				//					console.log(originCallback);
 				//				}
-				let config = xsloader.config();
+				let config = L.config();
 				let rt;
 
 				let defineFun;
-				utils.each(defineObject.names, (name) => {
+				U.each(defineObject.names, (name) => {
 					let fun = config.defineFunction[name];
-					if(xsloader.isFunction(fun)) {
+					if(L.isFunction(fun)) {
 						defineFun = fun;
 						return false;
 					}
@@ -75,9 +75,9 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		defineObject.pushName(ifmodule.selfname);
 	}
 	//一个模块的所有名字，包括src
-	utils.each(defineObject.names, (name) => {
+	U.each(defineObject.names, (name) => {
 		moduleScript.setModule(name, ifmodule);
-		if(xsloader.ignoreAspect_[name]) {
+		if(L.ignoreAspect_[name]) {
 			ifmodule.ignoreAspect = true;
 		}
 	});
@@ -93,7 +93,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	}
 
 	module.setState("loaded");
-	module.setInstanceType(defineObject.handle.instance || xsloader.config().instance);
+	module.setInstanceType(defineObject.handle.instance || L.config().instance);
 
 	if(module.deps.length == 0) {
 		try {
@@ -107,7 +107,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 			moduleScript.everyRequired(defineObject, module, (depModules) => {
 				let args = [];
 				let depModuleArgs = [];
-				utils.each(depModules, (depModule) => {
+				U.each(depModules, (depModule) => {
 					depModuleArgs.push(depModule);
 					args.push(depModule && depModule.moduleObject());
 				});
@@ -141,7 +141,7 @@ const require = function() {
 };
 
 require.get = function(name) {
-	if(!xsloader.isString(name)) {
+	if(!L.isString(name)) {
 		throw new Error("expected string type for module name");
 	} else {
 		return require.call(this, name);
@@ -162,12 +162,12 @@ require.has = function() {
 	return true;
 };
 
-xsloader.define = define;
+L.define = define;
 //deprecated
-xsloader.defineAsync = define;
-xsloader.require = require;
-global.define = define;
-global.require = require;
+L.defineAsync = define;
+L.require = require;
+G.define = define;
+G.require = require;
 
 define.amd = true;
 

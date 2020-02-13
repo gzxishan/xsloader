@@ -1,11 +1,10 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 格式:name!module
  */
-xsloader.define("try", {
+L.define("try", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
 		let dep = arg;

@@ -1,5 +1,5 @@
 import global from './global.js';
-const xsloader = global.xsloader;
+const L = global.xsloader;
 const COMMENT_REGEXP = /\/\*[\s\S]*?\*\/|([^:"'=]|^)\/\/.*$/mg;
 const REPLACE_REQUIRE_GET_REGEXP = /(^|[\s\(\),;.\?:]+)require\s*\.\s*get\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
 const REPLACE_REQUIRE_REGEXP = /(^|[\s\(\),;.\?:]+)require\s*\(\s*["']([^'"\r\n]+)["']\s*\)/g;
@@ -87,11 +87,11 @@ function GraphPath() {
 
 //使得内部的字符串变成数组
 function strValue2Arr(obj) {
-	if(!obj || xsloader.isArray(obj)) {
+	if(!obj || L.isArray(obj)) {
 		return;
 	}
 	for(let x in obj) {
-		if(xsloader.isString(obj[x])) {
+		if(L.isString(obj[x])) {
 			obj[x] = [obj[x]];
 		}
 	}
@@ -146,7 +146,7 @@ function __commentReplace(match, singlePrefix) {
 function __appendInnerDeps(deps, callbackString, reg, depIndex, notIndex) {
 	callbackString.replace(reg, function() {
 		let dep = arguments[depIndex]
-		if((!notIndex || !NOT_REQUIRE_REGEXP.test(arguments[notIndex])) && xsloader.indexInArray(deps, dep) == -1) {
+		if((!notIndex || !NOT_REQUIRE_REGEXP.test(arguments[notIndex])) && L.indexInArray(deps, dep) == -1) {
 			deps.push(dep);
 		}
 	});
@@ -154,8 +154,8 @@ function __appendInnerDeps(deps, callbackString, reg, depIndex, notIndex) {
 
 //添加内部直接require.get('...')或require('...')的模块
 function appendInnerDeps(deps, callback) {
-	if(xsloader.isFunction(callback)) {
-		let theConfig = xsloader.config();
+	if(L.isFunction(callback)) {
+		let theConfig = L.config();
 		let innerDepType = !theConfig ? "disable" : theConfig.props.innerDepType;
 		if(innerDepType != "disable") {
 

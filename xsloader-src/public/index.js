@@ -1,4 +1,4 @@
-import utils from "../util/index.js";
+import U from "../util/index.js";
 ////////////////////
 
 import deprecated from './global-deprecated.js';
@@ -8,8 +8,8 @@ import is from './is.js';
 import funs from './funs.js';
 import browser from './browser.js';
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const G = U.global;
+const L = G.xsloader;
 
 const env = {
 	version: ENV_XSLOADER_VERSION
@@ -20,8 +20,8 @@ let toGlobal = {
 	...base
 };
 for(let k in toGlobal) {
-	xsloader[k] = toGlobal[k];
-	global[k] = toGlobal[k];
+	L[k] = toGlobal[k];
+	G[k] = toGlobal[k];
 }
 
 let justLoader = {
@@ -31,10 +31,10 @@ let justLoader = {
 	ignoreAspect_: {
 
 	},
-	each: utils.each,
-	Base64: utils.base64,
+	each: U.each,
+	Base64: U.base64,
 	env,
 };
 for(let k in justLoader) {
-	xsloader[k] = justLoader[k];
+	L[k] = justLoader[k];
 }

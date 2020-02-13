@@ -1,7 +1,7 @@
-import { uglify } from 'rollup-plugin-uglify';
+//import { uglify } from 'rollup-plugin-uglify';
 import { eslint } from 'rollup-plugin-eslint';
 import babel from 'rollup-plugin-babel'
-import resolve from 'rollup-plugin-node-resolve'
+import resolve from '@rollup/plugin-node-resolve'
 import pkg from './package.json';
 import replace from 'rollup-plugin-replace';
 
@@ -10,12 +10,45 @@ const isProduct = NODE_ENV == 'production';
 
 const banner =
 	'/*!\n' +
-	` * xsloader.js v${pkg.version}\n` +
+	` * xsloader${isProduct?'.min':''}.js v${pkg.version}\n` +
 	` * home:${pkg.homepage}\n` +
 	` * (c) 2018-${new Date().getFullYear()} ${pkg.author}\n` +
 	` * Released under the ${pkg.license} License.\n` +
 	` * build time:${new Date().toString()}\n` +
 	' */'
+
+const rollupPlugins = [
+	replace({
+		ENV_XSLOADER_VERSION: JSON.stringify(pkg.version)
+	}),
+	resolve({
+		browser: true
+	})
+];
+
+!isProduct && rollupPlugins.push(eslint({
+	exclude: 'node_modules/**'
+}));
+
+rollupPlugins.push(babel({
+	exclude: 'node_modules/**'
+}));
+
+//使用babel-preset-minify，uglify混淆后sourcemap调试不匹配
+//isProduct && rollupPlugins.push(uglify({
+//	compress: {
+//		join_vars: true, //合并连续 var 声明
+//		sequences: true, //连续声明变量，用逗号隔开来。
+//		conditionals: false, //优化if等判断以及条件选择
+//		if_return: false, //优化 if/return 和 if/continue
+//		passes: 3
+//	},
+//	output: {
+//		semicolons: false,
+//		beautify: false,
+//		comments: true //注释的保留已在babel里面进行过滤
+//	}
+//}));
 
 export default {
 	input: 'xsloader-src/main.js',
@@ -28,31 +61,5 @@ export default {
 		exports: "named"
 	},
 	treeshake: true,
-	plugins: [
-		replace({
-			ENV_XSLOADER_VERSION: JSON.stringify(pkg.version)
-		}),
-		resolve({
-			browser: true
-		}), !isProduct && eslint({
-			exclude: 'node_modules/**'
-		}),
-		babel({
-			exclude: 'node_modules/**'
-		}),
-		(isProduct && uglify({
-			compress: {
-				join_vars: true, //合并连续 var 声明
-				sequences: true, //连续声明变量，用逗号隔开来。
-				conditionals: false, //优化if等判断以及条件选择
-				if_return: false, //优化 if/return 和 if/continue
-				passes: 3
-			},
-			output: {
-				semicolons: false,
-				beautify: false,
-				comments: true //注释的保留已在babel里面进行过滤
-			}
-		})),
-	],
+	plugins: rollupPlugins
 };

@@ -1,11 +1,10 @@
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * 加载json对象
  */
-xsloader.define("json", ["xshttp"], {
+L.define("json", ["xshttp"], {
 	isSingle: true,
 	pluginMain(name, onload, onerror, config, http) {
 		let url = this.invoker().getUrl(name, true);

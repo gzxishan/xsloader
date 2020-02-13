@@ -1,9 +1,8 @@
 import loader from './loader.js';
 import "../public/index.js";
-import utils from "../util/index.js";
+import U from "../util/index.js";
 
-const global = utils.global;
-const xsloader = global.xsloader;
+const L = U.global.xsloader;
 
 import script from "./script.js";
 import moduleScript from "./module.js";
@@ -12,37 +11,37 @@ let theContext;
 let theConfig;
 let argsObject = {};
 
-xsloader.config = function() {
+L.config = function() {
 	return theConfig;
 };
-xsloader.script = function() {
+L.script = function() {
 	return script.theLoaderScript;
 };
 
-xsloader.lastAppendHeadDom = function() {
+L.lastAppendHeadDom = function() {
 	return script.lastAppendHeadDom();
 };
 
-xsloader.scriptSrc = function() {
+L.scriptSrc = function() {
 	return script.theLoaderUrl;
 };
 
-xsloader.putUrlArgs = function(argsObj) {
-	argsObject = xsloader.extend(argsObject, argsObj);
+L.putUrlArgs = function(argsObj) {
+	argsObject = L.extend(argsObject, argsObj);
 };
 
-xsloader.getUrlArgs = function() {
-	let obj = xsloader.extend({}, argsObject);
+L.getUrlArgs = function() {
+	let obj = L.extend({}, argsObject);
 	return obj;
 };
 
-xsloader.clearUrlArgs = function() {
+L.clearUrlArgs = function() {
 	argsObject = {};
 };
 
-xsloader.appendHeadDom = script.appendHeadDom;
+L.appendHeadDom = script.appendHeadDom;
 
-xsloader.hasDefine = function(name) {
+L.hasDefine = function(name) {
 	let has = false;
 	let module = moduleScript.getModule(name);
 	if(!module || module.state == "init") {
@@ -54,11 +53,11 @@ xsloader.hasDefine = function(name) {
 };
 
 //用于把"group:project:version"转换成url地址,返回一个String或包含多个url地址的数组
-xsloader.resUrlBuilder = function(groupName) {
+L.resUrlBuilder = function(groupName) {
 	throw new Error('resUrlBuilder not found!');
 };
 
-xsloader.clear_module_ = function() {
+L.clear_module_ = function() {
 	let modules = arguments;
 	for(let i = 0; i < modules.length; i++) {
 		if(modules[i]) {
@@ -80,8 +79,8 @@ loader.loaderFun((option) => {
 	if(theContext) {
 		throw new Error("already configed!");
 	}
-	option = xsloader.extend({
-		baseUrl: utils.getPathWithRelative(location.pathname, "./", xsloader.endsWith(location.pathname, "/")),
+	option = L.extend({
+		baseUrl: U.getPathWithRelative(location.pathname, "./", L.endsWith(location.pathname, "/")),
 		urlArgs: {},
 		ignoreProperties: false,
 		paths: {},
@@ -99,7 +98,7 @@ loader.loaderFun((option) => {
 		instance: "single",
 		dealtDeps: {},
 		dealProperties(obj) {
-			return utils.propertiesDeal(obj, option.properties);
+			return U.propertiesDeal(obj, option.properties);
 		},
 		isInUrls(m) {
 			return !!this.getUrls(m);
@@ -139,7 +138,7 @@ loader.loaderFun((option) => {
 			} else {
 				let moduleName;
 				let src;
-				if(xsloader.isString(module)) {
+				if(L.isString(module)) {
 					moduleName = module;
 				} else {
 					moduleName = module.selfname;
@@ -177,7 +176,7 @@ loader.loaderFun((option) => {
 
 			}
 
-			if(xsloader.isFunction(urlArg)) {
+			if(L.isFunction(urlArg)) {
 				urlArg = urlArg.call(this, nameOrUrl);
 			}
 
@@ -190,13 +189,13 @@ loader.loaderFun((option) => {
 			}
 
 			if(addVersion && this.props.addVersion) {
-				urlArg += "&_xsv=" + encodeURIComponent(xsloader.env.version);
+				urlArg += "&_xsv=" + encodeURIComponent(L.env.version);
 			}
 
-			return xsloader.appendArgs2Url(url, urlArg);
+			return L.appendArgs2Url(url, urlArg);
 		},
 		dealUrlArgs(url) {
-			url = utils.getPathWithRelative(location.href, url);
+			url = U.getPathWithRelative(location.href, url);
 			return this.dealUrl(url, url);
 		},
 		defaultVersion: {},
@@ -204,12 +203,12 @@ loader.loaderFun((option) => {
 		props: {},
 	}, option);
 
-	option.props = xsloader.extend({
+	option.props = L.extend({
 		addVersion: true,
 		innerDepType: "auto", //auto,require.get,require,disable
 	}, option.props);
 
-	option.plugins.loading = xsloader.extend({
+	option.plugins.loading = L.extend({
 		enable: true,
 		color: '#2196f3',
 		bgColor: 'rgba(0,0,0,0.1)',
@@ -223,29 +222,29 @@ loader.loaderFun((option) => {
 		option.plugins.loading.enable = false;
 	}
 
-	option.plugins.image = xsloader.extend({
+	option.plugins.image = L.extend({
 		timeout: 10000, //超时时间，毫秒
 	}, option.plugins.image);
 
-	option.plugins.xsmsg = xsloader.extend({
+	option.plugins.xsmsg = L.extend({
 		timeout: 30000, //连接超时时间，毫秒
 		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
 
-	if(!xsloader.endsWith(option.baseUrl, "/")) {
+	if(!L.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";
 	}
-	option.baseUrl = utils.getPathWithRelative(location.href, option.baseUrl);
+	option.baseUrl = U.getPathWithRelative(location.href, option.baseUrl);
 
 	if(!option.ignoreProperties) {
 		option = option.dealProperties(option);
 	}
 
-	utils.strValue2Arr(option.paths);
-	utils.strValue2Arr(option.depsPaths);
-	utils.strValue2Arr(option.deps);
+	U.strValue2Arr(option.paths);
+	U.strValue2Arr(option.depsPaths);
+	U.strValue2Arr(option.deps);
 
-	if(!xsloader.isFunction(option.autoUrlArgs)) {
+	if(!L.isFunction(option.autoUrlArgs)) {
 		let isAutoUrlArgs = option.autoUrlArgs;
 		option.autoUrlArgs = function() {
 			return isAutoUrlArgs;
@@ -254,7 +253,7 @@ loader.loaderFun((option) => {
 
 	let modulePrefixCount = 0;
 	for(let prefix in option.modulePrefix) {
-		if(xsloader.startsWith(prefix, ".") || xsloader.startsWith(prefix, "/")) {
+		if(L.startsWith(prefix, ".") || L.startsWith(prefix, "/")) {
 			throw new Error("modulePrefix can not start with '.' or '/'(" + prefix + ")");
 		}
 		modulePrefixCount++;
@@ -268,14 +267,14 @@ loader.loaderFun((option) => {
 		let urlArgsArr = [];
 		for(let k in option.urlArgs) {
 			let url = k;
-			if(utils.isJsFile(url)) { //处理相对
-				if(xsloader.startsWith(url, ".") || xsloader.startsWith(url, "/") && !xsloader.startsWith(url, "//")) {
-					url = utils.getPathWithRelative(script.theLoaderUrl, url);
+			if(U.isJsFile(url)) { //处理相对
+				if(L.startsWith(url, ".") || L.startsWith(url, "/") && !L.startsWith(url, "//")) {
+					url = U.getPathWithRelative(script.theLoaderUrl, url);
 				} else {
-					let absolute = utils.dealPathMayAbsolute(url);
+					let absolute = U.dealPathMayAbsolute(url);
 					if(absolute.absolute) {
 						url = absolute.path;
-					} else if(!xsloader.startsWith(url, "*]")) { //排除*]；单*[可以有前缀
+					} else if(!L.startsWith(url, "*]")) { //排除*]；单*[可以有前缀
 						url = option.baseUrl + url;
 					}
 				}
@@ -292,11 +291,11 @@ loader.loaderFun((option) => {
 			for(let i = 0; i < urlArgsArr.length; i++) {
 				let urlArgObj = urlArgsArr[i];
 				let starP = "";
-				if(xsloader.startsWith(urlArgObj.url, "*[")) {
+				if(L.startsWith(urlArgObj.url, "*[")) {
 					starP = "*[";
 					urlArgObj.url = urlArgObj.url.substring(2);
 				}
-				if(xsloader.startsWith(urlArgObj.url, prefix)) {
+				if(L.startsWith(urlArgObj.url, prefix)) {
 					urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
 				}
 				starP && (urlArgObj.url = starP + urlArgObj.url);
@@ -318,12 +317,12 @@ loader.loaderFun((option) => {
 
 	for(let k in option.urlArgs) {
 		let url = k;
-		if(xsloader.startsWith(url, "*[")) {
+		if(L.startsWith(url, "*[")) {
 			let strfix = url.substring(2);
-			if(xsloader.startsWith(strfix, ".") || xsloader.startsWith(strfix, "/") && !xsloader.startsWith(strfix, "//")) {
-				strfix = utils.getPathWithRelative(script.theLoaderUrl, strfix);
+			if(L.startsWith(strfix, ".") || L.startsWith(strfix, "/") && !L.startsWith(strfix, "//")) {
+				strfix = U.getPathWithRelative(script.theLoaderUrl, strfix);
 			} else {
-				let absolute = utils.dealPathMayAbsolute(strfix);
+				let absolute = U.dealPathMayAbsolute(strfix);
 				if(absolute.absolute) {
 					strfix = absolute.path;
 				} else {
@@ -336,7 +335,7 @@ loader.loaderFun((option) => {
 				value: option.urlArgs[k]
 			});
 			delete option.urlArgs[k];
-		} else if(xsloader.startsWith(url, "*]")) {
+		} else if(L.startsWith(url, "*]")) {
 			_urlArgs_suffix.push({
 				strfix: url.substring(2),
 				value: option.urlArgs[k]
@@ -349,9 +348,9 @@ loader.loaderFun((option) => {
 		//前缀判断
 		for(let i = 0; i < _urlArgs_prefix.length; i++) {
 			let strfixObj = _urlArgs_prefix[i];
-			if(xsloader.startsWith(urlOrName, strfixObj.strfix)) {
+			if(L.startsWith(urlOrName, strfixObj.strfix)) {
 				let value;
-				if(xsloader.isFunction(strfixObj.value)) {
+				if(L.isFunction(strfixObj.value)) {
 					value = strfixObj.value.call(this, urlOrName);
 				} else {
 					value = strfixObj.value;
@@ -363,9 +362,9 @@ loader.loaderFun((option) => {
 		//后缀判断
 		for(let i = 0; i < _urlArgs_suffix.length; i++) {
 			let strfixObj = _urlArgs_suffix[i];
-			if(xsloader.endsWith(urlOrName, strfixObj.strfix)) {
+			if(L.endsWith(urlOrName, strfixObj.strfix)) {
 				let value;
-				if(xsloader.isFunction(strfixObj.value)) {
+				if(L.isFunction(strfixObj.value)) {
 					value = strfixObj.value.call(this, urlOrName);
 				} else {
 					value = strfixObj.value;
@@ -376,17 +375,17 @@ loader.loaderFun((option) => {
 	};
 
 	for(let name in option.paths) {
-		utils.replaceModulePrefix(option, option.paths[name]); //前缀替换
+		U.replaceModulePrefix(option, option.paths[name]); //前缀替换
 	}
 	for(let name in option.depsPaths) {
-		utils.replaceModulePrefix(option, option.depsPaths[name]); //前缀替换
+		U.replaceModulePrefix(option, option.depsPaths[name]); //前缀替换
 	}
 
 	//处理依赖
 	let dealtDeps = option.dealtDeps;
 
 	let pushDeps = (dealtDepArray, depsArray) => {
-		utils.each(depsArray, (dep) => {
+		U.each(depsArray, (dep) => {
 			dealtDepArray.push(dep);
 		});
 	};
@@ -394,7 +393,7 @@ loader.loaderFun((option) => {
 	for(let keyName in option.deps) {
 		let paths = keyName.split('::');
 		let depsArray = option.deps[keyName];
-		utils.each(paths, (path) => {
+		U.each(paths, (path) => {
 			if(path == '*') {
 				for(let m in option.depsPaths) {
 					let dealtDepArray = dealtDeps[m] = dealtDeps[m] || [];

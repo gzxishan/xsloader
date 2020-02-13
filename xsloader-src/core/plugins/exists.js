@@ -1,12 +1,11 @@
 import moduleScript from "../module.js";
-import utils from "../../util/index.js";
-const global = utils.global;
-const xsloader = global.xsloader;
+import U from "../../util/index.js";
+const L = U.global.xsloader;
 
 /**
  * exists!module1 or module2 or module3|windowVar1|windowVar2...
  */
-xsloader.define("exists", {
+L.define("exists", {
 	isSingle: true,
 	pluginMain(arg, onload, onerror, config) {
 		let vars = arg.split("|");
