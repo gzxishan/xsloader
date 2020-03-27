@@ -178,7 +178,13 @@ try {
 	}
 
 	if(window.addEventListener) {
-		let postMessageBridge = (function() {
+		let postMessageBridge;
+
+		function initPostMessageBridge() {
+			if(postMessageBridge){
+				return;
+			}
+
 			let handle = {};
 
 			let instanceMap = {}; //id:listener
@@ -436,8 +442,8 @@ try {
 				setTimeout(callback, time);
 			};
 
-			return handle;
-		})();
+			postMessageBridge = handle;
+		}
 
 		/**
 		 * 
@@ -451,6 +457,8 @@ try {
 		 * @param {Object} sleep 连接检测的休眠时间，毫秒
 		 */
 		function CommunicationUnit(cmd, source, connectingSource, onfailed, isActive, conndata, timeout, sleep) {
+			initPostMessageBridge();
+			
 			let msgQueue = new LinkedList();
 
 			let SLEEP = sleep;
