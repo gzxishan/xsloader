@@ -14,8 +14,8 @@ function isDebug(type) {
  *********************
  * option.cmd:
  * option.connectingSource:function(source,origin,conndata,callback(isAccept,msg))默认只选择同源
- * option.listener: function(data,sender)
- * option.connected:function(sender,conndata)
+ * option.listener: function(event),event:{sender(),close(),data,id}
+ * option.connected:function(event),event:{sender(),close(),conndata,id}
  * option.onfailed:function(errtype):errtype,timeout,canceled
  * option.conndata:
  * option.timeout:连接超时时间
@@ -75,38 +75,50 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 			return instanceid;
 		};
 
-		handle.remove = function(instanceid) {
+		handle.releaseOne = function(instanceid) {
 			if(instanceBindMap[instanceid]) {
 				instanceBindMap[instanceid]--;
 				if(instanceBindMap[instanceid] <= 0) {
 					delete instanceBindMap[instanceid];
 				}
 			}
-			//TODO !!!!!!!
-			/*let listener = listeners[id];
-			delete listeners[id];
-			if(listener.waiter) {
-				for(let x in activeListenerMyIds) {
-					let as = activeListenerMyIds[x];
-					let found = false;
-					for(let k = 0; k < as.length; k++) {
-						if(as[k] == id) {
-							as.splice(k, 1);
-							found = true;
-							break;
-						}
-					}
-					if(found) {
-						break;
-					}
-				}
-			}*/
 		};
 
-		handle.send = function(data, instanceid, msgid,oinstanceid) {
+		handle.send = function(data, instanceid, msgid, oinstanceid, __close) {
 			let listener = instanceMap[instanceid];
-			_sendData("msg", listener.cmd, listener.osource, data, instanceid, msgid,oinstanceid);
+			if(__close) {
+				_sendData("close", listener.cmd, listener.osource, data, instanceid, msgid, oinstanceid);
+				delete oinstanceidMap[oinstanceid];
+				this.releaseOne(instanceid);
+
+				if(listener.waiter) {
+					delete oinstanceidMap[oinstanceid];
+					this.releaseOne(instanceid);
+				} else {
+
+				}
+			} else {
+				_sendData("msg", listener.cmd, listener.osource, data, instanceid, msgid, oinstanceid);
+			}
 		};
+
+		function handleMsg(cmd, fromSource, originStr, data, oinstanceid, msgid) {
+			let instanceid = oinstanceidMap[oinstanceid];
+			let listener = instanceMap[instanceid];
+			checkSource(listener, fromSource, originStr);
+
+			listener._onMsg(data, msgid, oinstanceid);
+		}
+
+		function handleClose(cmd, fromSource, originStr, data, oinstanceid, msgid) {
+			let instanceid = oinstanceidMap[oinstanceid];
+			let listener = instanceMap[instanceid];
+			checkSource(listener, fromSource, originStr);
+
+			listener._onClose(data, msgid, oinstanceid);
+			delete oinstanceidMap[oinstanceid];
+			handle.releaseOne(instanceid);
+		}
 
 		handle.sendConn = function(instanceid) {
 			let listener = instanceMap[instanceid];
@@ -226,14 +238,6 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 			listener._onConned(listener.osource, data, oinstanceid);
 		}
 
-		function handleMsg(cmd, fromSource, originStr, data, oinstanceid, msgid) {
-			let instanceid = oinstanceidMap[oinstanceid];
-			let listener = instanceMap[instanceid];
-			checkSource(listener, fromSource, originStr);
-
-			listener._onMsg(data, msgid, oinstanceid);
-		}
-
 		function handleResponse(cmd, fromSource, originStr, data, oinstanceid) {
 			let instanceid = oinstanceidMap[oinstanceid];
 			let listener = instanceMap[instanceid];
@@ -242,7 +246,7 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 			listener._onResponse(data, oinstanceid);
 		}
 
-		function _sendData(type, cmd, source, data, instanceid, msgid,oinstanceid) {
+		function _sendData(type, cmd, source, data, instanceid, msgid, oinstanceid) {
 			let msg = {
 				type: type,
 				data: data,
@@ -283,6 +287,8 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 						handleConned(cmd, event.source, event.origin, rdata, oinstanceid);
 					} else if(type == "msg") {
 						handleMsg(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
+					} else if(type == "close") {
+						handleClose(cmd, event.source, event.origin, rdata, oinstanceid, msgid);
 					} else if(type == "response") {
 						handleResponse(cmd, event.source, event.origin, rdata, oinstanceid);
 					} else if(type == "binded") {
@@ -343,8 +349,19 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 			sendTop();
 		};
 
-		this.send.release = function() {
-			postMessageBridge.remove(handleId);
+		this.close = function(data, oinstanceid) {
+			let msg = {
+				id: L.randId(),
+				oinstanceid,
+				data: data,
+				__close: true,
+			};
+			msgQueue.append(msg);
+			sendTop();
+		};
+
+		this.releaseOne = function() {
+			postMessageBridge.releaseOne(handleId);
 		};
 
 		function couldChat() {
@@ -395,7 +412,7 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 			if(isConnected) {
 				let msg;
 				while((msg = msgQueue.pop())) {
-					postMessageBridge.send(msg.data, handleId, msg.id, msg.oinstanceid);
+					postMessageBridge.send(msg.data, handleId, msg.id, msg.oinstanceid, msg.__close);
 				}
 			}
 		}
@@ -504,9 +521,17 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 		if(connectedCallback) {
 			unit.onConnectedListener = function(conndata, oinstanceid) {
 				try {
-					connectedCallback((_data) => {
-						this.send(_data, oinstanceid);
-					}, conndata);
+
+					connectedCallback({
+						sender: (_data) => {
+							this.send(_data, oinstanceid);
+						},
+						close: (_data) => {
+							this.close(_data, oinstanceid);
+						},
+						id: oinstanceid,
+						conndata,
+					});
 				} catch(e) {
 					console.error(e);
 				}
@@ -516,8 +541,15 @@ L.define("ifmsg", ["XsLinkedList", "exports"], function(XsLinkedList, handleApi)
 		if(receiveCallback) {
 			unit.onReceiveListener = function(data, oinstanceid) {
 				try {
-					receiveCallback(data, (_data) => {
-						this.send(_data, oinstanceid);
+					receiveCallback({
+						sender: (_data) => {
+							this.send(_data, oinstanceid);
+						},
+						close: (_data) => {
+							this.close(_data, oinstanceid);
+						},
+						id: oinstanceid,
+						data,
 					});
 				} catch(e) {
 					console.error(e);
