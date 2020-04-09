@@ -1,9 +1,13 @@
 import U from "../../util/index.js";
 const L = U.global.xsloader;
 
+/**
+ * <vnodex :v="">
+ */
 L.define("xsloader4j-server-bridge", [], function() {
 	const base64 = new L.Base64();
 	let isDebug = false;
+	let hasRegVnodex = false;
 
 	/**
 	 * 用于支持jsx代码
@@ -27,8 +31,51 @@ L.define("xsloader4j-server-bridge", [], function() {
 		};
 	}
 
+	function regVnodex() {
+		if(hasRegVnodex) {
+			return;
+		}
+
+		let Vue = L.require.get("vue");
+		Vue.component("jsx", {
+			props: {
+				x: {
+					type: [Object, Function],
+					required: true
+				}
+			},
+			render() {
+				const {
+					$listeners,
+					$attrs,
+				} = this;
+				delete $attrs.x;
+				const wrapProps = {
+					on: $listeners,
+					attrs: $attrs,
+				};
+
+				let Comp = this.x;
+				if(L.isFunction(Comp)) {
+					Comp = Comp();
+				}
+				
+				if(L.isObject(Comp)){
+					let data=Comp.data||(Comp.data={});
+					for(let k in wrapProps){
+						data[k]=L.extend({},data[k],wrapProps[k]);
+					}
+				}
+				
+				return Comp;
+			}
+		});
+		hasRegVnodex = true;
+	}
+
 	const mod = {
 		getDefine(thiz) {
+			regVnodex();
 			return thiz.define;
 		},
 		getRequire(thiz) {

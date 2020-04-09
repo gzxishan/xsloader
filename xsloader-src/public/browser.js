@@ -21,19 +21,26 @@ let onReadyFun = (function() {
 			return;
 		}
 		let isReady = false;
+		let removeListener;
 
 		function ready() {
 			if(isReady) return;
 			isReady = true;
 			isGlobalReady = true;
+			if(removeListener) {
+				removeListener();
+				removeListener = null;
+			}
 			callback();
 		}
 		// Mozilla, Opera and webkit nightlies currently support this event
 		if(document.addEventListener) {
 			let fun;
 			fun = function() {
-				document.removeEventListener("DOMContentLoaded", fun);
 				ready();
+			};
+			removeListener = function() {
+				document.removeEventListener("DOMContentLoaded", fun);
 			};
 			document.addEventListener("DOMContentLoaded", fun);
 
@@ -43,9 +50,11 @@ let onReadyFun = (function() {
 			let fun;
 			fun = function() {
 				if(document.readyState === "complete") {
-					document.detachEvent("onreadystatechange", fun);
 					ready();
 				}
+			};
+			removeListener = function() {
+				document.detachEvent("onreadystatechange", fun);
 			};
 			document.attachEvent("onreadystatechange", fun);
 			// If IE and not an iframe
@@ -78,26 +87,54 @@ let onReadyFun = (function() {
 		if(document.readyState === "complete") {
 			isGlobalReady = true;
 		}
-		let br = new BindReady(callback);
-		if(!isGlobalReady) {
+
+		if(isGlobalReady) {
+			callback();
+		} else {
+			let br = new BindReady(callback);
 			bindReadyQueue.push(br);
 		}
 	};
+
+	let addEventHandle;
 	onReady(function() {
 		isGlobalReady = true;
+		if(addEventHandle && addEventHandle.remove) {
+			addEventHandle.remove();
+			addEventHandle = null;
+		}
 	});
 
 	if(document.readyState === "complete") {
 		isGlobalReady = true;
 	} else {
-		let addEventHandle;
 		if(G.addEventListener) {
 			addEventHandle = function(type, callback) {
-				G.addEventListener(type, callback, false);
+				let fun = function() {
+					addEventHandle.remove();
+					callback();
+				};
+				G.addEventListener(type, fun, false);
+				addEventHandle.remove = function() {
+					if(fun) {
+						G.removeEventListener(type, fun);
+						fun = null;
+					}
+				};
 			};
 		} else if(G.attachEvent) {
 			addEventHandle = function(type, callback) {
-				G.attachEvent("on" + type, callback);
+				let fun = function() {
+					addEventHandle.remove();
+					callback();
+				};
+				G.attachEvent("on" + type, fun);
+				addEventHandle.remove = function() {
+					if(fun) {
+						G.detachEvent("on" + type, fun);
+						fun = null;
+					}
+				};
 			};
 		} else {
 			addEventHandle = function(type, callback) {

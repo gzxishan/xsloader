@@ -10,8 +10,11 @@ module.exports = function(api) {
 		presets.push(["minify", {
 			"mangle": {
 				"topLevel": false,
+				"exclude":{
+					__renderJsx:true
+				}
 			},
-			"simplify": false,//设置为true有bug:【let result="";while(true){...{break;}...}return result;】result变量被混淆，但仍然return result;导致报错
+			"simplify": false, //设置为true有bug:【let result="";while(true){...{break;}...}return result;】result变量被混淆，但仍然return result;导致报错
 			"builtIns": false,
 			"booleans": false,
 			"keepFnName": false,
@@ -30,9 +33,13 @@ module.exports = function(api) {
 	]);
 
 	const plugins = [
-		'@babel/plugin-proposal-object-rest-spread',
-		'@babel/plugin-proposal-export-default-from',
-		'@babel/plugin-proposal-class-properties',
+		['@babel/plugin-proposal-object-rest-spread'],
+		['@babel/plugin-proposal-export-default-from'],
+		['@babel/plugin-proposal-class-properties'],
+		['@babel/plugin-transform-react-jsx', {
+			pragma: "__renderJsx(this)",
+			throwIfNamespace: false
+		}],
 		//		"transform-es3-property-literals",
 		//		"transform-es3-member-expression-literals",
 		//		"@babel/plugin-transform-reserved-words"
