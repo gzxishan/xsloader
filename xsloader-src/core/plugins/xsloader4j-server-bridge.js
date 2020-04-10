@@ -31,8 +31,8 @@ L.define("xsloader4j-server-bridge", [], function() {
 		};
 	}
 
-	function regVnodex() {
-		if(hasRegVnodex) {
+	function regVnodex(requiredVue = false) {
+		if(hasRegVnodex || !requiredVue && !L.hasDefine("vue")) {
 			return;
 		}
 
@@ -59,14 +59,14 @@ L.define("xsloader4j-server-bridge", [], function() {
 				if(L.isFunction(Comp)) {
 					Comp = Comp();
 				}
-				
-				if(L.isObject(Comp)){
-					let data=Comp.data||(Comp.data={});
-					for(let k in wrapProps){
-						data[k]=L.extend({},data[k],wrapProps[k]);
+
+				if(L.isObject(Comp)) {
+					let data = Comp.data || (Comp.data = {});
+					for(let k in wrapProps) {
+						data[k] = L.extend({}, data[k], wrapProps[k]);
 					}
 				}
-				
+
 				return Comp;
 			}
 		});
@@ -85,11 +85,24 @@ L.define("xsloader4j-server-bridge", [], function() {
 			return thiz.invoker();
 		},
 		renderJsx(vm) {
+			try {
+				regVnodex(true);
+			} catch(e) {
+				console.error("jsx need vue!");
+				throw e;
+			}
 			return __renderJsx(vm);
 		},
 		getVueCompiler(thiz) {
 			let rt = function(exports) {
-				let Vue = L.require("vue");
+				try {
+					regVnodex(true);
+				} catch(e) {
+					console.error("jsx need vue!");
+					throw e;
+				}
+
+				let Vue = L.require.get("vue");
 				let _default = exports['default'] || exports;
 				if(_default.template) {
 
