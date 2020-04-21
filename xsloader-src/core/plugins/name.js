@@ -24,7 +24,12 @@ L.define("name", {
 				let newName = names[i];
 				let lastM = moduleScript.getModule(newName);
 				if(lastM && lastM.state != "init" && !lastM.preDependModule) {
-					existsMods.push("\tselfname=" + newName + ",state=" + lastM.state + ",src=" + lastM.src);
+					let errinfo="\tselfname=" + newName + ",state=" + lastM.state + ",src=" + lastM.src;
+					if(lastM.id===depModuleArgs[0].module.id){//模块自己已经定义了
+						console.info("already define name by self:"+errinfo);
+					}else{
+						existsMods.push(errinfo);
+					}
 					continue;
 				}
 				let module = depModuleArgs[0].module;
