@@ -1,6 +1,6 @@
 const ABSOLUTE_PROTOCOL_REG = /^(([a-zA-Z0-9_]*:\/\/)|(\/)|(\/\/))/;
 const ABSOLUTE_PROTOCOL_REG2 = /^([a-zA-Z0-9_]+:)\/\/([^/\s]+)/;
-const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue"];
+const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue",".*"];
 
 import global from './global.js';
 const L = global.xsloader;
@@ -9,11 +9,11 @@ function isJsFile(path) {
 	if(!L.isString(path) || path.indexOf(".") == -1) {
 		return false;
 	}
-	var pluginIndex = path.indexOf("!");
+	let pluginIndex = path.indexOf("!");
 	if(pluginIndex > 0) {
 		path = path.substring(0, pluginIndex);
 	}
-	var index = path.indexOf("?");
+	let index = path.indexOf("?");
 	if(index > 0) {
 		path = path.substring(0, index);
 	}
@@ -23,8 +23,8 @@ function isJsFile(path) {
 	}
 	let theConfig = L.config();
 
-	var jsExts = theConfig && theConfig.jsExts || defaultJsExts;
-	for(var i = 0; i < jsExts.length; i++) {
+	let jsExts = theConfig && theConfig.jsExts || defaultJsExts;
+	for(let i = 0; i < jsExts.length; i++) {
 		if(L.endsWith(path, jsExts[i])) {
 			return {
 				ext: jsExts[i],
@@ -309,7 +309,10 @@ function replaceModulePrefix(config, deps) {
 			m = index > 0 ? m.substring(0, index) : m;
 
 			let is = isJsFile(m);
-			if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+			if(config.autoExt&&/\/[^\/.]+$/.test(m)){//自动后缀，需要后台支持
+				deps[i] = m + ".*" + query + pluginParam;
+			}
+			else if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
