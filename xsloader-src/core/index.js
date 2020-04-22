@@ -88,6 +88,7 @@ loader.loaderFun((option) => {
 		deps: {},
 		jsExts: undefined,
 		autoExt:true,
+		autoExtSuffix:".*",
 		properties: {},
 		modulePrefix: {},
 		defineFunction: {},

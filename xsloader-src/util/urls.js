@@ -310,7 +310,7 @@ function replaceModulePrefix(config, deps) {
 
 			let is = isJsFile(m);
 			if(config.autoExt&&/\/[^\/.]+$/.test(m)){//自动后缀，需要后台支持
-				deps[i] = m + ".*" + query + pluginParam;
+				deps[i] = m + config.autoExtSuffix + query + pluginParam;
 			}
 			else if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;

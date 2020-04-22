@@ -652,7 +652,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					urls = [dep];
 				} else {
 					if (config.autoExt && /\/[^\/.]+$/.test(dep)) {//自动后缀，需要后台支持
-						urls = [dep+".*"];
+						urls = [dep+config.autoExtSuffix];
 					}else{
 						urls = [];
 					}

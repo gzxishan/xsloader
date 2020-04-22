@@ -6,6 +6,7 @@
 	autoUrlArgs:false,//是否自动添加地址参数，防止缓存。1）为true或false；2）function,返回true或false
 	jsExts:[".js", ".js+",".es6", ".jsx", ".vue",".*"],
 	autoExt:true,//是否使用自动后缀，需要后台配合，且必须含有路径分隔符/；若为true、则发送的后缀为.*
+	autoExtSuffix:".*",
 	paths:{},//用于指定模块的路径(*.js)，不能使用插件
 	depsPaths:{},//用于指定模块的路径(*.js)，并可以为其中的模块配置依赖，不能使用插件。
 	deps:{},//用于配置依赖，map。
