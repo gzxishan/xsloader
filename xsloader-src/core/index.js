@@ -44,7 +44,7 @@ L.appendHeadDom = script.appendHeadDom;
 L.hasDefine = function(name) {
 	let has = false;
 	let module = moduleScript.getModule(name);
-	if(!module || module.state == "init") {
+	if (!module || module.state == "init") {
 
 	} else {
 		has = true;
@@ -59,8 +59,8 @@ L.resUrlBuilder = function(groupName) {
 
 L.clear_module_ = function() {
 	let modules = arguments;
-	for(let i = 0; i < modules.length; i++) {
-		if(modules[i]) {
+	for (let i = 0; i < modules.length; i++) {
+		if (modules[i]) {
 			delete modules[i]._module_;
 			delete modules[i]._modules_;
 		}
@@ -76,7 +76,7 @@ function _newContext() {
 }
 
 loader.loaderFun((option) => {
-	if(theContext) {
+	if (theContext) {
 		throw new Error("already configed!");
 	}
 	option = L.extend({
@@ -87,8 +87,8 @@ loader.loaderFun((option) => {
 		depsPaths: {},
 		deps: {},
 		jsExts: undefined,
-		autoExt:true,
-		autoExtSuffix:".*",
+		autoExt: true,
+		autoExtSuffix: ".*",
 		properties: {},
 		modulePrefix: {},
 		defineFunction: {},
@@ -113,8 +113,8 @@ loader.loaderFun((option) => {
 			let deps = [];
 			let hasOrderDep = undefined;
 
-			if(as.length > 0 && (as[0] === true || as[0] === false)) {
-				if(as[0]) {
+			if (as.length > 0 && (as[0] === true || as[0] === false)) {
+				if (as[0]) {
 					deps = [
 						[]
 					];
@@ -123,8 +123,8 @@ loader.loaderFun((option) => {
 					as.splice(0, 1);
 				}
 			}
-			for(let i = 0; i < as.length; i++) {
-				if(hasOrderDep === true) {
+			for (let i = 0; i < as.length; i++) {
+				if (hasOrderDep === true) {
 					deps[0].push(as[i]);
 				} else {
 					deps.push(as[i]);
@@ -135,12 +135,12 @@ loader.loaderFun((option) => {
 		dealUrl(module, url, addVersion = false) {
 			let urlArg;
 			let nameOrUrl;
-			if(this.autoUrlArgs()) {
+			if (this.autoUrlArgs()) {
 				urlArg = "_t=" + new Date().getTime();
 			} else {
 				let moduleName;
 				let src;
-				if(L.isString(module)) {
+				if (L.isString(module)) {
 					moduleName = module;
 				} else {
 					moduleName = module.selfname;
@@ -151,46 +151,46 @@ loader.loaderFun((option) => {
 
 				//先尝试模块名
 				urlArg = this.urlArgs[moduleName];
-				if(!urlArg) {
+				if (!urlArg) {
 					urlArg = this.forPrefixSuffix(moduleName);
 				}
 
 				//再尝试提供的url
-				if(!urlArg && url) {
+				if (!urlArg && url) {
 					urlArg = this.urlArgs[url];
-					if(!urlArg) {
+					if (!urlArg) {
 						urlArg = this.forPrefixSuffix(url);
 					}
 				}
 
 				//接着尝试模块src
-				if(!urlArg && src) {
+				if (!urlArg && src) {
 					urlArg = this.urlArgs[src];
-					if(!urlArg) {
+					if (!urlArg) {
 						urlArg = this.forPrefixSuffix(src);
 					}
 				}
 
 				//最后尝试通用的
-				if(!urlArg) {
+				if (!urlArg) {
 					urlArg = this.urlArgs["*"];
 				}
 
 			}
 
-			if(L.isFunction(urlArg)) {
+			if (L.isFunction(urlArg)) {
 				urlArg = urlArg.call(this, nameOrUrl);
 			}
 
-			if(!urlArg) {
+			if (!urlArg) {
 				urlArg = "";
 			}
 
-			for(let k in argsObject) { //加入全局的参数
+			for (let k in argsObject) { //加入全局的参数
 				urlArg += "&" + k + "=" + encodeURIComponent(argsObject[k]);
 			}
 
-			if(addVersion && this.props.addVersion) {
+			if (addVersion && this.props.addVersion) {
 				urlArg += "&_xsv=" + encodeURIComponent(L.env.version);
 			}
 
@@ -220,7 +220,7 @@ loader.loaderFun((option) => {
 		delay: 500,
 	}, option.plugins.loading);
 
-	if(script.theLoaderScript.getAttribute("disable-loading") !== undefined) {
+	if (L.domAttr(script.theLoaderScript, "disable-loading") !== undefined) {
 		option.plugins.loading.enable = false;
 	}
 
@@ -232,13 +232,13 @@ loader.loaderFun((option) => {
 		timeout: 30000, //连接超时时间，毫秒
 		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
-
-	if(!L.endsWith(option.baseUrl, "/")) {
+	
+	if (!L.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";
 	}
 	option.baseUrl = U.getPathWithRelative(location.href, option.baseUrl);
 
-	if(!option.ignoreProperties) {
+	if (!option.ignoreProperties) {
 		option = option.dealProperties(option);
 	}
 
@@ -246,7 +246,7 @@ loader.loaderFun((option) => {
 	U.strValue2Arr(option.depsPaths);
 	U.strValue2Arr(option.deps);
 
-	if(!L.isFunction(option.autoUrlArgs)) {
+	if (!L.isFunction(option.autoUrlArgs)) {
 		let isAutoUrlArgs = option.autoUrlArgs;
 		option.autoUrlArgs = function() {
 			return isAutoUrlArgs;
@@ -254,29 +254,29 @@ loader.loaderFun((option) => {
 	}
 
 	let modulePrefixCount = 0;
-	for(let prefix in option.modulePrefix) {
-		if(L.startsWith(prefix, ".") || L.startsWith(prefix, "/")) {
+	for (let prefix in option.modulePrefix) {
+		if (L.startsWith(prefix, ".") || L.startsWith(prefix, "/")) {
 			throw new Error("modulePrefix can not start with '.' or '/'(" + prefix + ")");
 		}
 		modulePrefixCount++;
 	}
 	option.modulePrefixCount = modulePrefixCount;
-	if(modulePrefixCount > 0) {
+	if (modulePrefixCount > 0) {
 		//替换urlArgs中地址前缀
 		let star = option.urlArgs["*"];
 		delete option.urlArgs["*"];
 
 		let urlArgsArr = [];
-		for(let k in option.urlArgs) {
+		for (let k in option.urlArgs) {
 			let url = k;
-			if(U.isJsFile(url)) { //处理相对
-				if(L.startsWith(url, ".") || L.startsWith(url, "/") && !L.startsWith(url, "//")) {
+			if (U.isJsFile(url)) { //处理相对
+				if (L.startsWith(url, ".") || L.startsWith(url, "/") && !L.startsWith(url, "//")) {
 					url = U.getPathWithRelative(script.theLoaderUrl, url);
 				} else {
 					let absolute = U.dealPathMayAbsolute(url);
-					if(absolute.absolute) {
+					if (absolute.absolute) {
 						url = absolute.path;
-					} else if(!L.startsWith(url, "*]")) { //排除*]；单*[可以有前缀
+					} else if (!L.startsWith(url, "*]")) { //排除*]；单*[可以有前缀
 						url = option.baseUrl + url;
 					}
 				}
@@ -288,16 +288,16 @@ loader.loaderFun((option) => {
 			});
 		}
 
-		for(let prefix in option.modulePrefix) {
+		for (let prefix in option.modulePrefix) {
 			let replaceStr = option.modulePrefix[prefix].replace;
-			for(let i = 0; i < urlArgsArr.length; i++) {
+			for (let i = 0; i < urlArgsArr.length; i++) {
 				let urlArgObj = urlArgsArr[i];
 				let starP = "";
-				if(L.startsWith(urlArgObj.url, "*[")) {
+				if (L.startsWith(urlArgObj.url, "*[")) {
 					starP = "*[";
 					urlArgObj.url = urlArgObj.url.substring(2);
 				}
-				if(L.startsWith(urlArgObj.url, prefix)) {
+				if (L.startsWith(urlArgObj.url, prefix)) {
 					urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
 				}
 				starP && (urlArgObj.url = starP + urlArgObj.url);
@@ -305,7 +305,7 @@ loader.loaderFun((option) => {
 		}
 		option.urlArgs = {};
 		option.urlArgs["*"] = star;
-		for(let i = 0; i < urlArgsArr.length; i++) {
+		for (let i = 0; i < urlArgsArr.length; i++) {
 			let urlArgObj = urlArgsArr[i];
 			option.urlArgs[urlArgObj.url] = urlArgObj.args;
 		}
@@ -317,15 +317,15 @@ loader.loaderFun((option) => {
 	option._urlArgs_prefix = _urlArgs_prefix;
 	option._urlArgs_suffix = _urlArgs_suffix;
 
-	for(let k in option.urlArgs) {
+	for (let k in option.urlArgs) {
 		let url = k;
-		if(L.startsWith(url, "*[")) {
+		if (L.startsWith(url, "*[")) {
 			let strfix = url.substring(2);
-			if(L.startsWith(strfix, ".") || L.startsWith(strfix, "/") && !L.startsWith(strfix, "//")) {
+			if (L.startsWith(strfix, ".") || L.startsWith(strfix, "/") && !L.startsWith(strfix, "//")) {
 				strfix = U.getPathWithRelative(script.theLoaderUrl, strfix);
 			} else {
 				let absolute = U.dealPathMayAbsolute(strfix);
-				if(absolute.absolute) {
+				if (absolute.absolute) {
 					strfix = absolute.path;
 				} else {
 					url = option.baseUrl + url;
@@ -337,7 +337,7 @@ loader.loaderFun((option) => {
 				value: option.urlArgs[k]
 			});
 			delete option.urlArgs[k];
-		} else if(L.startsWith(url, "*]")) {
+		} else if (L.startsWith(url, "*]")) {
 			_urlArgs_suffix.push({
 				strfix: url.substring(2),
 				value: option.urlArgs[k]
@@ -348,11 +348,11 @@ loader.loaderFun((option) => {
 
 	option.forPrefixSuffix = function(urlOrName) {
 		//前缀判断
-		for(let i = 0; i < _urlArgs_prefix.length; i++) {
+		for (let i = 0; i < _urlArgs_prefix.length; i++) {
 			let strfixObj = _urlArgs_prefix[i];
-			if(L.startsWith(urlOrName, strfixObj.strfix)) {
+			if (L.startsWith(urlOrName, strfixObj.strfix)) {
 				let value;
-				if(L.isFunction(strfixObj.value)) {
+				if (L.isFunction(strfixObj.value)) {
 					value = strfixObj.value.call(this, urlOrName);
 				} else {
 					value = strfixObj.value;
@@ -362,11 +362,11 @@ loader.loaderFun((option) => {
 		}
 
 		//后缀判断
-		for(let i = 0; i < _urlArgs_suffix.length; i++) {
+		for (let i = 0; i < _urlArgs_suffix.length; i++) {
 			let strfixObj = _urlArgs_suffix[i];
-			if(L.endsWith(urlOrName, strfixObj.strfix)) {
+			if (L.endsWith(urlOrName, strfixObj.strfix)) {
 				let value;
-				if(L.isFunction(strfixObj.value)) {
+				if (L.isFunction(strfixObj.value)) {
 					value = strfixObj.value.call(this, urlOrName);
 				} else {
 					value = strfixObj.value;
@@ -376,10 +376,10 @@ loader.loaderFun((option) => {
 		}
 	};
 
-	for(let name in option.paths) {
+	for (let name in option.paths) {
 		U.replaceModulePrefix(option, option.paths[name]); //前缀替换
 	}
-	for(let name in option.depsPaths) {
+	for (let name in option.depsPaths) {
 		U.replaceModulePrefix(option, option.depsPaths[name]); //前缀替换
 	}
 
@@ -392,12 +392,12 @@ loader.loaderFun((option) => {
 		});
 	};
 
-	for(let keyName in option.deps) {
+	for (let keyName in option.deps) {
 		let paths = keyName.split('::');
 		let depsArray = option.deps[keyName];
 		U.each(paths, (path) => {
-			if(path == '*') {
-				for(let m in option.depsPaths) {
+			if (path == '*') {
+				for (let m in option.depsPaths) {
 					let dealtDepArray = dealtDeps[m] = dealtDeps[m] || [];
 					pushDeps(dealtDepArray, depsArray);
 				}
