@@ -15,16 +15,16 @@ L.define("xsloader4j-server-bridge", [], function() {
 	 */
 	function __renderJsx(vm) {
 		return function(component, props /*, ...children*/ ) {
-			if(!vm || !vm.$createElement) {
+			if (!vm || !vm.$createElement) {
 				let Vue = L.require.get("vue");
 				vm = new Vue();
 			}
 			let $createElement = vm.$createElement;
-			if(!$createElement) {
+			if (!$createElement) {
 				throw new Error("not found function '$createElement'");
 			}
 			let children = [];
-			for(let i = 2; i < arguments.length; i++) {
+			for (let i = 2; i < arguments.length; i++) {
 				children.push(arguments[i]);
 			}
 			return $createElement(component, props, children);
@@ -32,7 +32,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 	}
 
 	function regVnodex(requiredVue = false) {
-		if(hasRegVnodex || !requiredVue && !L.hasDefine("vue")) {
+		if (hasRegVnodex || !requiredVue && !L.hasDefine("vue")) {
 			return;
 		}
 
@@ -56,13 +56,13 @@ L.define("xsloader4j-server-bridge", [], function() {
 				};
 
 				let Comp = this.x;
-				if(L.isFunction(Comp)) {
+				if (L.isFunction(Comp)) {
 					Comp = Comp();
 				}
 
-				if(L.isObject(Comp)) {
+				if (L.isObject(Comp)) {
 					let data = Comp.data || (Comp.data = {});
-					for(let k in wrapProps) {
+					for (let k in wrapProps) {
 						data[k] = L.extend({}, data[k], wrapProps[k]);
 					}
 				}
@@ -87,7 +87,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 		renderJsx(vm) {
 			try {
 				regVnodex(true);
-			} catch(e) {
+			} catch (e) {
 				console.error("jsx need vue!");
 				throw e;
 			}
@@ -97,14 +97,14 @@ L.define("xsloader4j-server-bridge", [], function() {
 			let rt = function(exports) {
 				try {
 					regVnodex(true);
-				} catch(e) {
+				} catch (e) {
 					console.error("jsx need vue!");
 					throw e;
 				}
 
 				let Vue = L.require.get("vue");
 				let _default = exports['default'] || exports;
-				if(_default.template) {
+				if (_default.template) {
 
 					//处理src,href,url(...)
 					let dealUrl = function(reg, group, str, appendArgs, fun) {
@@ -113,16 +113,16 @@ L.define("xsloader4j-server-bridge", [], function() {
 						};
 
 						let result = "";
-						while(true) {
+						while (true) {
 							let rs = reg.exec(str);
-							if(!rs) {
+							if (!rs) {
 								result += str;
 								break;
 							} else {
 								let rurl = rs[group].trim();
 
 								result += str.substring(0, rs.index);
-								if(L.startsWith(rurl, "url(")) {
+								if (L.startsWith(rurl, "url(")) {
 									result += rs[0];
 								} else {
 									result += fun(rs, thiz.getUrl(rurl, appendArgs));
@@ -134,17 +134,18 @@ L.define("xsloader4j-server-bridge", [], function() {
 					};
 
 					//排除掉':src'等属性
-					_default.template = dealUrl(/(^|\s)(src|href)\s*=\s*('|")([^'"\(\)]+)('|")/, 4, _default.template, false, function(regResult, url) {
-						return regResult[2] + "=" + regResult[3] + url + regResult[5];
-					});
+					_default.template = dealUrl(/(^|\s)(src|href)\s*=\s*('|")([^'"\(\)]+)('|")/, 4, _default.template, false,
+						function(regResult, url) {
+							return regResult[2] + "=" + regResult[3] + url + regResult[5];
+						});
 					_default.template = dealUrl(/(^|\s)url\(([^\(\)]+)\)/, 2, _default.template, true); //后处理url，src与href中可能包含url(...)
 					let res;
 					try {
-						if(isDebug) {
+						if (isDebug) {
 							console.log("compile vue template content,url=", thiz.getUrl());
 						}
 						res = Vue.compile(_default.template); //用template有bug，根元素有多个时出现死循环
-					} catch(e) {
+					} catch (e) {
 						console.error("url=", thiz.getUrl());
 						throw e;
 					}
@@ -157,7 +158,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 		},
 		getVtemplate(thiz) {
 			let vtemplate = (component) => {
-				return(resolve, reject) => {
+				return (resolve, reject) => {
 					let invoker = thiz.invoker();
 					thiz.require([component], (comp) => {
 						resolve(comp);
@@ -175,9 +176,9 @@ L.define("xsloader4j-server-bridge", [], function() {
 			};
 		},
 		getStyleBuilder(thiz) {
-			return function(cssContent) {
-				if(cssContent) {
-					let id = L.randId();
+			return function(cssContent, name = "") {
+				if (cssContent) {
+					let id = L.randId() + "_" + name;
 					let count = 0;
 					let styleDom = document.createElement("style");
 					styleDom.setAttribute("id", id);
@@ -186,15 +187,15 @@ L.define("xsloader4j-server-bridge", [], function() {
 
 					let obj = {
 						init() {
-							if(count <= 0) {
+							if (count <= 0) {
 								L.appendHeadDom(styleDom);
 							}
 							count++;
 							return {
 								destroy() {
-									if(--count <= 0) {
+									if (--count <= 0) {
 										let element = document.getElementById(id);
-										if(element) {
+										if (element) {
 											element.parentNode.removeChild(element);
 										}
 									}
@@ -208,7 +209,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 			};
 		},
 		decodeBase64(base64Content) {
-			if(base64Content) {
+			if (base64Content) {
 				return base64.decode(base64Content);
 			}
 		}
