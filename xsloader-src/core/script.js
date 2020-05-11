@@ -25,7 +25,7 @@ const theHead = document.head || document.getElementsByTagName('head')[0];
 
 const currentDefineModuleQueue = []; //当前回调的模块
 currentDefineModuleQueue.peek = function() {
-	if(this.length > 0) {
+	if (this.length > 0) {
 		return this[this.length - 1];
 	}
 };
@@ -34,19 +34,19 @@ let lastAppendHeadDom = theLoaderScript;
 let isSrcFromScriptLoad; //获取脚本的src是否在load事件阶段
 let lastScriptSrc = thePageUrl;
 let theRealDefine;
-if(safariVersion > 0 && safariVersion <= 7) {
+if (safariVersion > 0 && safariVersion <= 7) {
 	isSrcFromScriptLoad = true;
 }
 
 //处理嵌套依赖
 function _dealEmbedDeps(deps, defineObject) {
-	for(let i = 0; i < deps.length; i++) {
+	for (let i = 0; i < deps.length; i++) {
 		let dep = deps[i];
-		if(L.isArray(dep)) {
+		if (L.isArray(dep)) {
 			//内部的模块顺序加载
 			let modName = "inner_order_" + moduleScript.getModuleId();
 			let isOrderDep = !(dep.length > 0 && dep[0] === false);
-			if(dep.length > 0 && (dep[0] === false || dep[0] === true)) {
+			if (dep.length > 0 && (dep[0] === false || dep[0] === true)) {
 				dep = dep.slice(1);
 			}
 			innerDepsMap[modName] = {
@@ -64,7 +64,7 @@ function _dealEmbedDeps(deps, defineObject) {
 
 function _getPluginParam(path) {
 	let pluginIndex = path.indexOf("!");
-	if(pluginIndex > 0) {
+	if (pluginIndex > 0) {
 		return path.substring(pluginIndex);
 	} else {
 		return "";
@@ -108,20 +108,20 @@ function _buildInvoker(module) {
 		return id;
 	};
 	invoker.getUrl = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
-		if(optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+		if (optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
 			throw new Error(-1, "expected absolute url:" + optionalAbsUrl);
 		}
 
 		let url;
-		if(relativeUrl === undefined) {
+		if (relativeUrl === undefined) {
 			url = this.src();
-		} else if(L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
+		} else if (L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
 			url = U.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
 		} else {
 			url = L.config().baseUrl + relativeUrl;
 		}
-		if(appendArgs) {
-			if(url == thePageUrl) {
+		if (appendArgs) {
+			if (url == thePageUrl) {
 				url += location.search + location.hash;
 			}
 			return L.config().dealUrl(module, url);
@@ -132,17 +132,22 @@ function _buildInvoker(module) {
 
 	invoker.getUrl2 = function(relativeUrl, appendArgs = true, optionalAbsUrl) {
 		let url = this.getUrl(relativeUrl, false, optionalAbsUrl);
-		if(appendArgs) {
+		if (appendArgs) {
 			return L.config().dealUrl(module, url);
 		} else {
 			return url;
 		}
 	};
 
+	invoker.appendArgs = function(url, forArgsUrl = U.global.location.href) {
+		let urlArgs = L.config().getUrlArgs(module, forArgsUrl);
+		return L.appendArgs2Url(url, urlArgs);
+	};
+
 	invoker.require = function() {
 		//		console.log("this.require:absolute=" + invoker.src() + ",args[0]=" + arguments[0]);
 		let h = L.require.apply(new ThisInvoker(invoker), arguments);
-		if(h instanceof Handle) {
+		if (h instanceof Handle) {
 			h.then({
 				absUrl: invoker.src()
 			});
@@ -157,7 +162,7 @@ function _buildInvoker(module) {
 	invoker.define = function() {
 		//		console.log("this.define:absolute=" + invoker.src() + ",args[0]=" + arguments[0] + (typeof arguments[0] == "string" ? (",args[1]=" + arguments[1]) : ""));
 		let h = L.define.apply(new ThisInvoker(invoker), arguments);
-		if(h instanceof Handle) {
+		if (h instanceof Handle) {
 			h.then({
 				absUrl: invoker.src()
 			});
@@ -175,7 +180,7 @@ function _buildInvoker(module) {
 	};
 
 	invoker.withAbsUrl = function(absUrlStr) {
-		if(!absUrlStr) {
+		if (!absUrlStr) {
 			absUrlStr = invoker.absUrl();
 		}
 		let moduleMap = {
@@ -250,27 +255,27 @@ class Invoker {
 }
 
 function getMineInvoker(thiz) {
-	if(thiz instanceof ThisInvoker) {
+	if (thiz instanceof ThisInvoker) {
 		return thiz.invoker;
-	} else if(thiz instanceof Invoker) {
+	} else if (thiz instanceof Invoker) {
 		return thiz;
-	} else if(thiz instanceof DefineObject) {
+	} else if (thiz instanceof DefineObject) {
 		return thiz.thiz;
 	}
 }
 
 function getInvoker(thiz, nullNew = true) {
-	if(thiz instanceof ThisInvoker) {
+	if (thiz instanceof ThisInvoker) {
 		return thiz.invoker;
-	} else if(thiz instanceof Invoker) {
+	} else if (thiz instanceof Invoker) {
 		return thiz;
-	} else if(thiz instanceof DefineObject) {
+	} else if (thiz instanceof DefineObject) {
 		return thiz.thatInvoker;
 	} else {
 		let parentModule = currentDefineModuleQueue.peek();
-		if(parentModule) {
+		if (parentModule) {
 			return parentModule.thiz;
-		} else if(nullNew) {
+		} else if (nullNew) {
 			let moduleMap = {
 				module: "",
 				src: thePageUrl,
@@ -316,7 +321,7 @@ class DefineObject {
 			instance: undefined,
 		};
 
-		if(thiz instanceof ThisInvoker) {
+		if (thiz instanceof ThisInvoker) {
 			//this.handle.absUrl = thiz.invoker.src(); //设置默认参考地址
 			this.src = thiz.invoker.src();
 		}
@@ -324,23 +329,23 @@ class DefineObject {
 		let selfname = args[0];
 		let deps = args[1];
 		let callback = args[2];
-		if(args.length == 1) {
+		if (args.length == 1) {
 			//直接定义模块，且没有依赖
 			callback = selfname;
 			selfname = null;
 			deps = null;
-		} else if(typeof selfname !== 'string') {
+		} else if (typeof selfname !== 'string') {
 			callback = deps;
 			deps = selfname;
 			selfname = null; //为空的、表示定义默认模块
 		}
 
-		if(deps && !L.isArray(deps)) {
+		if (deps && !L.isArray(deps)) {
 			callback = deps;
 			deps = null;
 		}
 
-		if(!deps) {
+		if (!deps) {
 			deps = [];
 		} else {
 			deps = L.clone(deps);
@@ -360,7 +365,7 @@ class DefineObject {
 	}
 
 	pushName(name) {
-		if(name && L.indexInArray(this.names, name) == -1) {
+		if (name && L.indexInArray(this.names, name) == -1) {
 			this.names.push(name);
 		}
 	}
@@ -375,21 +380,21 @@ class DefineObject {
 
 		let _deps = config.getDeps(src);
 		U.each(_deps, (dep) => {
-			if(L.indexInArray(deps, dep) == -1) {
+			if (L.indexInArray(deps, dep) == -1) {
 				deps.push(dep);
 			}
 		});
 		U.each(this.names, (name) => {
 			_deps = config.getDeps(name);
 			U.each(_deps, (dep) => {
-				if(L.indexInArray(deps, dep) == -1) {
+				if (L.indexInArray(deps, dep) == -1) {
 					deps.push(dep);
 				}
 			});
 		});
-		if(this.handle.orderDep && this._directDepLength > 1 && deps.length > this._directDepLength) {
+		if (this.handle.orderDep && this._directDepLength > 1 && deps.length > this._directDepLength) {
 			let odeps = [true]; //第一个true表示顺序依赖
-			while(this._directDepLength-- > 0) {
+			while (this._directDepLength-- > 0) {
 				odeps.push(deps.shift());
 			}
 			deps.unshift(odeps);
@@ -399,19 +404,19 @@ class DefineObject {
 		_dealEmbedDeps(deps, this); //处理嵌套依赖
 		U.replaceModulePrefix(config, deps); //前缀替换
 
-		if(module) {
+		if (module) {
 			module.deps = deps;
 			module._dealApplyArgs = (function(directDepLength, hasOrderDep) {
 				return function(applyArgs) {
-					if(directDepLength == 0 || applyArgs.length == 0) {
+					if (directDepLength == 0 || applyArgs.length == 0) {
 						return [];
 					}
 					//顺序依赖,还原成最初的顺序,移除额外的依赖。
 					let args = new Array(directDepLength + 1);
-					if(hasOrderDep) {
+					if (hasOrderDep) {
 						args = applyArgs[0];
 					} else {
-						for(var i = 0; i < directDepLength; i++) {
+						for (var i = 0; i < directDepLength; i++) {
 							args[i] = applyArgs[i];
 						}
 						args[directDepLength] = applyArgs[applyArgs.length - 1].slice(0, directDepLength);
@@ -426,19 +431,19 @@ class DefineObject {
 	dealRelative(module) {
 		let deps = this.deps;
 		//处理相对路径
-		for(let i = 0; i < deps.length; i++) {
+		for (let i = 0; i < deps.length; i++) {
 			//console.log(module.selfname+("("+defineObject.handle.defined_module_for_deps+")"), ":", deps);
 			let m = deps[i];
 			let jsFilePath = U.isJsFile(m);
 
 			//替换相对路径为绝对路径
-			if(jsFilePath && L.startsWith(m, ".")) {
+			if (jsFilePath && L.startsWith(m, ".")) {
 				m = U.getPathWithRelative(module.thiz.rurl(this), jsFilePath.path) + _getPluginParam(m);
 				deps[i] = m;
 			}
 
 			let paths = U.graphPath.tryAddEdge(this.handle.defined_module_for_deps || module.selfname, m);
-			if(paths.length > 0) {
+			if (paths.length > 0) {
 				let moduleLoop = moduleScript.getModule(m); //该模块必定已经被定义过
 				moduleLoop.loopObject = {};
 			}
@@ -462,23 +467,23 @@ class DefineObject {
 function getCurrentScript(isRemoveQueryHash = true) {
 	function _getCurrentScriptOrSrc() { //兼容获取正在运行的js
 		//取得正在解析的script节点
-		if(document.currentScript !== undefined) { //firefox 4+
+		if (document.currentScript !== undefined) { //firefox 4+
 			let node = document.currentScript && document.currentScript.src && document.currentScript;
-			if(node) {
+			if (node) {
 				return {
 					node,
 					src: node.src
 				};
 			}
 		}
-		if(U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
+		if (U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
 			let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
 			//			U.each(nodes, (node) => {
 			//				console.log("node.src=" + node.src + ",node.readyState=" + node.readyState);
 			//			});
-			for(let i = nodes.length - 1; i >= 0; i--) {
+			for (let i = nodes.length - 1; i >= 0; i--) {
 				let node = nodes[i];
-				if(node.readyState === "interactive" && node.src) {
+				if (node.readyState === "interactive" && node.src) {
 					return {
 						node,
 						src: node.src
@@ -490,14 +495,14 @@ function getCurrentScript(isRemoveQueryHash = true) {
 		try {
 			let a = undefined;
 			a.b.c(); //强制报错,以便捕获e.stack
-		} catch(e) { //safari的错误对象只有line,sourceId,sourceURL
+		} catch (e) { //safari的错误对象只有line,sourceId,sourceURL
 			stack = e.stack || e.sourceURL || e.stacktrace || '';
-			if(!stack && window.opera) {
+			if (!stack && window.opera) {
 				//opera 9没有e.stack,但有e.Backtrace,但不能直接取得,需要对e对象转字符串进行抽取
 				stack = (String(e).match(/of linked script \S+/g) || []).join(" ");
 			}
 		}
-		if(stack) {
+		if (stack) {
 			/**e.stack最后一行在所有支持的浏览器大致如下:
 			 *chrome23:
 			 * at http://113.93.50.63/data.js:4:1
@@ -519,7 +524,7 @@ function getCurrentScript(isRemoveQueryHash = true) {
 
 	let rs;
 	let parentDefine = currentDefineModuleQueue.peek();
-	if(parentDefine) {
+	if (parentDefine) {
 		rs = {
 			src: parentDefine.src
 		};
@@ -527,33 +532,33 @@ function getCurrentScript(isRemoveQueryHash = true) {
 		rs = _getCurrentScriptOrSrc();
 	}
 
-	if(!rs) {
+	if (!rs) {
 		rs = {
 			src: thePageUrl
 		};
 	}
 
-	if(U.isLoaderEnd() && rs.src == theLoaderUrl) {
+	if (U.isLoaderEnd() && rs.src == theLoaderUrl) {
 		rs.src = thePageUrl;
 		rs.node = null;
 	}
 
-	if(!rs.node && rs.src != thePageUrl) {
+	if (!rs.node && rs.src != thePageUrl) {
 		let src = U.removeQueryHash(rs.src);
 		let nodes = document.getElementsByTagName("script"); //只在head标签中寻找
-		for(let i = 0; i < nodes.length; i++) {
+		for (let i = 0; i < nodes.length; i++) {
 			let node = nodes[i];
-			if(src == U.removeQueryHash(node.src)) {
+			if (src == U.removeQueryHash(node.src)) {
 				rs.node = node;
 				break;
 			}
 		}
 	}
 
-	if(rs.node) {
+	if (rs.node) {
 		rs.src = U.getNodeAbsolutePath(rs.node);
 	}
-	if(isRemoveQueryHash) {
+	if (isRemoveQueryHash) {
 		rs.src = U.removeQueryHash(rs.src);
 	}
 	return rs;
@@ -569,8 +574,8 @@ function __createNode() {
 }
 
 function __removeListener(node, func, name, ieName) {
-	if(node.detachEvent && !isOpera) {
-		if(ieName) {
+	if (node.detachEvent && !isOpera) {
+		if (ieName) {
 			node.detachEvent(ieName, func);
 		}
 	} else {
@@ -592,7 +597,7 @@ function __browserLoader(moduleName, url, callbackObj) {
 		!(node.attachEvent.toString && node.attachEvent.toString().indexOf('[native code') < 0) &&
 		!isOpera;
 
-	if(useAttach) {
+	if (useAttach) {
 		node.attachEvent('onreadystatechange', callbackObj.onScriptLoad);
 	} else {
 		node.addEventListener('load', callbackObj.onScriptLoad, true);
@@ -604,7 +609,7 @@ function __browserLoader(moduleName, url, callbackObj) {
 		node.addEventListener('error', errListen, true);
 	}
 	appendHeadDom(node);
-	if(U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
+	if (U.IE_VERSION > 0 && U.IE_VERSION <= 10) {
 		L.asyncCall(() => {
 			node.src = url; //在ie10-以下，必须在脚本插入head后再进行src的设置、且需要异步设置。
 		});
@@ -625,7 +630,7 @@ function __getScriptData(evt, callbackObj) {
 }
 
 function appendHeadDom(dom) {
-	if(!L.isDOM(dom)) {
+	if (!L.isDOM(dom)) {
 		throw new Error("expected dom object,but provided:" + dom);
 	}
 	let nextDom = lastAppendHeadDom.nextSibling;
@@ -639,19 +644,19 @@ function appendHeadDom(dom) {
 function loadScript(moduleName, url, onload, onerror) {
 	let callbackObj = {};
 	callbackObj.onScriptLoad = function(evt) {
-		if(callbackObj.removed) {
+		if (callbackObj.removed) {
 			return;
 		}
-		if(evt.type === 'load' || (readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
+		if (evt.type === 'load' || (readyRegExp.test((evt.currentTarget || evt.srcElement).readyState))) {
 			callbackObj.removed = true;
 			let scriptData = __getScriptData(evt, callbackObj);
-			if(isSrcFromScriptLoad) {
+			if (isSrcFromScriptLoad) {
 				lastScriptSrc = scriptData.src; //已经不含参数
 				L.asyncCall(() => {
 					onload(scriptData);
 				});
 			} else {
-				if(U.IE_VERSION > 0 || U.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
+				if (U.IE_VERSION > 0 || U.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
 					L.asyncCall(() => {
 						onload(scriptData);
 					});
@@ -662,7 +667,7 @@ function loadScript(moduleName, url, onload, onerror) {
 		}
 	};
 	callbackObj.onScriptError = function(evt) {
-		if(callbackObj.removed) {
+		if (callbackObj.removed) {
 			return;
 		}
 		callbackObj.removed = true;
@@ -685,18 +690,18 @@ function doDefine(thiz, args, isRequire) {
 	//	console.log("**********************************]\n");
 	let src = rs.src;
 	let defineObject = new DefineObject(src, thiz, args, isRequire);
-	if(!isSrcFromScriptLoad) {
+	if (!isSrcFromScriptLoad) {
 		try { //防止执行其他脚本
-			if(defineObject.src) {
+			if (defineObject.src) {
 				let node = document.currentScript;
-				if(node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
+				if (node && node.getAttribute("src") && node.getAttribute(DATA_ATTR_CONTEXT) != defContextName &&
 					defineObject.src != theLoaderUrl && defineObject.src != thePageUrl) {
 					console.error("unknown js script module:" + L.xsJson2String(defineObject.src));
 					console.error(node);
 					return;
 				}
 			}
-		} catch(e) {
+		} catch (e) {
 			L.config().error(e);
 		}
 
@@ -706,7 +711,7 @@ function doDefine(thiz, args, isRequire) {
 
 	let isLoaderEnd = U.isLoaderEnd();
 	L.asyncCall(() => {
-		if(isSrcFromScriptLoad && isLoaderEnd) {
+		if (isSrcFromScriptLoad && isLoaderEnd) {
 			//执行顺序：当前脚本define>load事件(获取lastScriptSrc)>当前位置>onload
 			defineObject.src = lastScriptSrc;
 		}
@@ -717,7 +722,7 @@ function doDefine(thiz, args, isRequire) {
 
 function predefine() {
 	let args = [];
-	for(let i = 0; i < arguments.length; i++) {
+	for (let i = 0; i < arguments.length; i++) {
 		args.push(arguments[i]);
 	}
 	return doDefine(this, args, false);
@@ -727,15 +732,15 @@ let isFirstRequire = true;
 
 function prerequire(deps, callback) {
 	let config = L.config();
-	if(!config) { //require必须是在config之后
+	if (!config) { //require必须是在config之后
 		throw new Error("not config");
 	}
 	let thatInvoker = getInvoker(this);
-	if(arguments.length == 1 && L.isString(deps)) { //获取已经加载的模块
-		if(deps == "exports") { //当require("exports")时，必须依赖了exports
+	if (arguments.length == 1 && L.isString(deps)) { //获取已经加载的模块
+		if (deps == "exports") { //当require("exports")时，必须依赖了exports
 			let mineInvoker = getMineInvoker(this);
 			let exports = mineInvoker && mineInvoker.exports();
-			if(!exports) {
+			if (!exports) {
 				throw new Error("not found exports");
 			} else {
 				return exports;
@@ -745,40 +750,40 @@ function prerequire(deps, callback) {
 		let originDeps = deps;
 		let pluginArgs = undefined;
 		let pluginIndex = deps.indexOf("!");
-		if(pluginIndex > 0) {
+		if (pluginIndex > 0) {
 			pluginArgs = deps.substring(pluginIndex + 1);
 			deps = deps.substring(0, pluginIndex);
-			if(pluginArgs) {
+			if (pluginArgs) {
 				let argArr = [pluginArgs];
 				U.replaceModulePrefix(config, argArr); //前缀替换
 				pluginArgs = argArr[0];
 			}
 		}
 		let module = moduleScript.getModule(deps);
-		if(!module) {
+		if (!module) {
 			deps = thatInvoker.getUrl(deps, false);
 			module = moduleScript.getModule(deps);
 		}
-		if(!module) {
+		if (!module) {
 			throw new Error("the module '" + originDeps + "' is not load!");
-		} else if(module.state != "defined") {
+		} else if (module.state != "defined") {
 			throw new Error("the module '" + originDeps + "' is not defined:" + module.state);
 		}
 		let theMod;
 		moduleScript.newModuleInstance(module, thatInvoker, (depModule) => {
 			theMod = depModule.moduleObject();
 		}, pluginArgs).initInstance(true);
-		if(theMod === undefined) {
+		if (theMod === undefined) {
 			throw Error("the module '" + originDeps + "' is not load!");
 		}
 		return theMod;
 	}
 
 	let selfname = L.randId("_require");
-	if(L.isFunction(deps)) {
+	if (L.isFunction(deps)) {
 		callback = deps;
 		deps = [];
-	} else if(!L.isArray(deps)) {
+	} else if (!L.isArray(deps)) {
 		throw new Error("unexpected argument:" + deps);
 	}
 	U.appendInnerDeps(deps, callback);
@@ -787,13 +792,13 @@ function prerequire(deps, callback) {
 	let isOk = false;
 	let customerErrCallback;
 	let isErr;
-	if(isFirstRequire && config.plugins.loading.enable) {
+	if (isFirstRequire && config.plugins.loading.enable) {
 		isFirstRequire = false;
 		setTimeout(() => {
-			if(!isOk) {
+			if (!isOk) {
 				loading = new U.ToProgress(config.plugins.loading);
 				loading.autoIncrement();
-				if(isErr) {
+				if (isErr) {
 					loading.toError(config.plugins.loading.errColor);
 					loading = null;
 				}
@@ -801,8 +806,8 @@ function prerequire(deps, callback) {
 		}, config.plugins.loading.delay);
 	}
 	let clearTimer = function(isErr = false) {
-		if(loading) {
-			if(isErr) {
+		if (loading) {
+			if (isErr) {
 				loading.toError(config.plugins.loading.errColor);
 			} else {
 				loading.stopAuto();
@@ -810,7 +815,7 @@ function prerequire(deps, callback) {
 			}
 			loading = null;
 		}
-		if(timeid !== undefined) {
+		if (timeid !== undefined) {
 			clearTimeout(timeid);
 			timeid = undefined;
 		}
@@ -821,10 +826,10 @@ function prerequire(deps, callback) {
 		clearTimer();
 		//		console.log("2======require:"+selfname);
 		//		console.log(callback);
-		if(L.isFunction(callback)) {
+		if (L.isFunction(callback)) {
 			try {
 				callback.apply(this, arguments);
-			} catch(e) {
+			} catch (e) {
 				handle.onError(e);
 			}
 		}
@@ -840,7 +845,7 @@ function prerequire(deps, callback) {
 	handle.error(function(err, invoker) {
 		isErr = !!err;
 		clearTimer(true);
-		if(customerErrCallback) {
+		if (customerErrCallback) {
 			customerErrCallback.call(handle, err, invoker);
 		} else {
 			handle.logError(err, invoker);
@@ -853,24 +858,24 @@ function prerequire(deps, callback) {
 
 	L.asyncCall(() => {
 
-		if(handle.waitTime) {
+		if (handle.waitTime) {
 			let checkResultFun = function() {
 				try {
 					let ifmodule = moduleScript.getModule(selfname);
 					//console.log(isErr)
-					if((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+					if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
 						let module = ifmodule;
 						handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
-						if(module) {
+						if (module) {
 							U.each(module.deps, function(dep) {
 								let mod = moduleScript.getModule(dep);
-								if(mod && mod.printOnNotDefined) {
+								if (mod && mod.printOnNotDefined) {
 									mod.printOnNotDefined();
 								}
 							});
 						}
 					}
-				} catch(e) {
+				} catch (e) {
 					console.error(e);
 				}
 				clearTimer();
@@ -880,14 +885,14 @@ function prerequire(deps, callback) {
 
 	});
 
-	if(typeof Promise != "undefined" && arguments.length == 1 && !callback) {
+	if (typeof Promise != "undefined" && arguments.length == 1 && !callback) {
 		let promise = new Promise((resolve, inject) => {
 			callback = function() {
-				if(deps.length == 1) {
+				if (deps.length == 1) {
 					resolve(arguments[0]);
 				} else {
 					let args = [];
-					for(var i = 0; i < deps.length; i++) {
+					for (var i = 0; i < deps.length; i++) {
 						args.push(arguments[i]);
 					}
 					resolve(args);
@@ -908,7 +913,7 @@ function prerequire(deps, callback) {
 
 const initDefine = function(theDefine) {
 	theRealDefine = (defines, loaded) => {
-		if(!L.config()) { //还没有配置
+		if (!L.config()) { //还没有配置
 			globalDefineQueue.push(defines);
 		} else {
 			theDefine(defines, loaded);
@@ -921,7 +926,7 @@ const initDefine = function(theDefine) {
 };
 
 const onConfigedCallback = function() {
-	while(globalDefineQueue.length) {
+	while (globalDefineQueue.length) {
 		let defines = globalDefineQueue.shift();
 		theRealDefine(defines);
 	}

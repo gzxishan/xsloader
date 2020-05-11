@@ -132,7 +132,14 @@ loader.loaderFun((option) => {
 			}
 			return deps;
 		},
-		dealUrl(module, url, addVersion = false) {
+		dealUrl(module, url,addVersion = false) {
+			let urlArgs=this.getUrlArgs(module, url,addVersion);
+			return L.appendArgs2Url(url, urlArgs);
+		},
+		/**
+		 * 获取待添加的参数
+		 */
+		getUrlArgs(module, url, addVersion = false) {
 			let urlArg;
 			let nameOrUrl;
 			if (this.autoUrlArgs()) {
@@ -194,7 +201,7 @@ loader.loaderFun((option) => {
 				urlArg += "&_xsv=" + encodeURIComponent(L.env.version);
 			}
 
-			return L.appendArgs2Url(url, urlArg);
+			return urlArg;
 		},
 		dealUrlArgs(url) {
 			url = U.getPathWithRelative(location.href, url);
@@ -232,7 +239,7 @@ loader.loaderFun((option) => {
 		timeout: 30000, //连接超时时间，毫秒
 		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
-	
+
 	if (!L.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";
 	}
