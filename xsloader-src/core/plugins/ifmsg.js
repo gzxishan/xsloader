@@ -308,10 +308,30 @@ class IfmsgServer {
 
 }
 
-class Client {
-
-}
-
 class IfmsgClient {
+	_client;
+	constructor() {
+
+	}
+
+	connect(conndata) {
+
+	}
+
+	/**
+	 *@param {Object} onConnect  function(fromid,source,origin,conndata,callback(isAccept,err))
+	 */
+	set onConnect(onConnect) {
+		this._server.onConnect = onConnect;
+	}
+
+	get onConnect() {
+		return this._server.onConnect;
+	}
 
 }
+
+L.define("ifmsg", {
+	server: IfmsgServer,
+	client: IfmsgClient,
+});
