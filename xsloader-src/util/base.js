@@ -226,6 +226,19 @@ const IE_VERSION = (function getIEVersion() {
 	}
 })();
 
+function isEmptyObject(obj){
+	if(obj===null||obj===undefined){
+		return true;
+	}else if(!L.isObject(obj)){
+		throw new Error("expected object:"+obj)
+	}else{
+		for(let k in obj){
+			return false;
+		}
+		return true;
+	}
+}
+
 export default {
 	graphPath: new GraphPath(),
 	strValue2Arr,
@@ -241,4 +254,5 @@ export default {
 		return isXsLoaderEnd;
 	},
 	IE_VERSION,
+	isEmptyObject,
 };

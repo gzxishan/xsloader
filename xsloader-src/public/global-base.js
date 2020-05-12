@@ -18,7 +18,8 @@ if (!String.prototype.trim) {
 
 //生成一个随机的id，只保证在本页面是唯一的
 function randId(suffix) {
-	let id = "r" + parseInt(new Date().getTime() / 1000) + "_" + parseInt(Math.random() * 1000) + "_" + U.getAndIncIdCount();
+	let id = "r" + parseInt(new Date().getTime() / 50).toString(16) + parseInt(Math.random() * 1000).toString(16) +
+		U.getAndIncIdCount().toString(16);
 	if (suffix !== undefined) {
 		id += suffix;
 	}
