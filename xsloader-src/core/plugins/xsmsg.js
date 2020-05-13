@@ -671,7 +671,7 @@ try {
 		function _connectIFrame(iframe, option) {
 			let winObj;
 			if(typeof iframe == "string") {
-				//iframe = ddocument.querySelector(iframe);
+				iframe = document.getElementById(iframe);
 				winObj = function(callback) {
 					iframe.onload = function() {
 						callback(this.contentWindow);

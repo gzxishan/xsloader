@@ -48,6 +48,10 @@
 		xsmsg:{
 			timeout:30000,//全局默认连接超时时间，毫秒
 			sleep:500,//连接检测的休眠时间，毫秒
+		},
+		ifmsg:{
+			connTimeout: 30000, //连接超时时间，毫秒
+			sleepTimeout: 20, //连接检测的休眠时间，毫秒
 		}
 	},
 	props:{//加载器使用的配置
@@ -116,7 +120,7 @@
   xsloader.config():获取配置
   xsloader.config().dealProperties(obj),xsloader.dealProperties(obj,properties)替换参数
     
- 9、内置简单插件或模块：css!,text!,json!,ready!,name!,window!,withdeps!,exports,xshttp,request,xsmsg,XsLinkedList,nodeps!,try!,image!,default!
+ 9、内置简单插件或模块：css!,text!,json!,ready!,name!,window!,withdeps!,exports,xshttp,request,xsmsg（废弃）,ifmsg,XsLinkedList,nodeps!,try!,image!,default!
      （1）name!插件格式:name!moduleName=>>modulePath；作用：用于给模块命名,其中moduleName用逗号隔开、表示多个名字
      （2）window!插件格式:window!varNameInWindow=>>modulePath；作用:用于把模块添加到window对象中
      （3）withdeps!插件格式:withdeps!modulePath=>>[deps]；作用：用于方便给模块添加依赖

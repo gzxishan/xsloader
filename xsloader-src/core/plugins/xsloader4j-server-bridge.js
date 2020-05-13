@@ -165,7 +165,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 					}).error((err) => {
 						reject(err.err);
 					});
-				}
+				};
 			};
 			return vtemplate;
 		},

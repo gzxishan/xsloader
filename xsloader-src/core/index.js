@@ -239,6 +239,11 @@ loader.loaderFun((option) => {
 		timeout: 30000, //连接超时时间，毫秒
 		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
+	
+	option.plugins.ifmsg = L.extend({
+		connTimeout: 30000, //连接超时时间，毫秒
+		sleepTimeout: 20, //连接检测的休眠时间，毫秒
+	}, option.plugins.ifmsg);
 
 	if (!L.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";

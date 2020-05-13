@@ -13,7 +13,7 @@ const L = G.xsloader;
 
 const env = {
 	version: ENV_XSLOADER_VERSION
-}
+};
 
 let toGlobal = {
 	...deprecated,

@@ -145,7 +145,7 @@ function __commentReplace(match, singlePrefix) {
 
 function __appendInnerDeps(deps, callbackString, reg, depIndex, notIndex) {
 	callbackString.replace(reg, function() {
-		let dep = arguments[depIndex]
+		let dep = arguments[depIndex];
 		if((!notIndex || !NOT_REQUIRE_REGEXP.test(arguments[notIndex])) && L.indexInArray(deps, dep) == -1) {
 			deps.push(dep);
 		}
@@ -230,7 +230,7 @@ function isEmptyObject(obj){
 	if(obj===null||obj===undefined){
 		return true;
 	}else if(!L.isObject(obj)){
-		throw new Error("expected object:"+obj)
+		throw new Error("expected object:"+obj);
 	}else{
 		for(let k in obj){
 			return false;
