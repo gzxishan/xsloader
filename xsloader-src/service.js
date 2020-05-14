@@ -17,7 +17,7 @@ let serviceConfigUrl;
 let dataConf = L.script().getAttribute(DATA_CONF) || L.script().getAttribute(DATA_CONFX);
 let dataMain = L.script().getAttribute(DATA_MAIN) || L.script().getAttribute(DATA_MAINX);
 let dataConfType = L.script().getAttribute(DATA_CONF_TYPE);
-if(dataConfType !== "json" && dataConfType != "js") {
+if (dataConfType !== "json" && dataConfType != "js") {
 	dataConfType = "auto";
 }
 
@@ -28,13 +28,13 @@ let initFun = () => {
 
 		let index = path.lastIndexOf("/");
 		let name = path.substring(index + 1);
-		if(name === "") {
+		if (name === "") {
 			name = "index";
 		}
-		if(L.endsWith(name, ".html")) {
+		if (L.endsWith(name, ".html")) {
 			name = name.substring(0, name.length - 5);
 		}
-		if(!mainPath) {
+		if (!mainPath) {
 			mainPath = "./main/{name}.js";
 		}
 		mainPath = mainPath.replace("{name}", name);
@@ -67,7 +67,7 @@ let initFun = () => {
 			},
 			loader: {
 				"default": {
-					
+
 				}
 			}
 		}, config);
@@ -84,12 +84,12 @@ let initFun = () => {
 			ok(confText) {
 
 				let conf;
-				if(dataConfType == "js") {
+				if (dataConfType == "js") {
 					conf = L.xsEval(confText);
-				} else if(dataConfType == "json") {
+				} else if (dataConfType == "json") {
 					conf = L.xsParseJson(confText);
 				} else {
-					if(L.startsWith(url, location.protocol + "//" + location.host + "/")) {
+					if (L.startsWith(url, location.protocol + "//" + location.host + "/")) {
 						//同域则默认用脚本解析
 						conf = L.xsEval(confText);
 					} else {
@@ -98,12 +98,12 @@ let initFun = () => {
 				}
 
 				conf = extendConfig(conf);
-				if(conf.beforeDealProperties) {
+				if (conf.beforeDealProperties) {
 					conf.beforeDealProperties();
 				}
 				conf = L.dealProperties(conf, conf.properties); //参数处理
 
-				if(isLocal && conf.service.hasGlobal) {
+				if (isLocal && conf.service.hasGlobal) {
 					loadServiceConfig("global servie", conf.service.confUrl,
 						function(globalConfig) {
 							let localConfig = conf;
@@ -115,28 +115,28 @@ let initFun = () => {
 							loaderName = globalConfig.chooseLoader.call(globalConfig, localConfig);
 							let conf;
 							let loader;
-							if(loaderName != null) {
+							if (loaderName != null) {
 								mainName = globalConfig.main.name;
 								mainPath = U.getPathWithRelative(location.href, getMainPath(globalConfig));
 								loader = globalConfig.loader[loaderName];
 								conf = globalConfig;
-								if(loader){
-									globalConfig.current=loaderName;
+								if (loader) {
+									globalConfig.current = loaderName;
 								}
 							}
 
-							if(!loader) {
+							if (!loader) {
 								loaderName = localConfig.chooseLoader.call(localConfig, null);
 								mainName = localConfig.main.name;
 								mainPath = U.getPathWithRelative(location.href, getMainPath(localConfig));
 								loader = localConfig.loader[loaderName];
 								conf = localConfig;
-								if(loader){
-									localConfig.current=loaderName;
+								if (loader) {
+									localConfig.current = loaderName;
 								}
 							}
 
-							if(!loader) {
+							if (!loader) {
 								console.error("unknown loader:" + loaderName + "");
 								return;
 							}
@@ -162,7 +162,7 @@ let initFun = () => {
 
 			let href = location.href;
 			let index = href.lastIndexOf("?");
-			if(index >= 0) {
+			if (index >= 0) {
 				href = href.substring(0, index);
 			}
 
@@ -172,11 +172,11 @@ let initFun = () => {
 			let loaderName = localConfig.chooseLoader.call(localConfig, null);
 
 			let loader = localConfig.loader[loaderName];
-			if(!loader) {
+			if (!loader) {
 				console.error("unknown local loader:" + loaderName);
 				return;
 			}
-			localConfig.current=loaderName;
+			localConfig.current = loaderName;
 			initXsloader(href, mainName, mainPath, loader, localConfig, localConfig);
 		}, true);
 	}
@@ -199,16 +199,20 @@ let initFun = () => {
 		loader.ignoreProperties = true;
 		loader.defineFunction = loader.defineFunction || {};
 		loader.depsPaths = loader.depsPaths || {};
-		if(mainPath.indexOf("!") != -1) { //插件调用
+
+		if (L.endsWith(location.pathname, ".htmv")) {
+			mainName="htmv-main";
+			L(loader);
+		} else if (mainPath.indexOf("!") != -1) { //插件调用
 			let theConfig = L(loader);
 
 			mainName = "_plugin_main_";
 			let deps = [];
-			if(theConfig.deps) { //手动添加*依赖
-				if(theConfig.deps["*"]) {
+			if (theConfig.deps) { //手动添加*依赖
+				if (theConfig.deps["*"]) {
 					Array.pushAll(deps, theConfig.deps["*"]);
 				}
-				if(theConfig.deps[mainName]) {
+				if (theConfig.deps[mainName]) {
 					Array.pushAll(deps, theConfig.deps[mainName]);
 				}
 			}
@@ -218,7 +222,7 @@ let initFun = () => {
 			}).then({
 				absUrl: pageHref
 			});
-		} else if(!L.hasDefine(mainName)) {
+		} else if (!L.hasDefine(mainName)) {
 			loader.depsPaths[mainName] = mainPath; //让其依赖*中的所有依赖
 			L(loader);
 		} else {
@@ -226,31 +230,31 @@ let initFun = () => {
 		}
 
 		loader.defineFunction[mainName] = function(originCallback, originThis, originArgs) {
-			if(L.isFunction(conf.main.before)) {
+			if (L.isFunction(conf.main.before)) {
 				conf.main.before.call(conf, mainName);
 			}
 			let rt = originCallback.apply(originThis, originArgs);
 
-			if(L.isFunction(conf.main.after)) {
+			if (L.isFunction(conf.main.after)) {
 				conf.main.after.call(conf, mainName);
 			}
 			return rt;
 		};
-
 		L.require([mainName], function(main) {}).error((err, invoker) => {
-			if(invoker) {
+			if (invoker) {
 				console.error("error occured:invoker.url=", invoker.getUrl());
 			}
 			console.error("invoke main err:");
 			console.error(err);
 		});
+
 	}
 	L.asyncCall(startLoad, true);
 };
 
-if(dataConf) {
+if (dataConf) {
 	serviceConfigUrl = U.getPathWithRelative(location.href, dataConf);
-} else if((dataConf = (L.script().getAttribute(DATA_CONF2) || L.script().getAttribute(DATA_CONF2X)))) {
+} else if ((dataConf = (L.script().getAttribute(DATA_CONF2) || L.script().getAttribute(DATA_CONF2X)))) {
 	serviceConfigUrl = U.getPathWithRelative(L.scriptSrc(), dataConf);
 } else {
 	initFun = null;

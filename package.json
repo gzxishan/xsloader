@@ -1,6 +1,6 @@
 {
   "name": "xsloader.js",
-  "version": "1.1.21",
+  "version": "1.1.22",
   "description": "xsloader is a JavaScript file and module loader like requirejs but not requirejs",
   "main": "dist/xsloader.js",
   "scripts": {
@@ -13,7 +13,8 @@
     "js loader",
     "require",
     "define",
-	"AMD"
+	"AMD",
+    "htmv"
   ],
   "author": "gzxishan",
   "license": "Apache-2.0",
