@@ -200,8 +200,12 @@ let initFun = () => {
 		loader.defineFunction = loader.defineFunction || {};
 		loader.depsPaths = loader.depsPaths || {};
 
-		if (L.endsWith(location.pathname, ".htmv")) {
-			mainName="htmv-main";
+		if (L.endsWith(location.pathname, ".htmv")) { //用于支持htmv
+			if (G.__htmv_init_bridge_) {
+				G.__htmv_init_bridge_();
+			}
+			mainName = "htmv-main";
+			loader.depsPaths[mainName] = location.href; //让其依赖*中的所有依赖
 			L(loader);
 		} else if (mainPath.indexOf("!") != -1) { //插件调用
 			let theConfig = L(loader);

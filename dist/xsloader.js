@@ -3,7 +3,7 @@
  * home:https://github.com/gzxishan/xsloader#readme
  * (c) 2018-2020 gzxishan
  * Released under the Apache-2.0 License.
- * build time:Thu May 14 2020 14:23:00 GMT+0800 (GMT+08:00)
+ * build time:Thu May 14 2020 18:04:51 GMT+0800 (GMT+08:00)
  */
 (function () {
   'use strict';
@@ -8466,7 +8466,12 @@
       loader.depsPaths = loader.depsPaths || {};
 
       if (L$u.endsWith(location.pathname, ".htmv")) {
+        if (G$7.__htmv_init_bridge_) {
+          G$7.__htmv_init_bridge_();
+        }
+
         mainName = "htmv-main";
+        loader.depsPaths[mainName] = location.href;
         L$u(loader);
       } else if (mainPath.indexOf("!") != -1) {
         var theConfig = L$u(loader);
