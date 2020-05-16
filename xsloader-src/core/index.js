@@ -44,7 +44,8 @@ L.appendHeadDom = script.appendHeadDom;
 L.hasDefine = function(name) {
 	let has = false;
 	let module = moduleScript.getModule(name);
-	if (!module || module.state == "init") {
+	if (!module || module.state === undefined //可能是preDependModule：预依赖模块
+	|| module.state == "init") {
 
 	} else {
 		has = true;
@@ -132,8 +133,8 @@ loader.loaderFun((option) => {
 			}
 			return deps;
 		},
-		dealUrl(module, url,addVersion = false) {
-			let urlArgs=this.getUrlArgs(module, url,addVersion);
+		dealUrl(module, url, addVersion = false) {
+			let urlArgs = this.getUrlArgs(module, url, addVersion);
 			return L.appendArgs2Url(url, urlArgs);
 		},
 		/**
@@ -239,7 +240,7 @@ loader.loaderFun((option) => {
 		timeout: 30000, //连接超时时间，毫秒
 		sleep: 500, //连接检测的休眠时间，毫秒
 	}, option.plugins.xsmsg);
-	
+
 	option.plugins.ifmsg = L.extend({
 		connTimeout: 30000, //连接超时时间，毫秒
 		sleepTimeout: 20, //连接检测的休眠时间，毫秒
