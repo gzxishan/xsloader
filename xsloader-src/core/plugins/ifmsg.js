@@ -135,7 +135,7 @@ const MESSAGE_LISTENER = (event) => {
 					});
 				} else {
 					if (obj.clients[fromid]) {
-						if(currentTimemillis()-obj.clients[fromid]._createTime>10*1000){
+						if (currentTimemillis() - obj.clients[fromid]._createTime > 10 * 1000) {
 							doSendMessage(!isserver, source, {
 								cmd,
 								type: "connecting-fail:duplicate",
@@ -363,7 +363,7 @@ class Client extends Base {
 	_onClosed;
 	_onMessage;
 	_onConnected;
-	_createTime=currentTimemillis();
+	_createTime = currentTimemillis();
 	constructor(cmd, source, origin, fromid, isself = false) {
 		super(cmd);
 		this._source = source;
@@ -524,7 +524,7 @@ class Client extends Base {
 	}
 	//客户端调用
 	gotConnect(fromid, source, origin, conndata) {
-		this._fromid=fromid;
+		this._fromid = fromid;
 		if (!this._connect && !this._connected && !this._destroyed && !this._failed) {
 			this._connect = true;
 			let onConn = this._onConnect || ((source, origin, conndata, callback) => {
@@ -542,16 +542,17 @@ class Client extends Base {
 						fromid: this.id,
 						toid: this.fromid,
 					});
-					let onConnected = this._onConnected || (() => {
-						this.close(false);
-						doSendMessage(true, this.source, {
-							cmd: this.cmd,
-							type: "close",
-							mdata: "not exists connected handle",
-							fromid: this.id,
-							toid: this.fromid,
-						});
-					});
+					let onConnected = this._onConnected;
+					// || (() => {
+					// 	this.close(false);
+					// 	doSendMessage(true, this.source, {
+					// 		cmd: this.cmd,
+					// 		type: "close",
+					// 		mdata: "not exists connected handle",
+					// 		fromid: this.id,
+					// 		toid: this.fromid,
+					// 	});
+					// });
 					Callback.call(this, onConnected);
 				} else {
 					doSendMessage(false, this.source, {
@@ -570,7 +571,7 @@ class Client extends Base {
 	gotConnected() {
 		clearRunAfter(this._rtimer);
 		this._rtimer = null;
-		
+
 		let time = currentTimemillis();
 		this._lastSendHeartTime = time;
 		this._lastReceiveHeartTime = time;
@@ -968,6 +969,18 @@ class IfmsgClient {
 
 	get onConnectFail() {
 		return this._client._onConnectFail && this._client._onConnectFail.callback;
+	}
+
+	get connected() {
+		return this._client.connected;
+	}
+
+	get destroyed() {
+		return this._client.destroyed;
+	}
+	
+	close(){
+		this._client.close();
 	}
 
 }
