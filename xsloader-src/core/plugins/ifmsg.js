@@ -690,6 +690,9 @@ class Server extends Base {
 	}
 
 	onConnect(client, conndata) {
+		let obj = CONNS_MAP[this.cmd];
+		obj.clients[client.fromid] = client;
+		
 		let onConn = this._onConnect || ((client, conndata, callback) => {
 			//默认只允许同域
 			let mine = location.protocol + "//" + location.host;
@@ -698,8 +701,6 @@ class Server extends Base {
 
 		let callback = (isAccept, errOrConndata) => {
 			if (isAccept) {
-				let obj = CONNS_MAP[this.cmd];
-				obj.clients[client.fromid] = client;
 				client.gotConnected();
 				doSendMessage(true, client.source, {
 					cmd: this.cmd,
@@ -721,6 +722,7 @@ class Server extends Base {
 				Callback.call(this, onConnected, client);
 				client.checkClientConnected(this);
 			} else {
+				client.close(false);
 				doSendMessage(true, client.source, {
 					cmd: this.cmd,
 					type: "connected-fail",
