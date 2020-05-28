@@ -18,6 +18,7 @@ npm run build:all
 ## 发布记录
 ### v进行中
 1. 解决ifmsg重复onConnect的问题；
+2. 解决ifmsg的client实例作为vue变量时，导致iframe跨域问题的bug；
 
 ### v1.1.25 2020/05/18
 1. 模块对象增加appendArgs(url,forArgsUrl)；

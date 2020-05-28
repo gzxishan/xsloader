@@ -198,7 +198,7 @@ class Invoker {
 	_im;
 	_id;
 	constructor(moduleMap) {
-		this._im = new InVar(moduleMap);
+		this._im = new L.InVar(moduleMap);
 		this._id = U.getAndIncIdCount();
 		moduleMap.thiz = this;
 		_buildInvoker(moduleMap);
