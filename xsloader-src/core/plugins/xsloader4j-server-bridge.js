@@ -41,7 +41,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 			props: {
 				x: {
 					type: [Object, Function],
-					required: true
+					required: false
 				}
 			},
 			render() {
@@ -56,18 +56,21 @@ L.define("xsloader4j-server-bridge", [], function() {
 				};
 
 				let Comp = this.x;
-				if (L.isFunction(Comp)) {
-					Comp = Comp();
-				}
-
-				if (L.isObject(Comp)) {
-					let data = Comp.data || (Comp.data = {});
-					for (let k in wrapProps) {
-						data[k] = L.extend({}, data[k], wrapProps[k]);
+				
+				if(Comp){
+					if (L.isFunction(Comp)) {
+						Comp = Comp();
 					}
+					
+					if (L.isObject(Comp)) {
+						let data = Comp.data || (Comp.data = {});
+						for (let k in wrapProps) {
+							data[k] = L.extend({}, data[k], wrapProps[k]);
+						}
+					}
+					
+					return Comp;
 				}
-
-				return Comp;
 			}
 		});
 		hasRegVnodex = true;
