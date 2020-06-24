@@ -17,6 +17,8 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+
+### v1.1.28 2020/06/24
 1. 解决ifmsg重复onConnect的问题；
 2. 解决ifmsg的client实例作为vue变量时，导致iframe跨域问题的bug；
 3. 3. 完善`<jsx>`，x属性可以为空；
