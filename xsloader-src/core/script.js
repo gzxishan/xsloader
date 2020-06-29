@@ -187,7 +187,8 @@ function _buildInvoker(module) {
 		}
 		let moduleMap = {
 			module: module,
-			src: module.src,
+			src: invoker.src(),
+			scriptSrc:invoker.scriptSrc(),
 			absUrl: () => absUrlStr,
 			name: invoker.getName(),
 			invoker: invoker.invoker()
@@ -288,6 +289,7 @@ function getInvoker(thiz, nullNew = true) {
 			let moduleMap = {
 				module: "",
 				src: thePageUrl,
+				scriptSrc:location.href,
 				absUrl: () => thePageUrl,
 				name: "__root__",
 				invoker: null

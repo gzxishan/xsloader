@@ -147,6 +147,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 		index,
 		module: module,
 		src: module.src,
+		scriptSrc: module.scriptSrc,
 		absUrl: () => module.thiz.absUrl(),
 		selfname: module.thiz.getName(),
 		invoker: instanceModule._invoker
@@ -199,6 +200,7 @@ function newModule(defineObject) {
 		ignoreAspect: false,
 		args: null,
 		src: defineObject.src, //绝对路径,可能等于当前页面路径
+		scriptSrc:defineObject.scriptSrc,//含地址参数
 		absUrlFromModule: () => defineObject.absUrlFromDefineObject(),
 		getCallback: () => defineObject.callback,
 		_dealApplyArgs: (args) => args,
