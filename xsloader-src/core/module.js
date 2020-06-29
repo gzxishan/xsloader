@@ -161,9 +161,9 @@ function newModuleInstance(module, thatInvoker, relyCallback, pluginArgs, index 
 	return instanceModule;
 }
 
-function _newModule(name, src, thatInvoker, index) {
-	src = U.removeQueryHash(src);
-	let defineObject = new script.DefineObject(src, null, [name, null, null]);
+function _newModule(name, scriptSrc, thatInvoker, index) {
+	let src = U.removeQueryHash(scriptSrc);
+	let defineObject = new script.DefineObject(scriptSrc,src, null, [name, null, null]);
 	defineObject.index = index;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.appendConfigDepsAndEmbedDeps(); //添加配置依赖，该模块对象是加载者、而不是define者

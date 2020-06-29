@@ -90,7 +90,7 @@
         							  3.optionalAbsUrl:可选的绝对参考地址
     	（2.1）getUrl2(relativeUrl,appendArgs=false,optionalAbsUrl)用法与getUrl相同，但返回的结果不会添加页面上的参数与hash。
 		（2.2）appendArgs(url,forArgsUrl)：根据forArgsUrl（默认等于当前浏览器地址）获取urlArgs，添加的url上并返回添加参数后的地址。
-        （3）src(),获取当前模块的绝对路径
+        （3）src(),获取当前模块的绝对路径（不含地址参数）；scriptSrc(),获取当前模块的绝对路径（含地址参数）
         （4）getName(),当前模块或插件的名称
         （5）invoker()，调用者模块的this对象(含有require(),getUrl()等等)
         （6）withAbsUrl(absUrl)，获取一个新的invoker，absUrl()会变化，absUrl为空、表示使用invoker的absUrl.
