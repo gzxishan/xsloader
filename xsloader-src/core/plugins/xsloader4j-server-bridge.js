@@ -40,11 +40,11 @@ L.define("xsloader4j-server-bridge", [], function() {
 		Vue.component("jsx", {
 			props: {
 				x: {
-					type: [Object, Function],
+					//type: [Object, Function],
 					required: false
 				}
 			},
-			render() {
+			render(h) {
 				const {
 					$listeners,
 					$attrs,
@@ -56,19 +56,29 @@ L.define("xsloader4j-server-bridge", [], function() {
 				};
 
 				let Comp = this.x;
-				
-				if(Comp){
+
+				if (!L.isEmpty(Comp)) {
 					if (L.isFunction(Comp)) {
 						Comp = Comp();
 					}
-					
+
 					if (L.isObject(Comp)) {
 						let data = Comp.data || (Comp.data = {});
 						for (let k in wrapProps) {
 							data[k] = L.extend({}, data[k], wrapProps[k]);
 						}
 					}
-					
+
+					if (!L.isObject(Comp)) {
+						let content = L.isString(Comp) ? Comp : JSON.stringify(Comp);
+						Comp = h("span", {
+							"class": "jsx-text",
+							"domProps": {
+								innerText: content,
+							}
+						});
+					}
+
 					return Comp;
 				}
 			}

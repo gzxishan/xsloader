@@ -17,6 +17,7 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+1. `<jsx>`支持字符串等内容；
 
 ### v1.1.29 2020/07/10
 1. invoker增加scriptSrc(),包含地址参数的；
