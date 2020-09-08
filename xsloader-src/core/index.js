@@ -45,9 +45,19 @@ L.hasDefine = function(name) {
 	let has = false;
 	let module = moduleScript.getModule(name);
 	if (!module || module.state === undefined //可能是preDependModule：预依赖模块
-	|| module.state == "init") {
-
+		||
+		module.state == "init") {
+		has = false;
 	} else {
+		has = true;
+	}
+	return has;
+};
+
+L.hasDefined = function(name) {
+	let has = false;
+	let module = moduleScript.getModule(name);
+	if (module && module.state == "defined") {
 		has = true;
 	}
 	return has;

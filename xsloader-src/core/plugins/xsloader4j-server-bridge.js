@@ -32,7 +32,7 @@ L.define("xsloader4j-server-bridge", [], function() {
 	}
 
 	function regVnodex(requiredVue = false) {
-		if (hasRegVnodex || !requiredVue && !L.hasDefine("vue")) {
+		if (hasRegVnodex || !requiredVue && !L.hasDefined("vue")) {
 			return;
 		}
 

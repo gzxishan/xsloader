@@ -17,6 +17,7 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+1. 增加`xsloader.hasDefined(name)`判断模块是否已经定义完成（此模块已被执行）；
 
 ### v1.1.30 2020/08/21
 1. `<jsx>`支持字符串等内容；

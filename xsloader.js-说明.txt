@@ -165,6 +165,7 @@
     xsloader.script()得到xsloader的script对象
     xsloader.scriptSrc()得到xsloader的script脚本地址
     xsloader.hasDefine(name)判断是否存在模块定义
+	xsloader.hasDefined(name)判断模块是否已经定义完成（此模块已被执行）
     xsloader.define
     xsloader.require
     xsloader.randId
