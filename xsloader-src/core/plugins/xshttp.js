@@ -1,5 +1,6 @@
 import U from "../../util/index.js";
 const L = U.global.xsloader;
+const G = U.global;
 
 let progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
 /**
@@ -10,12 +11,12 @@ let progIds = ['Msxml2.XMLHTTP', 'Microsoft.XMLHTTP', 'Msxml2.XMLHTTP.4.0'];
  * @param {Object} option
  */
 function httpRequest(option) {
-	if(!option) {
+	if (!option) {
 		option = {};
 	}
 
 	function prop(obj, varName, defaultVal) {
-		if(obj[varName] === undefined) {
+		if (obj[varName] === undefined) {
 			return defaultVal;
 		} else {
 			return obj[varName];
@@ -23,10 +24,10 @@ function httpRequest(option) {
 	}
 
 	function putProp(obj, varName, toObj) {
-		if(obj[varName]) {
-			for(let x in obj[varName]) {
+		if (obj[varName]) {
+			for (let x in obj[varName]) {
 				let value = obj[varName][x];
-				if(value === null || value === undefined) {
+				if (value === null || value === undefined) {
 					continue;
 				}
 				toObj[x] = value;
@@ -60,18 +61,18 @@ function httpRequest(option) {
 
 	function createXhr() {
 		let xhr, i, progId;
-		if(typeof XMLHttpRequest !== "undefined") {
+		if (typeof XMLHttpRequest !== "undefined") {
 			return new XMLHttpRequest();
-		} else if(typeof ActiveXObject !== "undefined") {
-			for(i = 0; i < 3; i += 1) {
+		} else if (typeof ActiveXObject !== "undefined") {
+			for (i = 0; i < 3; i += 1) {
 				progId = progIds[i];
 				try {
 					xhr = new ActiveXObject(progId);
-				} catch(e) {
+				} catch (e) {
 					console.warn(e);
 				}
 
-				if(xhr) {
+				if (xhr) {
 					progIds = [progId];
 					break;
 				}
@@ -102,12 +103,12 @@ function httpRequest(option) {
 
 	function _doOnFailResponseHook(option, xhr, err, extraErr) {
 		_onFailResponseHook(option, function(result) {
-			if(result !== false && result !== undefined) {
-				if(typeof okCallback == "function") {
+			if (result !== false && result !== undefined) {
+				if (typeof okCallback == "function") {
 					okCallback(result, xhr);
 				}
 				return;
-			} else if(typeof failCallback == "function") {
+			} else if (typeof failCallback == "function") {
 				failCallback(err);
 			} else {
 				console.error(err);
@@ -117,32 +118,38 @@ function httpRequest(option) {
 
 	function _connAfterOpenHook(option, xhr) {
 		let body;
-		if(option.multiPart) {
+		if (option.multiPart) {
 			let formData = new FormData();
-			for(let x in option.params) {
+			for (let x in option.params) {
 				let value = option.params[x];
-				if(L.isArray(value)) {
+				if (L.isArray(value)) {
 					formData.append(x, L.xsJson2String(value));
 				} else {
-					formData.append(x, value);
+					if (G.File && value instanceof G.File || G.Blob && value instanceof G.Blob) {
+						formData.append(x, value);
+					} else if(L.isObject(value)){
+						formData.append(x, L.xsJson2String(value));
+					}else{
+						formData.append(x, value);
+					}
 				}
 
 			}
 			body = formData;
 		} else {
 			body = "";
-			for(let x in option.params) {
+			for (let x in option.params) {
 				let value = option.params[x];
-				if(value === null || value === undefined) {
+				if (value === null || value === undefined) {
 					continue;
 				}
-				if(typeof value == "object") {
+				if (L.isObject(value)) {
 					value = L.xsJson2String(value);
 				}
 				body += "&" + encodeURIComponent(x) + "=" + encodeURIComponent(value);
 			}
-			if(!(option.method == "POST" || option.method == "PUT")) {
-				if(option.url.lastIndexOf("?") < 0 && body.length > 0) {
+			if (!(option.method == "POST" || option.method == "PUT")) {
+				if (option.url.lastIndexOf("?") < 0 && body.length > 0) {
 					option.url += "?";
 				}
 				option.url += body;
@@ -152,37 +159,38 @@ function httpRequest(option) {
 		}
 
 		xhr.open(option.method, option.url, option.async);
-		if((option.method == "POST" || option.method == "PUT") && !option.multiPart && option.headers["Content-Type"] === undefined) {
+		if ((option.method == "POST" || option.method == "PUT") && !option.multiPart && option.headers["Content-Type"] ===
+			undefined) {
 
 			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded;charset=utf-8');
 		}
-		for(let header in option.headers) {
+		for (let header in option.headers) {
 			xhr.setRequestHeader(header, option.headers[header]);
 		}
 
-		if(typeof uploadStartCallback == "function") {
+		if (typeof uploadStartCallback == "function") {
 			xhr.upload.onloadstart = uploadStartCallback;
 		}
 
-		if(typeof uploadProgressCallback == "function") {
+		if (typeof uploadProgressCallback == "function") {
 			xhr.upload.onprogress = uploadProgressCallback;
 		}
 
-		if(typeof uploadOkCallback == "function") {
+		if (typeof uploadOkCallback == "function") {
 			xhr.upload.onload = uploadOkCallback;
 		}
 
-		if(typeof uploadErrorCallback == "function") {
+		if (typeof uploadErrorCallback == "function") {
 			xhr.upload.onerror = uploadErrorCallback;
 		}
 
-		if(typeof uploadEndCallback == "function") {
+		if (typeof uploadEndCallback == "function") {
 			xhr.upload.onloadend = uploadEndCallback;
 		}
 
 		let timeoutTimer;
 		let isTimeout = false;
-		if(option.timeout) {
+		if (option.timeout) {
 			timeoutTimer = setTimeout(function() {
 				isTimeout = true;
 				xhr.abort();
@@ -192,33 +200,33 @@ function httpRequest(option) {
 
 		xhr.onreadystatechange = function(evt) {
 			let status, err;
-			if(xhr.readyState === 4) {
+			if (xhr.readyState === 4) {
 				status = xhr.status || 0;
-				if(status > 399 && status < 600 || !status) {
+				if (status > 399 && status < 600 || !status) {
 					let err = new Error(option.url + ' HTTP status: ' + status);
 					err.xhr = xhr;
 					_doOnFailResponseHook(option, xhr, err);
 				} else {
 					let result;
-					if(option.handleType === "json") {
+					if (option.handleType === "json") {
 						try {
 							result = L.xsParseJson(xhr.responseText);
-						} catch(e) {
+						} catch (e) {
 							_doOnFailResponseHook(option, xhr, new Error("parse-json-error:" + e), "parse-json-error");
 							return;
 						}
-					} else if(option.handleType === "text") {
+					} else if (option.handleType === "text") {
 						result = xhr.responseText;
 					}
 					_onOkResponseHook(result, option, function(result) {
-						if(typeof okCallback == "function") {
+						if (typeof okCallback == "function") {
 							okCallback(result, xhr);
 						}
 					}, xhr);
 				}
 
 			} else {
-				if(timeoutTimer && isTimeout) {
+				if (timeoutTimer && isTimeout) {
 					let err = new Error(option.url + ' timeout status: ' + status);
 					err.xhr = xhr;
 					_doOnFailResponseHook(option, xhr, err);
@@ -265,15 +273,15 @@ function httpRequest(option) {
 			_timeout = timeout;
 			return this;
 		},
-		async(isAsync) {
+		async (isAsync) {
 			_async = isAsync;
 			return this;
 		},
 		params(paramsObj) {
-			if(paramsObj) {
-				for(let x in paramsObj) {
+			if (paramsObj) {
+				for (let x in paramsObj) {
 					let value = paramsObj[x];
-					if(value === null || value === undefined) {
+					if (value === null || value === undefined) {
 						continue;
 					}
 					_params[x] = value;
@@ -282,8 +290,8 @@ function httpRequest(option) {
 			return this;
 		},
 		headers(headersObj) {
-			if(headersObj) {
-				for(let x in headersObj) {
+			if (headersObj) {
+				for (let x in headersObj) {
 					_headers[x] = headersObj[x];
 				}
 			}
@@ -293,7 +301,7 @@ function httpRequest(option) {
 			return this.handleAs(_handleType);
 		},
 		handleAs(handleType) {
-			if(handleType !== "json" && handleType !== "text") {
+			if (handleType !== "json" && handleType !== "text") {
 				throw "unknown handleType:" + handleType;
 			}
 			_handleType = handleType;
@@ -322,8 +330,8 @@ function httpRequest(option) {
 		done() {
 			try {
 				conn();
-			} catch(e) {
-				if(typeof failCallback == "function") {
+			} catch (e) {
+				if (typeof failCallback == "function") {
 					failCallback(e);
 				} else {
 					console.error(e);
