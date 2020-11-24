@@ -122,6 +122,10 @@ function httpRequest(option) {
 			let formData = new FormData();
 			for (let x in option.params) {
 				let value = option.params[x];
+				if(value === null || value === undefined) {
+					value = "";
+				}
+				
 				if (L.isArray(value)) {
 					formData.append(x, L.xsJson2String(value));
 				} else {
@@ -141,13 +145,16 @@ function httpRequest(option) {
 			for (let x in option.params) {
 				let value = option.params[x];
 				if (value === null || value === undefined) {
-					continue;
+					value = "";
 				}
-				if (L.isObject(value)) {
+				
+				if (L.isArray(value) || L.isObject(value)) {
 					value = L.xsJson2String(value);
 				}
+				
 				body += "&" + encodeURIComponent(x) + "=" + encodeURIComponent(value);
 			}
+			
 			if (!(option.method == "POST" || option.method == "PUT")) {
 				if (option.url.lastIndexOf("?") < 0 && body.length > 0) {
 					option.url += "?";
