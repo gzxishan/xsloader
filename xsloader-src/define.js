@@ -7,7 +7,7 @@ const L = G.xsloader;
 
 const defineHandle = script.initDefine(function theRealDefine(defines, loaded = () => {}) {
 	U.each(defines, (defineObject) => {
-		if(L.isFunction(defineObject.callback)) {
+		if (L.isFunction(defineObject.callback)) {
 			let originCallback = defineObject.callback;
 			defineObject.callback = function() {
 				//				if(defineObject.isRequire) {
@@ -21,15 +21,15 @@ const defineHandle = script.initDefine(function theRealDefine(defines, loaded = 
 				let defineFun;
 				U.each(defineObject.names, (name) => {
 					let fun = config.defineFunction[name];
-					if(L.isFunction(fun)) {
+					if (L.isFunction(fun)) {
 						defineFun = fun;
 						return false;
 					}
 				});
 
-				if(defineFun) {
+				if (defineFun) {
 					let args = [];
-					for(let i = 0; i < arguments.length; i++) {
+					for (let i = 0; i < arguments.length; i++) {
 						args.push(arguments[i]);
 					}
 					rt = defineFun.apply(this, [originCallback, this, args]);
@@ -58,26 +58,35 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	moduleScript.appendLoadingModuleDeps(defineObject);
 	//先根据src获取模块
 	let ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
-	if(ifmodule) {
-		if(ifmodule.state == "loading") {
+
+	if (!ifmodule && defineObject.srcBeforeCurrentPath) { //根据处理__currentPath前的地址获取模块
+		ifmodule = moduleScript.getModule(defineObject.srcBeforeCurrentPath);
+		if(ifmodule){
+			ifmodule.src = defineObject.src;
+			ifmodule.scriptSrc = defineObject.scriptSrc;
+		}
+	}
+
+	if (ifmodule) {
+		if (ifmodule.state == "loading") {
 			ifmodule.reinitByDefineObject(defineObject);
 		}
 	} else {
 		ifmodule = moduleScript.newModule(defineObject);
 	}
 
-	if(defineObject.selfname != defineObject.src) {
+	if (defineObject.selfname != defineObject.src) {
 		defineObject.pushName(defineObject.selfname);
 	}
 
-	if(ifmodule.selfname != defineObject.src) {
+	if (ifmodule.selfname != defineObject.src) {
 		//此处的名字可能由配置指定
 		defineObject.pushName(ifmodule.selfname);
 	}
 	//一个模块的所有名字，包括src
 	U.each(defineObject.names, (name) => {
 		moduleScript.setModule(name, ifmodule);
-		if(L.ignoreAspect_[name]) {
+		if (L.ignoreAspect_[name]) {
 			ifmodule.ignoreAspect = true;
 		}
 	});
@@ -85,20 +94,20 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 
 	let module = ifmodule;
 
-	if(defineObject.handle.before) {
+	if (defineObject.handle.before) {
 		defineObject.handle.before(module.deps);
 	}
-	if(lastDefineObject && lastDefineObject.handle.depBefore) {
+	if (lastDefineObject && lastDefineObject.handle.depBefore) {
 		lastDefineObject.handle.depBefore(lastDefineObject.index, module.selfname, module.deps, 2);
 	}
 
 	module.setState("loaded");
 	module.setInstanceType(defineObject.handle.instance || L.config().instance);
 
-	if(module.deps.length == 0) {
+	if (module.deps.length == 0) {
 		try {
 			module.finish([]); //递归结束
-		} catch(e) {
+		} catch (e) {
 			defineObject.handle.onError(e);
 		}
 	} else {
@@ -114,7 +123,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 				args.push(depModuleArgs);
 				try {
 					module.finish(args);
-				} catch(e) {
+				} catch (e) {
 					defineObject.handle.onError(e);
 				}
 			}, (err, invoker) => {
@@ -122,7 +131,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 			});
 		};
 
-		if(defineObject.isRequire) {
+		if (defineObject.isRequire) {
 			needCallback();
 		} else {
 			module.whenNeed(needCallback);
@@ -141,7 +150,7 @@ const require = function() {
 };
 
 require.get = function(name) {
-	if(!L.isString(name)) {
+	if (!L.isString(name)) {
 		throw new Error("expected string type for module name");
 	} else {
 		return require.call(this, name);
@@ -150,12 +159,12 @@ require.get = function(name) {
 
 require.has = function() {
 	var args = arguments;
-	if(args.length == 0) {
+	if (args.length == 0) {
 		return false;
 	}
-	for(var i = 0; i < args.length; i++) {
+	for (var i = 0; i < args.length; i++) {
 		var module = moduleScript.getModule(args[i]);
-		if(!module || module.state != "defined") {
+		if (!module || module.state != "defined") {
 			return false;
 		}
 	}

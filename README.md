@@ -18,6 +18,7 @@ npm run build:all
 ## 发布记录
 ### v进行中
 1. 修复xshttp在multiPart为true下，参数为对象时未能进行转换的bug；
+2. 加入`xsloader`.`__currentPath`属性，用于xsloader4j；
 
 ### v1.1.31 2020/09/14
 1. 增加`xsloader.hasDefined(name)`判断模块是否已经定义完成（此模块已被执行）；

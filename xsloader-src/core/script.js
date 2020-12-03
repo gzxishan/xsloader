@@ -33,7 +33,7 @@ currentDefineModuleQueue.peek = function() {
 let lastAppendHeadDom = theLoaderScript;
 let isSrcFromScriptLoad; //获取脚本的src是否在load事件阶段
 let lastSrc = thePageUrl;
-let lastScriptSrc=location.href;
+let lastScriptSrc = location.href;
 
 let theRealDefine;
 if (safariVersion > 0 && safariVersion <= 7) {
@@ -188,7 +188,7 @@ function _buildInvoker(module) {
 		let moduleMap = {
 			module: module,
 			src: invoker.src(),
-			scriptSrc:invoker.scriptSrc(),
+			scriptSrc: invoker.scriptSrc(),
 			absUrl: () => absUrlStr,
 			name: invoker.getName(),
 			invoker: invoker.invoker()
@@ -224,11 +224,11 @@ class Invoker {
 	src() {
 		return this._im.get().src;
 	}
-	
+
 	/**
 	 * 获取绝对地址(含地址参数)
 	 */
-	scriptSrc(){
+	scriptSrc() {
 		return this._im.get().scriptSrc;
 	}
 
@@ -289,7 +289,7 @@ function getInvoker(thiz, nullNew = true) {
 			let moduleMap = {
 				module: "",
 				src: thePageUrl,
-				scriptSrc:location.href,
+				scriptSrc: location.href,
 				absUrl: () => thePageUrl,
 				name: "__root__",
 				invoker: null
@@ -300,6 +300,7 @@ function getInvoker(thiz, nullNew = true) {
 }
 
 class DefineObject {
+	id = U.getAndIncIdCount();
 	thiz;
 	isRequire;
 	scriptSrc;
@@ -314,11 +315,11 @@ class DefineObject {
 	directDepLength = 0;
 	names = [];
 	index;
-	constructor(scriptSrc,src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
+	constructor(scriptSrc, src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
-		
-		this.scriptSrc=scriptSrc;
+
+		this.scriptSrc = scriptSrc;
 		this.src = src;
 		this.thiz = thiz;
 		this.isRequire = isRequire;
@@ -475,9 +476,10 @@ class DefineObject {
  * 获取当前脚本，返回对象：
  * src:脚本绝对地址，不含参数
  * node:脚本dom对象
- * @param {Object} isRemoveQueryHash
  */
-function getCurrentScript(isRemoveQueryHash = true) {
+let hasCurrentPath = false;
+
+function getCurrentScript() {
 	function _getCurrentScriptOrSrc() { //兼容获取正在运行的js
 		//取得正在解析的script节点
 		if (document.currentScript !== undefined) { //firefox 4+
@@ -569,16 +571,28 @@ function getCurrentScript(isRemoveQueryHash = true) {
 	}
 
 	if (rs.node) {
-		rs.src = U.getNodeAbsolutePath(rs.node);
+		let __src = rs.node.getAttribute("_current_path_src_");
+		rs.src = __src || U.getNodeAbsolutePath(rs.node);
 	}
-	
-	if(rs){
-		rs.scriptSrc=rs.src;
+
+	hasCurrentPath = !!L.__currentPath;
+
+	if (hasCurrentPath) {
+		let oldSrc = rs.src;
+		rs.srcBeforeCurrentPath = U.removeQueryHash(oldSrc);
+		rs.__currentPath = L.__currentPath;
+		rs.src = L.getPathWithRelative(oldSrc, L.__currentPath, false);
+		rs.src = L.appendArgs2Url(rs.src, oldSrc);
+		L.__currentPath = undefined;
+
+		if (rs.srcBeforeCurrentPath != U.removeQueryHash(rs.src)) {
+			rs.node.setAttribute("_current_path_src_", rs.src);
+		}
 	}
-	
-	if (isRemoveQueryHash) {
-		rs.src = U.removeQueryHash(rs.src);
-	}
+
+	rs.scriptSrc = rs.src;
+	rs.src = U.removeQueryHash(rs.src);
+
 	return rs;
 
 }
@@ -640,7 +654,7 @@ function __getScriptData(evt, callbackObj) {
 	let node = evt.currentTarget || evt.srcElement;
 	__removeListener(node, callbackObj.onScriptLoad, 'load', 'onreadystatechange');
 	__removeListener(node, callbackObj.errListen, 'error');
-	let scriptSrc=node && U.getNodeAbsolutePath(node);
+	let scriptSrc = node && U.getNodeAbsolutePath(node);
 	return {
 		node: node,
 		name: node && node.getAttribute(DATA_ATTR_MODULE),
@@ -672,7 +686,7 @@ function loadScript(moduleName, url, onload, onerror) {
 			let scriptData = __getScriptData(evt, callbackObj);
 			if (isSrcFromScriptLoad) {
 				lastSrc = scriptData.src; //已经不含参数
-				lastScriptSrc=scriptData.lastScriptSrc;
+				lastScriptSrc = scriptData.lastScriptSrc;
 				L.asyncCall(() => {
 					onload(scriptData);
 				});
@@ -710,8 +724,10 @@ function doDefine(thiz, args, isRequire) {
 	//	console.log(rs.node);
 	//	console.log("**********************************]\n");
 	let src = rs.src;
-	let scriptSrc=rs.scriptSrc;
-	let defineObject = new DefineObject(scriptSrc,src, thiz, args, isRequire);
+	let scriptSrc = rs.scriptSrc;
+	let defineObject = new DefineObject(scriptSrc, src, thiz, args, isRequire);
+	defineObject.srcBeforeCurrentPath = rs.srcBeforeCurrentPath; //处理__currentPath前的
+
 	if (!isSrcFromScriptLoad) {
 		try { //防止执行其他脚本
 			if (defineObject.src) {
@@ -726,18 +742,18 @@ function doDefine(thiz, args, isRequire) {
 		} catch (e) {
 			L.config().error(e);
 		}
-
 	}
 
 	let handle = new Handle(defineObject);
 
 	let isLoaderEnd = U.isLoaderEnd();
 	L.asyncCall(() => {
-		if (isSrcFromScriptLoad && isLoaderEnd) {
+		if (isSrcFromScriptLoad && isLoaderEnd && !hasCurrentPath) {
 			//执行顺序：当前脚本define>load事件(获取lastSrc)>当前位置>onload
 			defineObject.src = lastSrc;
-			defineObject.lastScriptSrc=lastScriptSrc;
+			defineObject.lastScriptSrc = lastScriptSrc;
 		}
+		hasCurrentPath = false;
 		theRealDefine([defineObject]);
 	});
 	return handle;
