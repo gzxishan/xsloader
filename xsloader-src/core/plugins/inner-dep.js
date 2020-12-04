@@ -22,7 +22,7 @@ L.define(script.INNER_DEPS_PLUGIN, {
 			error(err, invoker) {
 				onerror(new U.PluginError(err, invoker));
 			}
-		});
+		}).setTag(`${script.INNER_DEPS_PLUGIN}![${deps.join(',')}]`);
 	},
 	getCacheKey(depId) {
 		return depId;

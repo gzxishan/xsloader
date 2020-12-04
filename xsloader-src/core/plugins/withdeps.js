@@ -6,7 +6,7 @@ const L = U.global.xsloader;
 L.define("withdeps", {
 	pluginMain(arg, onload, onerror, config) {
 		let index = arg.indexOf("=>>");
-		if(index == -1) {
+		if (index == -1) {
 			onerror("expected:=>>");
 			return;
 		}
@@ -15,11 +15,11 @@ L.define("withdeps", {
 		let deps;
 		try {
 			deps = L.xsParseJson(depsStr);
-			if(!L.isArray(deps)) {
+			if (!L.isArray(deps)) {
 				onerror("deps is not Array:" + depsStr);
 				return;
 			}
-		} catch(e) {
+		} catch (e) {
 			onerror("deps error:" + depsStr);
 			return;
 		}
@@ -29,6 +29,6 @@ L.define("withdeps", {
 			onload(mod);
 		}).then({
 			orderDep: true
-		});
-	}
+		}).setTag(`withdeps!${arg}`);
+	},
 });

@@ -3,9 +3,9 @@ const L = U.global.xsloader;
 const theDefinedMap = {};
 const lastDefinObjectMap = {};
 
-//global.__showModules=()=>{
-//	console.log(theDefinedMap);
-//};
+L.__showModules = () => {
+	console.log(theDefinedMap);
+};
 
 class ModuleDef {
 	src;
@@ -215,7 +215,8 @@ function setModule(name, module) {
 	if (moduleDef) {
 		if (name) {
 			let lasfDef = theDefinedMap[name];
-			if (theDefinedMap[name] && lasfDef != moduleDef && !lasfDef.isPreDependOn) {
+			if (theDefinedMap[name] && lasfDef != moduleDef && !lasfDef.isPreDependOn &&
+				!(lasfDef.modules[name] && lasfDef.modules[name].id == module.id)) {
 				throw new Error("already define module:\n\tname=" + name + ",current.src=" + src + ",\n\tthat.src=" + theDefinedMap[
 					name].src);
 			} else {

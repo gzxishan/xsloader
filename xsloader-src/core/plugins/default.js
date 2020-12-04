@@ -20,6 +20,6 @@ L.define("default", {
 			onload(mod);
 		}).error(function(err, invoker) {
 			onerror(err);
-		});
-	}
+		}).setTag(`default!${arg}`);
+	},
 });

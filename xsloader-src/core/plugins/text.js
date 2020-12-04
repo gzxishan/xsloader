@@ -14,5 +14,8 @@ L.define("text", ["xshttp"], {
 				onerror(err);
 			})
 			.done();
-	}
+	},
+	dealPluginArgs(pluginArgs) {
+		return pluginArgs;
+	},
 });

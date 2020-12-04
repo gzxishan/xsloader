@@ -71,7 +71,7 @@
   	（2）require.has(...)是否含有指定的所有模块，如var exists = require.has("a","b","c");
   	（3）require([deps],function(dep1,dep2,...){})
   	（4）require.then({onError:function(err,invoker),orderDep:false,absUrl:url,before:function(deps),depBefore:function(index,dep,depDeps)})
-  	（5）require.error(function(err,invoker){})同then的onError
+  	（5）require.error(function(err,invoker){})同then的onError，返回{ignoreErrState:true,onGetModule(),onFinish()}表示会忽略修改错误结果
   	（6）require([deps]),当只有一个参数、且为依赖数组时，返回Promise:若数组大小为1、则Promise的then为该模块，若大于1、则为模块数组.
   	（7）require.get("moduleName"),获取已经加载的模块；如果没有加载过，会抛出异常。
  4、define基础方法：
@@ -103,7 +103,8 @@
   	{
   		pluginMain:function(pluginArgs, onload,onerror, config,dep1,dep2,...),
   		isSingle:true,//当pluginArgs相同时，使用之前的
-  		getCacheKey:function(pluginArgs),//isSingle时有效，获取缓存的key
+  		getCacheKey:function(pluginArgs),//isSingle时有效，获取缓存的key；当未提供时，默认等于调用者模块的地址。
+		dealPluginArgs:function(pluginArgs),//对pluginArgs进行处理
   		willCache:function(pluginArgs,cacheResult)//isSingle时有效，是否进行缓存，默认true
   	}
   	（1）define([pluginName],[deps],pluginObject)

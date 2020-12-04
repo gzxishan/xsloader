@@ -15,6 +15,6 @@ L.define("nodeps", {
 			}
 		}).error(function(e) {
 			onerror(e);
-		});
+		}).setTag(`nodeps!${arg}`);
 	}
 });

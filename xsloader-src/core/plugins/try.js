@@ -13,8 +13,16 @@ L.define("try", {
 		}).error(function(err, invoker) {
 			console.info(`try!:require '${dep}' failed`);
 			this.logError(err, invoker, "info");
-			onload(null);
-		});
+			return {
+				ignoreErrState:true,
+				onGetModule:()=>{
+					return null;
+				},
+				onFinish:()=>{
+					onload(null);
+				}
+			}
+		}).setTag(`try!${arg}`);
 		if(handle.waitTime && handle.waitTime > 1000) {
 			handle.waitTime -= 1000;
 		}

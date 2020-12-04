@@ -30,7 +30,7 @@ L.define("exists", {
 					onload(mod);
 				}).error(function(e) {
 					onerror(e);
-				});
+				}).setTag(`exists!${arg}`);
 			} else {
 				let obj = undefined;
 				for(let i = 1; i < vars.length; i++) {

@@ -91,7 +91,7 @@ class Handle {
 		return this;
 	}
 	onError(err, invoker) {
-		this.defineObject.handle.onError(err, invoker);
+		return this.defineObject.handle.onError(err, invoker);
 	}
 }
 
@@ -774,6 +774,7 @@ function prerequire(deps, callback) {
 	if (!config) { //require必须是在config之后
 		throw new Error("not config");
 	}
+
 	let thatInvoker = getInvoker(this);
 	if (arguments.length == 1 && L.isString(deps)) { //获取已经加载的模块
 		if (deps == "exports") { //当require("exports")时，必须依赖了exports
@@ -792,12 +793,8 @@ function prerequire(deps, callback) {
 		if (pluginIndex > 0) {
 			pluginArgs = deps.substring(pluginIndex + 1);
 			deps = deps.substring(0, pluginIndex);
-			if (pluginArgs) {
-				let argArr = [pluginArgs];
-				U.replaceModulePrefix(config, argArr); //前缀替换
-				pluginArgs = argArr[0];
-			}
 		}
+		
 		let module = moduleScript.getModule(deps);
 		if (!module) {
 			deps = thatInvoker.getUrl(deps, false);
@@ -811,7 +808,8 @@ function prerequire(deps, callback) {
 		let theMod;
 		moduleScript.newModuleInstance(module, thatInvoker, (depModule) => {
 			theMod = depModule.moduleObject();
-		}, pluginArgs).initInstance(true);
+		}).initInstance(true, pluginArgs);
+
 		if (theMod === undefined) {
 			throw Error("the module '" + originDeps + "' is not load!");
 		}
@@ -826,7 +824,9 @@ function prerequire(deps, callback) {
 		throw new Error("unexpected argument:" + deps);
 	}
 	U.appendInnerDeps(deps, callback);
+
 	let timeid;
+	let tagString;
 	let loading;
 	let isOk = false;
 	let customerErrCallback;
@@ -882,47 +882,54 @@ function prerequire(deps, callback) {
 	};
 
 	handle.error(function(err, invoker) {
-		isErr = !!err;
 		clearTimer(true);
 		if (customerErrCallback) {
-			customerErrCallback.call(handle, err, invoker);
-		} else {
-			handle.logError(err, invoker);
+			let result = customerErrCallback.call(handle, err, invoker);
+			if (result && result.ignoreErrState) {
+				return result;
+			}
 		}
+
+		isErr = !!err;
+        handle.logError(err, invoker);
 	});
+
 	handle.error = function(errCallback) {
 		customerErrCallback = errCallback;
 		return this;
 	};
 
-	L.asyncCall(() => {
+	handle.setTag = function(tag) {
+		tagString = tag;
+		return this;
+	};
 
-		if (handle.waitTime) {
-			let checkResultFun = function() {
-				try {
-					let ifmodule = moduleScript.getModule(selfname);
-					//console.log(isErr)
-					if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-						let module = ifmodule;
-						handle.onError("require timeout:selfname=" + selfname + ",\n\tdeps=[" + (deps ? deps.join(",") : "") + "]");
-						if (module) {
-							U.each(module.deps, function(dep) {
-								let mod = moduleScript.getModule(dep);
-								if (mod && mod.printOnNotDefined) {
-									mod.printOnNotDefined();
-								}
-							});
-						}
+	if (handle.waitTime) {
+		let checkResultFun = () => {
+			try {
+				let ifmodule = moduleScript.getModule(selfname);
+				//console.log(isErr)
+				if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
+					let module = ifmodule;
+					handle.onError(
+						`require timeout:selfname=${selfname}${tagString?',tag='+tagString:''},\n\tdeps=[${deps ? deps.join(",") : ""}]`
+					);
+					if (module) {
+						U.each(module.deps, (dep) => {
+							let mod = moduleScript.getModule(dep);
+							if (mod && mod.printOnNotDefined) {
+								mod.printOnNotDefined();
+							}
+						});
 					}
-				} catch (e) {
-					console.error(e);
 				}
-				clearTimer();
-			};
-			timeid = setTimeout(checkResultFun, handle.waitTime);
-		}
-
-	});
+			} catch (e) {
+				console.error(e);
+			}
+			clearTimer();
+		};
+		timeid = setTimeout(checkResultFun, handle.waitTime);
+	}
 
 	if (typeof Promise != "undefined" && arguments.length == 1 && !callback) {
 		let promise = new Promise((resolve, inject) => {

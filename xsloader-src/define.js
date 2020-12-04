@@ -64,6 +64,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		if(ifmodule){
 			ifmodule.src = defineObject.src;
 			ifmodule.scriptSrc = defineObject.scriptSrc;
+			moduleScript.setModule(null, ifmodule);//使用处理后的地址也能获取到模块
 		}
 	}
 
@@ -127,7 +128,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 					defineObject.handle.onError(e);
 				}
 			}, (err, invoker) => {
-				defineObject.handle.onError(err, invoker);
+				return defineObject.handle.onError(err, invoker);
 			});
 		};
 

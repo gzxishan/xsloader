@@ -244,7 +244,9 @@ let initFun = () => {
 			}
 			return rt;
 		};
-		L.require([mainName], function(main) {}).error((err, invoker) => {
+		L.require([mainName], function(main) {
+			//console.log(main);
+		}).error((err, invoker) => {
 			if (invoker) {
 				console.error("error occured:invoker.url=", invoker.getUrl());
 			}

@@ -23,13 +23,16 @@ L.define("image", {
 		};
 		img.src = src;
 		L.asyncCall(() => {
-			if(img) {
+			if (img) {
 				setTimeout(() => {
-					if(img) {
+					if (img) {
 						callback(false);
 					}
 				}, config.plugins.image.timeout);
 			}
 		});
-	}
+	},
+	dealPluginArgs(pluginArgs) {
+		return pluginArgs;
+	},
 });

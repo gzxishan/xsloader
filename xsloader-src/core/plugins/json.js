@@ -17,5 +17,8 @@ L.define("json", ["xshttp"], {
 				onerror(err);
 			})
 			.done();
-	}
+	},
+	dealPluginArgs(pluginArgs) {
+		return pluginArgs;
+	},
 });

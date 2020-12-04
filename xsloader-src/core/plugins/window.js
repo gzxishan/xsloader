@@ -8,7 +8,7 @@ L.define("window", {
 	isSingle: true,
 	pluginMain: function(arg, onload, onerror, config, http) {
 		let index = arg.indexOf("=>>");
-		if(index == -1) {
+		if (index == -1) {
 			onerror("expected:=>>");
 			return;
 		}
@@ -17,6 +17,6 @@ L.define("window", {
 		this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
 			window[moduleName] = mod;
 			onload(mod);
-		});
-	}
+		}).setTag(`window!${arg}`);
+	},
 });

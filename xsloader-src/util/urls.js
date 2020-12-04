@@ -36,7 +36,7 @@ function isJsFile(path) {
 }
 
 function dealPathMayAbsolute(path, currentUrl) {
-	currentUrl = currentUrl || location.href;
+	currentUrl = currentUrl || path;
 	let rs = ABSOLUTE_PROTOCOL_REG.exec(path);
 
 	let finalPath;
@@ -92,7 +92,7 @@ function getPathWithRelative(path, relative, isPathDir) {
 		}
 	}
 
-	let absolute = dealPathMayAbsolute(relative);
+	let absolute = dealPathMayAbsolute(relative,path);
 	if(absolute.absolute) {
 		return absolute.path + relativeQuery;
 	}
@@ -309,7 +309,7 @@ function replaceModulePrefix(config, deps) {
 			m = index > 0 ? m.substring(0, index) : m;
 
 			let is = isJsFile(m);
-			if(config.autoExt&&/\/[^\/.]+$/.test(m)){//自动后缀，需要后台支持
+			if(config.autoExt&&/\/[^\/\.]+$/.test(m)){//自动后缀，需要后台支持
 				deps[i] = m + config.autoExtSuffix + query + pluginParam;
 			}
 			else if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
