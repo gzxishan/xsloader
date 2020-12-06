@@ -213,7 +213,7 @@ function newModule(defineObject) {
 		selfname: defineObject.selfname,
 		parent: defineObject.parentDefine,
 		description() {
-			return "selfname=" + (this.selfname || "") + ",src=" + this.src;
+			return `id=${this.id},selfname=${this.selfname || ""},src=${this.src}`;
 		},
 		deps: defineObject.deps || [],
 		relys: [],
@@ -447,6 +447,12 @@ function newModule(defineObject) {
 		return _module_;
 	};
 	moduleMap.printOnNotDefined = function() {
+
+		if (this.refmodule && this.refmodule.printOnNotDefined) {
+			this.refmodule.printOnNotDefined();
+			return;
+		}
+
 		let root = {
 			nodes: []
 		};
@@ -464,31 +470,58 @@ function newModule(defineObject) {
 		}
 		findLeaf(root);
 
-		function genErrs(node, infos) {
+		function genErrs(node, infos, nodePaths) {
 			infos.push(node.err);
+			nodePaths.push(node);
 			if (node.parent) {
-				genErrs(node.parent, infos);
+				genErrs(node.parent, infos, nodePaths);
 			}
 		}
 		console.error("{-----------------------------------------------------------------------------------------------");
 		console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," : "") +
 			"my page=" + location.href);
-		U.each(leafs, function(leaf) {
+
+		let logedPathMap = {};
+		U.each(leafs, (leaf) => {
 			let infos = [];
-			genErrs(leaf, infos);
+			let nodePaths = [];
+			genErrs(leaf, infos, nodePaths);
+
+			if (nodePaths.length) {
+				let key = nodePaths[0].id + "-" + nodePaths[nodePaths.length - 1].id;
+				if (logedPathMap[key]) {
+					return;
+				} else {
+					logedPathMap[key] = true;
+				}
+			}
+
 			infos = infos.reverse();
 			for (let i = 1; i < infos.length;) {
 				let as = [];
 				for (let k = 0; k < 3 && i < infos.length; k++) {
 					as.push(infos[i++]);
 				}
-				console.warn(as.join("\n\t--->"));
+				console.warn(as.join(`\n-----[${this.id}]-->`));
+				console.log("");
 			}
+
 			let errModule = leaf.module;
 			if (leaf.module && leaf.module.state == "defined") {
 				errModule = leaf.parent.module;
 			}
+
 			if (errModule) {
+
+				function getName(dep) {
+					let index = dep.lastIndexOf("/");
+					return dep.substring(index + 1);
+				}
+
+				function getState(state) {
+					return state == "defined" ? state : "【" + (state || "") + "】";
+				}
+
 				let as = [];
 				for (let i = 0; i < errModule.deps.length; i++) {
 					let dep = errModule.deps[i];
@@ -496,14 +529,29 @@ function newModule(defineObject) {
 					if (index != -1) {
 						dep = dep.substring(0, index);
 					}
+
+					if (i % 5 == 0) {
+						as.push("\t");
+					}
+
 					let depMod = moduleDef.getModule(dep);
 					if (depMod) {
-						as.push(dep + ":" + depMod.state);
+						as.push(getName(dep) + ":" + getState(depMod.state));
 					} else {
-						as.push(dep + ":null");
+						as.push(getName(dep) + ":");
+					}
+					if (i < errModule.deps.length - 1) {
+						as.push(",");
+					}
+
+					if ((i + 1) % 5 == 0) {
+						as.push("\n");
 					}
 				}
-				console.warn("failed module:" + errModule.description() + ",\n\tdeps state infos [" + as.join(",") + "]");
+				console.warn("failed module:" + errModule.description());
+				console.warn("deps state infos:{");
+				console.warn(as.join(""));
+				console.warn("}");
 				for (let i = 0; i < errModule.deps.length; i++) {
 					let dep = errModule.deps[i];
 					let index = dep.lastIndexOf("!");
@@ -512,9 +560,12 @@ function newModule(defineObject) {
 					}
 					let depMod = moduleDef.getModule(dep);
 					if (depMod) {
-						console.warn("\t" + dep + ":src=" + depMod.src + ",absUrl=" + (depMod.thiz && depMod.thiz.absUrl()));
+						console.warn("[dep]" + getName(dep) + ":" + "state=" + getState(depMod.state) + "\n\tsrc=" + depMod.src +
+							"\n\tabsUrl=" +
+							(depMod
+								.thiz && depMod.thiz.absUrl()));
 					} else {
-						console.warn(dep + ":");
+						console.warn("[dep]" + getName(dep) + ":");
 					}
 				}
 			}
@@ -524,6 +575,7 @@ function newModule(defineObject) {
 	moduleMap._printOnNotDefined = function(parentNode) {
 		let node = {
 			err: "[" + this.description() + "].state=" + this.state,
+			id: this.id,
 			module: this,
 			parent: parentNode,
 			nodes: []
@@ -533,12 +585,22 @@ function newModule(defineObject) {
 			return;
 		}
 
-		U.each(this.deps, function(dep) {
+		U.each(this.deps, (dep) => {
+			if (dep == "exports") {
+				return;
+			}
+
 			let indexPlguin = dep.indexOf("!");
 			if (indexPlguin > 0) {
 				dep = dep.substring(0, indexPlguin);
 			}
+
 			let mod = moduleDef.getModule(dep);
+			if (!mod && dep.indexOf("/") >= 0) {
+				dep = this.thiz.getUrl(dep, false);
+				mod = moduleDef.getModule(dep);
+			}
+
 			if (mod && mod.state == "defined") {
 				mod._printOnNotDefined(node);
 				return;
@@ -549,6 +611,7 @@ function newModule(defineObject) {
 			} else {
 				node.nodes.push({
 					parent: parentNode,
+					id: U.getAndIncIdCount(),
 					nodes: [],
 					err: "[" + dep + "] has not module"
 				});
@@ -750,7 +813,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 					}
 					let m2Name = isJsFile ? null : dep;
 					let module2 = _newModule(m2Name, urls[0], invoker_of_module, index);
-					moduleDef.setModule(null, module2);//直接通过地址加载的设置默认模块
+					moduleDef.setModule(null, module2); //直接通过地址加载的设置默认模块
 					module2.setState("loading"); //只有此处才设置loading状态
 
 					let configDeps = [];

@@ -1,36 +1,36 @@
 {
-  "parser": "babel-eslint",
-  "env": {
-    "browser": true,
-    "es6": true
-  },
-  "globals": {
-    "opera": true,
-    "ActiveXObject": true,
-    "InVar": true,
-	"global":true
-  },
-  "extends": "eslint:recommended",
-  "parserOptions": {
-    "sourceType": "module"
-  },
-  "rules": {
-	"no-misleading-character-class":"warn",
-    "no-inner-declarations": 0,
-    "no-constant-condition": 0,
-    "no-control-regex": 0,
-    "no-useless-escape": 0,
-    "no-console": 0,
-    "no-unused-vars": "warn",
-    "no-empty": "warn",
-    "indent": 0,
-    "linebreak-style": [
-      0,
-      "unix"
-    ],
-    "semi": [
-      "warn",
-      "always"
-    ]
-  }
+	"parser": "babel-eslint",
+	"env": {
+		"browser": true,
+		"es6": true
+	},
+	"globals": {
+		"opera": true,
+		"ActiveXObject": true,
+		"InVar": true,
+		"global": true
+	},
+	"extends": "eslint:recommended",
+	"parserOptions": {
+		"sourceType": "module"
+	},
+	"rules": {
+		"no-misleading-character-class": "warn",
+		"no-inner-declarations": 0,
+		"no-constant-condition": 0,
+		"no-control-regex": 0,
+		"no-useless-escape": 0,
+		"no-console": 0,
+		"no-unused-vars": "warn",
+		"no-empty": "warn",
+		"indent": 0,
+		"linebreak-style": [
+			0,
+			"unix"
+		],
+		"semi": [
+			"warn",
+			"always"
+		]
+	}
 }

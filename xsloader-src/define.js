@@ -59,13 +59,9 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 	//先根据src获取模块
 	let ifmodule = moduleScript.getModule(defineObject.src, defineObject.selfname);
 
+	let moduleBeforeCurrentPath;
 	if (!ifmodule && defineObject.srcBeforeCurrentPath) { //根据处理__currentPath前的地址获取模块
-		ifmodule = moduleScript.getModule(defineObject.srcBeforeCurrentPath);
-		if(ifmodule){
-			ifmodule.src = defineObject.src;
-			ifmodule.scriptSrc = defineObject.scriptSrc;
-			moduleScript.setModule(null, ifmodule);//使用处理后的地址也能获取到模块
-		}
+		moduleBeforeCurrentPath = moduleScript.getModule(defineObject.srcBeforeCurrentPath);
 	}
 
 	if (ifmodule) {
@@ -74,6 +70,7 @@ function onModuleLoaded(defineObject, lastDefineObject) {
 		}
 	} else {
 		ifmodule = moduleScript.newModule(defineObject);
+		moduleBeforeCurrentPath && moduleBeforeCurrentPath.toOtherModule(ifmodule);
 	}
 
 	if (defineObject.selfname != defineObject.src) {

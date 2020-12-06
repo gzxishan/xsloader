@@ -120,7 +120,15 @@ function _buildInvoker(module) {
 		} else if (L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
 			url = U.getPathWithRelative(optionalAbsUrl || this.absUrl(), relativeUrl);
 		} else {
-			url = L.config().baseUrl + relativeUrl;
+			let config = L.config();
+			let argArr = [relativeUrl];
+			U.replaceModulePrefix(config, argArr); //前缀替换
+			
+			if(L.startsWith(argArr[0],relativeUrl)){
+				url = L.config().baseUrl + relativeUrl;
+			}else{
+				url = argArr[0];
+			}
 		}
 		if (appendArgs) {
 			if (url == thePageUrl) {
@@ -182,14 +190,25 @@ function _buildInvoker(module) {
 	};
 
 	invoker.withAbsUrl = function(absUrlStr) {
-		if (!absUrlStr) {
-			absUrlStr = invoker.absUrl();
-		}
+
 		let moduleMap = {
 			module: module,
-			src: invoker.src(),
-			scriptSrc: invoker.scriptSrc(),
-			absUrl: () => absUrlStr,
+			get src() {
+				return invoker.src();
+			},
+			set src(val) {
+				throw "not support!";
+			},
+			get scriptSrc() {
+				return invoker.scriptSrc();
+			},
+			set scriptSrc(val) {
+				throw "not support!";
+			},
+			absUrl: () => {
+				let url = absUrlStr || invoker.absUrl();
+				return url;
+			},
 			name: invoker.getName(),
 			invoker: invoker.invoker()
 		};
@@ -303,8 +322,8 @@ class DefineObject {
 	id = U.getAndIncIdCount();
 	thiz;
 	isRequire;
-	scriptSrc;
-	src;
+	_scriptSrc;
+	_src;
 	parentDefine;
 	handle;
 	selfname;
@@ -376,6 +395,21 @@ class DefineObject {
 		this.callback = callback;
 		this._directDepLength = deps.length;
 		this.directDepLength = deps.length;
+	}
+
+	get src() {
+		return this._src;
+	}
+	set src(val) {
+		this._src = val;
+	}
+
+	get scriptSrc() {
+		return this._scriptSrc;
+	}
+
+	set scriptSrc(val) {
+		this._scriptSrc = val;
 	}
 
 	pushName(name) {
@@ -794,7 +828,7 @@ function prerequire(deps, callback) {
 			pluginArgs = deps.substring(pluginIndex + 1);
 			deps = deps.substring(0, pluginIndex);
 		}
-		
+
 		let module = moduleScript.getModule(deps);
 		if (!module) {
 			deps = thatInvoker.getUrl(deps, false);
@@ -881,6 +915,43 @@ function prerequire(deps, callback) {
 		console[logFun](U.unwrapError(err));
 	};
 
+	let checkResultFun = (forTimeout = false) => {
+		try {
+			if(!checkResultFun){
+				return;
+			}
+			
+			let ifmodule = moduleScript.getModule(selfname);
+			//console.log(isErr)
+			if ((!ifmodule || ifmodule.state != 'defined') && (isErr || forTimeout)) {
+
+				if (forTimeout) {
+					handle.onError(
+						`require timeout:${tagString?'tag='+tagString:''},\n` +
+						`\tdeps=[${deps ? deps.join(",") : ""}]\n` +
+						`${thatInvoker?'\tinvokerSrc='+thatInvoker.src():''}`
+					);
+				}
+
+				if (ifmodule) {
+					U.each(ifmodule.deps, (dep) => {
+						if (thatInvoker) {
+							dep = thatInvoker.getUrl(dep, false);
+						}
+						
+						let mod = moduleScript.getModule(dep);
+						if (mod && mod.printOnNotDefined) {
+							mod.printOnNotDefined();
+						}
+					});
+				}
+			}
+		} catch (e) {
+			console.error(e);
+		}
+		clearTimer();
+	};
+
 	handle.error(function(err, invoker) {
 		clearTimer(true);
 		if (customerErrCallback) {
@@ -891,7 +962,17 @@ function prerequire(deps, callback) {
 		}
 
 		isErr = !!err;
-        handle.logError(err, invoker);
+		try {
+			handle.logError(err, invoker);
+		} catch (e) {
+			console.warn(e);
+		}
+
+		if (checkResultFun) {
+			let fun = checkResultFun;
+			checkResultFun = null;
+			fun();
+		}
 	});
 
 	handle.error = function(errCallback) {
@@ -905,30 +986,9 @@ function prerequire(deps, callback) {
 	};
 
 	if (handle.waitTime) {
-		let checkResultFun = () => {
-			try {
-				let ifmodule = moduleScript.getModule(selfname);
-				//console.log(isErr)
-				if ((!ifmodule || ifmodule.state != 'defined') && !isErr) {
-					let module = ifmodule;
-					handle.onError(
-						`require timeout:selfname=${selfname}${tagString?',tag='+tagString:''},\n\tdeps=[${deps ? deps.join(",") : ""}]`
-					);
-					if (module) {
-						U.each(module.deps, (dep) => {
-							let mod = moduleScript.getModule(dep);
-							if (mod && mod.printOnNotDefined) {
-								mod.printOnNotDefined();
-							}
-						});
-					}
-				}
-			} catch (e) {
-				console.error(e);
-			}
-			clearTimer();
-		};
-		timeid = setTimeout(checkResultFun, handle.waitTime);
+		timeid = setTimeout(() => {
+			checkResultFun(true)
+		}, handle.waitTime);
 	}
 
 	if (typeof Promise != "undefined" && arguments.length == 1 && !callback) {
