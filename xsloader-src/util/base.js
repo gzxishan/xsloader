@@ -170,6 +170,9 @@ function __appendInnerDeps(deps, callbackString, reg, depIndex, notIndex) {
 }
 
 //添加内部直接require.get('...')或require('...')的模块
+//调用的地方：
+//1)script.js:prerequire
+//2)script.js:DefineObject.constructor
 function appendInnerDeps(deps, callback) {
 	if (L.isFunction(callback)) {
 		let theConfig = L.config();

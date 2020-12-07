@@ -96,6 +96,7 @@ loader.loaderFun((option) => {
 		ignoreProperties: false,
 		paths: {},
 		depsPaths: {},
+		aliasPaths: {},
 		deps: {},
 		jsExts: undefined,
 		autoExt: true,
@@ -217,6 +218,17 @@ loader.loaderFun((option) => {
 		dealUrlArgs(url) {
 			url = U.getPathWithRelative(location.href, url);
 			return this.dealUrl(url, url);
+		},
+		/**
+		 * 替换模块别名
+		 * @param {Object} dep 不以"."开头
+		 */
+		replaceDepAlias(dep) {
+			if (!L.startsWith(dep, '.') && this.aliasPaths[dep]) {
+				dep = this.aliasPaths[dep];
+			}
+
+			return dep;
 		},
 		defaultVersion: {},
 		plugins: {},

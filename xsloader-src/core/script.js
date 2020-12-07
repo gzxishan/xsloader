@@ -123,10 +123,10 @@ function _buildInvoker(module) {
 			let config = L.config();
 			let argArr = [relativeUrl];
 			U.replaceModulePrefix(config, argArr); //前缀替换
-			
-			if(L.startsWith(argArr[0],relativeUrl)){
+
+			if (L.startsWith(argArr[0], relativeUrl)) {
 				url = L.config().baseUrl + relativeUrl;
-			}else{
+			} else {
 				url = argArr[0];
 			}
 		}
@@ -208,6 +208,9 @@ function _buildInvoker(module) {
 			absUrl: () => {
 				let url = absUrlStr || invoker.absUrl();
 				return url;
+			},
+			absUrlFromModule() {
+				return this.absUrl();
 			},
 			name: invoker.getName(),
 			invoker: invoker.invoker()
@@ -432,6 +435,7 @@ class DefineObject {
 				deps.push(dep);
 			}
 		});
+
 		U.each(this.names, (name) => {
 			_deps = config.getDeps(name);
 			U.each(_deps, (dep) => {
@@ -440,6 +444,7 @@ class DefineObject {
 				}
 			});
 		});
+
 		if (this.handle.orderDep && this._directDepLength > 1 && deps.length > this._directDepLength) {
 			let odeps = [true]; //第一个true表示顺序依赖
 			while (this._directDepLength-- > 0) {
@@ -450,6 +455,13 @@ class DefineObject {
 		}
 
 		_dealEmbedDeps(deps, this); //处理嵌套依赖
+
+		//替换项目别名；另见：prerequire
+		for (let i = 0; i < deps.length; i++) {
+			let dep = deps[i];
+			deps[i] = config.replaceDepAlias(deps[i]);
+		}
+
 		U.replaceModulePrefix(config, deps); //前缀替换
 
 		if (module) {
@@ -821,31 +833,36 @@ function prerequire(deps, callback) {
 			}
 		}
 
-		let originDeps = deps;
+		let originDep = deps;
+		let oneDep = deps;
 		let pluginArgs = undefined;
-		let pluginIndex = deps.indexOf("!");
+		let pluginIndex = oneDep.indexOf("!");
 		if (pluginIndex > 0) {
-			pluginArgs = deps.substring(pluginIndex + 1);
-			deps = deps.substring(0, pluginIndex);
+			pluginArgs = oneDep.substring(pluginIndex + 1);
+			oneDep = oneDep.substring(0, pluginIndex);
 		}
 
-		let module = moduleScript.getModule(deps);
+		oneDep = config.replaceDepAlias(oneDep);
+
+		let module = moduleScript.getModule(oneDep);
 		if (!module) {
-			deps = thatInvoker.getUrl(deps, false);
-			module = moduleScript.getModule(deps);
+			oneDep = thatInvoker.getUrl(oneDep, false);
+			module = moduleScript.getModule(oneDep);
 		}
+
 		if (!module) {
-			throw new Error("the module '" + originDeps + "' is not load!");
+			throw new Error("the module '" + originDep + "' is not load!");
 		} else if (module.state != "defined") {
-			throw new Error("the module '" + originDeps + "' is not defined:" + module.state);
+			throw new Error("the module '" + originDep + "' is not defined:" + module.state);
 		}
+
 		let theMod;
 		moduleScript.newModuleInstance(module, thatInvoker, (depModule) => {
 			theMod = depModule.moduleObject();
 		}).initInstance(true, pluginArgs);
 
 		if (theMod === undefined) {
-			throw Error("the module '" + originDeps + "' is not load!");
+			throw Error("the module '" + originDep + "' is not load!");
 		}
 		return theMod;
 	}
@@ -917,10 +934,10 @@ function prerequire(deps, callback) {
 
 	let checkResultFun = (forTimeout = false) => {
 		try {
-			if(!checkResultFun){
+			if (!checkResultFun) {
 				return;
 			}
-			
+
 			let ifmodule = moduleScript.getModule(selfname);
 			//console.log(isErr)
 			if ((!ifmodule || ifmodule.state != 'defined') && (isErr || forTimeout)) {
@@ -938,7 +955,7 @@ function prerequire(deps, callback) {
 						if (thatInvoker) {
 							dep = thatInvoker.getUrl(dep, false);
 						}
-						
+
 						let mod = moduleScript.getModule(dep);
 						if (mod && mod.printOnNotDefined) {
 							mod.printOnNotDefined();
@@ -1017,6 +1034,7 @@ function prerequire(deps, callback) {
 
 //对于safari7-:在脚本加载事件中可获得正确的脚本地址
 
+//initDefine在../define.js里进行初始化
 const initDefine = function(theDefine) {
 	theRealDefine = (defines, loaded) => {
 		if (!L.config()) { //还没有配置
