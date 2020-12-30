@@ -185,9 +185,6 @@ L.define("xsloader4j-server-bridge", [], function() {
 		getImporter(thiz) {
 			let vtemplate = this.getVtemplate(thiz);
 			return function(name) {
-				if(!L.startsWith(name,"default!")){
-					name="default!"+name;
-				}
 				return new Promise(vtemplate(name));
 			};
 		},
