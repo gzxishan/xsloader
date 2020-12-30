@@ -9,9 +9,12 @@ L.define("default", {
 	pluginMain(arg, onload, onerror, config) {
 		let dep = arg;
 		let handle = this.invoker().withAbsUrl().require([dep], function(mod, depModuleArgs) {
-			if(L.isObject(mod)) {
-				mod = mod["default"];
-				if(mod === undefined) {
+			if (L.isObject(mod)) {
+				if ("default" in mod) {
+					mod = mod["default"];
+				}
+
+				if (mod === undefined) {
 					mod = null;
 				}
 			} else {
