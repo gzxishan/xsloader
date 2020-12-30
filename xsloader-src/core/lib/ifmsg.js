@@ -682,18 +682,33 @@ class Server extends Base {
 	_onConnected;
 	_conntimeout;
 	_sleeptimeout;
-	constructor(cmd) {
+	///#singleMode;
+	///#singleClient;//用于单例模式
+	constructor(cmd, singleMode) {
 		super(cmd);
+		this.#singleMode = singleMode;
 		this._id = L.randId();
 		this.onConnectTimeout = (client) => {
 			console.warn("client connect timeout:", client);
 		};
 	}
 
+	get isSingle() {
+		return this.#singleMode;
+	}
+
+	get client() {
+		if (!this.#singleMode) {
+			throw new Error("not single mode");
+		} else {
+			return this.#singleClient;
+		}
+	}
+
 	onConnect(client, conndata) {
 		let obj = CONNS_MAP[this.cmd];
 		obj.clients[client.fromid] = client;
-		
+
 		let onConn = this._onConnect || ((client, conndata, callback) => {
 			//默认只允许同域
 			let mine = location.protocol + "//" + location.host;
@@ -710,7 +725,16 @@ class Server extends Base {
 					fromid: this.id,
 					toid: client.fromid,
 				});
+
+				if (this.#singleMode && this.#singleClient) {
+					this.#singleClient.close();
+					this.#singleClient = null;
+				}
+
 				let onConnected = this._onConnected || (() => {
+					if (this.#singleMode) {
+						this.#singleClient = null;
+					}
 					client.close(false);
 					doSendMessage(true, client.source.get(), {
 						cmd: this.cmd,
@@ -720,6 +744,11 @@ class Server extends Base {
 						toid: client.fromid,
 					});
 				});
+
+				if (this.#singleMode) {
+					this.#singleClient = client;
+				}
+
 				Callback.call(this, onConnected, client);
 				client.checkClientConnected(this);
 			} else {
@@ -756,6 +785,7 @@ class Server extends Base {
 				}
 				obj.clients = {};
 				obj.server = null;
+				this.#singleClient = null;
 				this.closeBase();
 			}
 		}
@@ -786,76 +816,92 @@ class Server extends Base {
 
 
 class IfmsgServer {
-	_server;
+	///#server;
 	constructor(cmd, option) {
 		const gconfig = L.config().plugins.ifmsg;
+		
+		if (option === true || option === false) {
+			option = {
+				singleMode: option
+			};
+		}
+
 		option = L.extend({
 			connTimeout: gconfig.connTimeout,
 			sleepTimeout: gconfig.sleepTimeout,
+			singleMode: false,
 		}, option);
 
-		this._server = new L.InVar(new Server(cmd));
-		this._server.get()._conntimeout = option.connTimeout;
-		this._server.get()._sleeptimeout = option.sleepTimeout;
+		this.#server = new Server(cmd, option.singleMode);
+		this.#server._conntimeout = option.connTimeout;
+		this.#server._sleeptimeout = option.sleepTimeout;
 	}
 
 	/**
 	 *@param {Function} onConnect  function(client,conndata,callback(isAccept,errOrConndata))
 	 */
 	set onConnect(onConnect) {
-		this._server.get()._onConnect = onConnect ? new Callback(this, onConnect) : null;
+		this.#server._onConnect = onConnect ? new Callback(this, onConnect) : null;
 	}
 
 	get onConnect() {
-		return this._server.get()._onConnect && this._server.get()._onConnect.callback;
+		return this.#server._onConnect && this.#server._onConnect.callback;
 	}
 
 	/**
 	 * @param {Function} onConnectTimeout function(client)
 	 */
 	set onConnectTimeout(onConnectTimeout) {
-		this._server.get()._onConnectTimeout = onConnectTimeout ? new Callback(this, onConnectTimeout) : null;
+		this.#server._onConnectTimeout = onConnectTimeout ? new Callback(this, onConnectTimeout) : null;
 	}
 
 	get onConnectTimeout() {
-		return this._server.get()._onConnectTimeout && this._server.get()._onConnectTimeout.callback;
+		return this.#server._onConnectTimeout && this.#server._onConnectTimeout.callback;
 	}
 
 	/**
 	 * @param {Function} onConnected function(client)
 	 */
 	set onConnected(onConnected) {
-		this._server.get()._onConnected = onConnected ? new Callback(this, onConnected) : null;
+		this.#server._onConnected = onConnected ? new Callback(this, onConnected) : null;
 	}
 
 	get onConnected() {
-		return this._server.get()._onConnected && this._server.get()._onConnected.callback;
+		return this.#server._onConnected && this.#server._onConnected.callback;
 	}
 
 	get isStart() {
-		return this._server.get()._start;
+		return this.#server._start;
 	}
 
 	get isDestroyed() {
-		return this._server.get()._destroyed;
+		return this.#server._destroyed;
 	}
 
 	get cmd() {
-		return this._server.get().cmd;
+		return this.#server.cmd;
 	}
 
 	listen() {
-		this._server.get().listen();
+		this.#server.listen();
 	}
 
 	close() {
-		this._server.get().close();
+		this.#server.close();
 	}
 
+	get isSingle() {
+		return this.#server.isSingle;
+	}
+
+	get client() {
+		return this.#server.client;
+	}
+	
 }
 
 class IfmsgClient {
-	_client;
+	///#client;
 	constructor(cmd, option) {
 		const gconfig = L.config().plugins.ifmsg;
 		option = L.extend({
@@ -863,9 +909,9 @@ class IfmsgClient {
 			sleepTimeout: gconfig.sleepTimeout,
 		}, option);
 
-		this._client = new L.InVar(new Client(cmd, null, null, null, true));
-		this._client.get()._conntimeout = option.connTimeout;
-		this._client.get()._sleeptimeout = option.sleepTimeout;
+		this.#client = new Client(cmd, null, null, null, true);
+		this.#client._conntimeout = option.connTimeout;
+		this.#client._sleeptimeout = option.sleepTimeout;
 		this.onConnectFail = (err) => {
 			console.warn(err);
 		};
@@ -878,112 +924,112 @@ class IfmsgClient {
 			let fun = () => {
 				iframe.removeEventListener("load", fun);
 				let source = iframe.contentWindow;
-				this._client.get().source.set(source);
-				this._client.get().connect(conndata);
+				this.#client.source.set(source);
+				this.#client.connect(conndata);
 			};
 			iframe.addEventListener("load", fun);
 		} else {
 			let source = iframe.contentWindow;
-			this._client.get().source.set(source);
-			this._client.get().connect(conndata);
+			this.#client.source.set(source);
+			this.#client.connect(conndata);
 		}
 	}
 
 	connParent(conndata) {
-		this._client.get().source.set(window.parent);
-		this._client.get().connect(conndata);
+		this.#client.source.set(window.parent);
+		this.#client.connect(conndata);
 	}
 
 	connTop(conndata) {
-		this._client.get().source.set(window.top);
-		this._client.get().connect(conndata);
+		this.#client.source.set(window.top);
+		this.#client.connect(conndata);
 	}
 
 	connOpener(conndata) {
-		this._client.get().source.set(window.opener);
-		this._client.get().connect(conndata);
+		this.#client.source.set(window.opener);
+		this.#client.connect(conndata);
 	}
 
 	/**
 	 *@param {Function} onConnect  function(source,origin,conndata,callback(isAccept,err))
 	 */
 	set onConnect(onConnect) {
-		this._client.get()._onConnect = onConnect ? new Callback(this, onConnect) : null;
+		this.#client._onConnect = onConnect ? new Callback(this, onConnect) : null;
 	}
 
 	get onConnect() {
-		return this._client.get()._onConnect && this._client.get()._onConnect.callback;
+		return this.#client._onConnect && this.#client._onConnect.callback;
 	}
 
 	/**
 	 *@param {Function} onConnected
 	 */
 	set onConnected(onConnected) {
-		this._client.get()._onConnected = onConnected ? new Callback(this, onConnected) : null;
+		this.#client._onConnected = onConnected ? new Callback(this, onConnected) : null;
 	}
 
 	get onConnected() {
-		return this._client.get()._onConnected && this._client.get()._onConnected.callback;
+		return this.#client._onConnected && this.#client._onConnected.callback;
 	}
 
 	sendMessage(data) {
-		this._client.get().sendMessage(data);
+		this.#client.sendMessage(data);
 	}
 
 	/**
 	 * @param {Function} onHeartTimeout
 	 */
 	set onHeartTimeout(onHeartTimeout) {
-		this._client.get().onHeartTimeout = onHeartTimeout;
+		this.#client.onHeartTimeout = onHeartTimeout;
 	}
 
 	get onHeartTimeout() {
-		return this._client.get().onHeartTimeout;
+		return this.#client.onHeartTimeout;
 	}
 
 	/**
 	 * @param {Function} onHeartTimeout
 	 */
 	set onClosed(onClosed) {
-		this._client.get().onClosed = onClosed;
+		this.#client.onClosed = onClosed;
 	}
 
 	get onClosed() {
-		return this._client.get().onClosed;
+		return this.#client.onClosed;
 	}
 
 	/**
 	 * @param {Function} onMessage funcation(data)
 	 */
 	set onMessage(onMessage) {
-		this._client.get().onMessage = onMessage;
+		this.#client.onMessage = onMessage;
 	}
 
 	get onMessage() {
-		return this._client.get().onMessage;
+		return this.#client.onMessage;
 	}
 
 	/**
 	 * @param {Function} callback function(err)
 	 */
 	set onConnectFail(callback) {
-		this._client.get()._onConnectFail = callback ? new Callback(this, callback) : null;
+		this.#client._onConnectFail = callback ? new Callback(this, callback) : null;
 	}
 
 	get onConnectFail() {
-		return this._client.get()._onConnectFail && this._client.get()._onConnectFail.callback;
+		return this.#client._onConnectFail && this.#client._onConnectFail.callback;
 	}
 
 	get connected() {
-		return this._client.get().connected;
+		return this.#client.connected;
 	}
 
 	get destroyed() {
-		return this._client.get().destroyed;
+		return this.#client.destroyed;
 	}
-	
-	close(){
-		this._client.get().close();
+
+	close() {
+		this.#client.close();
 	}
 
 }

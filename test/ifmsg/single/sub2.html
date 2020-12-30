@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>子页面</title>
+		<script src="../../utils.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../../dist/xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<p>这是子页面</p>
+		<div id="logDiv">
+
+		</div>
+		<script type="text/javascript">
+			xsloader({});
+			require(["ifmsg"], function(ifmsg) {
+				ifmsg.debug.logMessage=true;
+				var client1=new ifmsg.Client();
+				client1.onConnected=()=>{
+					divLog("onConnected2");
+					client1.sendMessage("来自子页面2");
+				};
+				client1.onMessage=function(data){
+					divLog(data);
+				}
+				
+				client1.connParent();
+				
+				
+				// var client2=new ifmsg.Client();
+				// client2.onConnected=()=>{
+				// 	divLog("onConnected2");
+				// 	client2.sendMessage("来自子页面2");
+				// };
+				// client2.onMessage=function(data){
+				// 	divLog(data);
+				// }
+				
+				// client2.connParent();
+			});
+		</script>
+	</body>
+
+</html>

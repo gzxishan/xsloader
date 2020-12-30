@@ -23,6 +23,7 @@ npm run build:all
 4. 修复`try!`插件加载模块失败之无法继续执行的bug；
 5. 修复`dealPathMayAbsolute`协议处理bug；
 6. 配置中加入`aliasPaths`属性，可配置模块别名，别名格式不以"."开头，可出现"/"字符；
+7. `ifmsg`的`Server`增加单例模式；
 
 ### v1.1.31 2020/09/14
 1. 增加`xsloader.hasDefined(name)`判断模块是否已经定义完成（此模块已被执行）；

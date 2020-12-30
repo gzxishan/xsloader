@@ -48,6 +48,14 @@
 		xsloader({
 
 		});
+		
+		require(["PluginA!true"], function(pa) {
+			divLog(pa);
+			divLog("---------------------------");
+		}).error(function(err){
+			console.error(err);
+			divLog(err);
+		});
 
 		require(["PluginA!false"], function(pa) {
 			divLog(pa);

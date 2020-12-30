@@ -1,5 +1,9 @@
 //import { uglify } from 'rollup-plugin-uglify';
-import { eslint } from 'rollup-plugin-eslint';
+import {
+	eslint
+} from 'rollup-plugin-eslint';
+import fs from "fs";
+import path from "path";
 import babel from 'rollup-plugin-babel'
 import resolve from '@rollup/plugin-node-resolve'
 import pkg from './package.json';
@@ -17,9 +21,19 @@ const banner =
 	` * build time:${new Date().toString()}\n` +
 	' */'
 
-const rollupPlugins = [
+const rollupPlugins = [{
+		//替换：///#或//#//
+		load(id) {
+			if(id.indexOf(path.sep+"xsloader-src"+path.sep)>0){
+				console.log("load script file:"+id);
+				let content = fs.readFileSync(id, 'utf-8');
+				content = content.replace(/(^|\n)(\s*)((\/\/#\/\/)|\/\/\/#)/g, "$1$2#");
+				return content;
+			}
+		}
+	},
 	replace({
-		ENV_XSLOADER_VERSION: JSON.stringify(pkg.version)
+		ENV_XSLOADER_VERSION: JSON.stringify(pkg.version),
 	}),
 	resolve({
 		browser: true

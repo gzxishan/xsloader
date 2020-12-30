@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>ifmsg单例测试</title>
+		<script src="../../utils.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../../dist/xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<p>
+			这是父页面：
+			<div id="logDiv">
+
+			</div>
+			<iframe id="iframe" src="sub.html" style="width:100%;height:300px"></iframe>
+			<iframe id="iframe2" src="sub2.html" style="width:100%;height:300px"></iframe>
+		</p>
+		<script type="text/javascript">
+			xsloader({});
+			require(["ifmsg"], function(ifmsg) {
+				ifmsg.debug.logMessage=true;
+				
+				var server=new ifmsg.Server(undefined,true);
+				server.onConnect=(client,conndata,callback)=>{
+					divLog("onConnect");
+					callback(true);
+				};
+				server.onConnected=(client)=>{
+					divLog("onConnected");
+					client.onMessage=function(data){
+						divLog(data);
+					}
+					client.onClosed=function(){
+						divLog("客户端断开：id="+client.id);
+					}
+					client.sendMessage("来自父页面");
+				}
+				server.listen();
+				setInterval(function(){
+					if(server.client){
+						server.client.sendMessage("来自父页面，单例模式发送");
+					}
+				},3000);
+			});
+		</script>
+	</body>
+
+</html>
