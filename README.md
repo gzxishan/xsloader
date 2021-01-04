@@ -17,6 +17,8 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+
+### v1.1.38 2021/01/04
 1. 修复xshttp在multiPart为true下，参数为对象时未能进行转换的bug；
 2. 加入`xsloader`.`__currentPath`属性，用于xsloader4j；
 3. 加入`require().setTag()`,便于加载依赖报错时提供tag信息；
