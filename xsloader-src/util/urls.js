@@ -1,31 +1,31 @@
 const ABSOLUTE_PROTOCOL_REG = /^(([a-zA-Z0-9_]*:\/\/)|(\/)|(\/\/))/;
 const ABSOLUTE_PROTOCOL_REG2 = /^([a-zA-Z0-9_]+:)\/\/([^/\s]+)/;
-const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue",".*",".htmv_vue"];
+const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue", ".*", ".htmv_vue"];
 
 import global from './global.js';
 const L = global.xsloader;
 
 function isJsFile(path) {
-	if(!L.isString(path) || path.indexOf(".") == -1) {
+	if (!L.isString(path) || path.indexOf(".") == -1) {
 		return false;
 	}
 	let pluginIndex = path.indexOf("!");
-	if(pluginIndex > 0) {
+	if (pluginIndex > 0) {
 		path = path.substring(0, pluginIndex);
 	}
 	let index = path.indexOf("?");
-	if(index > 0) {
+	if (index > 0) {
 		path = path.substring(0, index);
 	}
 	index = path.indexOf("#");
-	if(index > 0) {
+	if (index > 0) {
 		path = path.substring(0, index);
 	}
 	let theConfig = L.config();
 
 	let jsExts = theConfig && theConfig.jsExts || defaultJsExts;
-	for(let i = 0; i < jsExts.length; i++) {
-		if(L.endsWith(path, jsExts[i])) {
+	for (let i = 0; i < jsExts.length; i++) {
+		if (L.endsWith(path, jsExts[i])) {
 			return {
 				ext: jsExts[i],
 				path: path
@@ -41,7 +41,7 @@ function dealPathMayAbsolute(path, currentUrl) {
 
 	let finalPath;
 	let absolute;
-	if(rs) {
+	if (rs) {
 		let protocol = rs[1];
 		absolute = true;
 
@@ -49,9 +49,9 @@ function dealPathMayAbsolute(path, currentUrl) {
 		let _protocol = rs && rs[1] || location.protocol;
 		let _host = rs && rs[2] || location.host;
 
-		if(protocol == "//") {
+		if (protocol == "//") {
 			finalPath = _protocol + "//" + path;
-		} else if(protocol == "/") {
+		} else if (protocol == "/") {
 			finalPath = _protocol + "//" + _host + path;
 		} else {
 			finalPath = path;
@@ -71,38 +71,38 @@ function getPathWithRelative(path, relative, isPathDir) {
 
 	let relativeQuery = "";
 	let qIndex = path.lastIndexOf("?");
-	if(qIndex >= 0) {
+	if (qIndex >= 0) {
 		path = path.substring(0, qIndex);
 	} else {
 		qIndex = path.lastIndexOf("#");
-		if(qIndex >= 0) {
+		if (qIndex >= 0) {
 			path = path.substring(0, qIndex);
 		}
 	}
 
 	qIndex = relative.lastIndexOf("?");
-	if(qIndex >= 0) {
+	if (qIndex >= 0) {
 		relativeQuery = relative.substring(qIndex);
 		relative = relative.substring(0, qIndex);
 	} else {
 		qIndex = relative.lastIndexOf("#");
-		if(qIndex >= 0) {
+		if (qIndex >= 0) {
 			relativeQuery = relative.substring(qIndex);
 			relative = relative.substring(0, qIndex);
 		}
 	}
 
-	let absolute = dealPathMayAbsolute(relative,path);
-	if(absolute.absolute) {
+	let absolute = dealPathMayAbsolute(relative, path);
+	if (absolute.absolute) {
 		return absolute.path + relativeQuery;
 	}
 
-	if(isPathDir === undefined) {
+	if (isPathDir === undefined) {
 		let index = path.lastIndexOf("/");
-		if(index == path.length - 1) {
+		if (index == path.length - 1) {
 			isPathDir = true;
 		} else {
-			if(index == -1) {
+			if (index == -1) {
 				index = 0;
 			} else {
 				index++;
@@ -111,26 +111,26 @@ function getPathWithRelative(path, relative, isPathDir) {
 		}
 	}
 
-	if(L.endsWith(path, "/")) {
+	if (L.endsWith(path, "/")) {
 		path = path.substring(0, path.length - 1);
 	}
 
 	let isRelativeDir = false;
-	if(relative == "." || L.endsWith(relative, "/")) {
+	if (relative == "." || L.endsWith(relative, "/")) {
 		relative = relative.substring(0, relative.length - 1);
 		isRelativeDir = true;
-	} else if(relative == "." || relative == ".." || L.endsWith("/.") || L.endsWith("/..")) {
+	} else if (relative == "." || relative == ".." || L.endsWith("/.") || L.endsWith("/..")) {
 		isRelativeDir = true;
 	}
 
 	let prefix = "";
 	let index = -1;
 	let absolute2 = dealPathMayAbsolute(path);
-	if(absolute2.absolute) {
+	if (absolute2.absolute) {
 		path = absolute2.path;
 		let index2 = path.indexOf("//");
 		index = path.indexOf("/", index2 + 2);
-		if(index == -1) {
+		if (index == -1) {
 			index = path.length;
 		}
 	}
@@ -139,27 +139,27 @@ function getPathWithRelative(path, relative, isPathDir) {
 	path = path.substring(index + 1);
 
 	let stack = path.split("/");
-	if(!isPathDir && stack.length > 0) {
+	if (!isPathDir && stack.length > 0) {
 		stack.pop();
 	}
 	let relatives = relative.split("/");
-	for(let i = 0; i < relatives.length; i++) {
+	for (let i = 0; i < relatives.length; i++) {
 		let str = relatives[i];
-		if(".." == str) {
-			if(stack.length == 0) {
-				
-				throw new Error("no more upper path:path="+arguments[0]+",relative="+arguments[1]);
+		if (".." == str) {
+			if (stack.length == 0) {
+
+				throw new Error("no more upper path:path=" + arguments[0] + ",relative=" + arguments[1]);
 			}
 			stack.pop();
-		} else if("." != str) {
+		} else if ("." != str) {
 			stack.push(str);
 		}
 	}
-//	if(stack.length == 0) {
-//		return "";
-//	}
+	//	if(stack.length == 0) {
+	//		return "";
+	//	}
 	let result = prefix + stack.join("/");
-	if(isRelativeDir && !L.endsWith(result, "/")) {
+	if (isRelativeDir && !L.endsWith(result, "/")) {
 		result += "/";
 	}
 	result = L.appendArgs2Url(result, relativeQuery);
@@ -173,14 +173,14 @@ function getNodeAbsolutePath(node) {
 
 //去掉url的query参数和#参数
 function removeQueryHash(url) {
-	if(url) {
+	if (url) {
 		let index = url.indexOf("?");
-		if(index >= 0) {
+		if (index >= 0) {
 			url = url.substring(0, index);
 		}
 
 		index = url.indexOf("#");
-		if(index >= 0) {
+		if (index >= 0) {
 			url = url.substring(0, index);
 		}
 	}
@@ -191,7 +191,7 @@ const REPLACE_STRING_PROPERTIES_EXP = new RegExp("\\$\\{([^\\{]+)\\}");
 const ALL_TYPE_PROPERTIES_EXP = new RegExp("^\\$\\[([^\\[\\]]+)\\]$");
 
 function propertiesDeal(configObject, properties) {
-	if(!properties) {
+	if (!properties) {
 		return configObject;
 	}
 
@@ -199,10 +199,10 @@ function propertiesDeal(configObject, properties) {
 		let rs;
 		let str = string;
 		rs = ALL_TYPE_PROPERTIES_EXP.exec(str);
-		if(rs) {
+		if (rs) {
 			let propKey = rs[1];
 			let propValue = L.getObjectAttr(properties, propKey);
-			if(propValue === undefined) {
+			if (propValue === undefined) {
 				return str;
 			} else {
 				return propValue;
@@ -210,16 +210,16 @@ function propertiesDeal(configObject, properties) {
 		}
 
 		let result = "";
-		while(true) {
+		while (true) {
 			rs = REPLACE_STRING_PROPERTIES_EXP.exec(str);
-			if(!rs) {
+			if (!rs) {
 				result += str;
 				break;
 			} else {
 				let propKey = rs[1];
-				if(property !== undefined && property.propertyKey == propKey) {
+				if (property !== undefined && property.propertyKey == propKey) {
 					throw new Error("replace property error:propertyKey=" + propKey);
-				} else if(property) {
+				} else if (property) {
 					property.has = true;
 				}
 				result += str.substring(0, rs.index);
@@ -232,35 +232,40 @@ function propertiesDeal(configObject, properties) {
 
 	//处理属性引用
 	function replaceProperties(obj, property, enableKeyAttr) {
-		if(!obj) {
+		if (!obj) {
 			return obj;
 		}
-		if(L.isFunction(obj)) {
+		if (L.isFunction(obj)) {
 			return obj;
-		} else if(L.isArray(obj)) {
-			for(let i = 0; i < obj.length; i++) {
+		} else if (L.isArray(obj)) {
+			for (let i = 0; i < obj.length; i++) {
 				obj[i] = replaceProperties(obj[i], property, enableKeyAttr);
 			}
-		} else if(L.isString(obj)) {
+		} else if (L.isString(obj)) {
 			obj = replaceStringProperties(obj, properties, property);
-		} else if(L.isObject(obj)) {
-			if(property) {
+		} else if (L.isObject(obj)) {
+			if (property) {
 				property.has = false;
 			}
 			let replaceKeyMap = {};
-			for(let x in obj) {
-				if(property) {
+			for (let x in obj) {
+				if (property) {
 					property.propertyKey = x;
 				}
 				obj[x] = replaceProperties(obj[x], property, enableKeyAttr);
-				if(enableKeyAttr) {
+				if (enableKeyAttr) {
 					let _x = replaceStringProperties(x, properties, property);
-					if(_x !== x) {
-						replaceKeyMap[x] = _x;
+					if (_x !== x) {
+						//属性变化后，且不存在该属性，则修改属性
+						if (_x in obj) {
+							delete obj[x];
+						} else {
+							replaceKeyMap[x] = _x;
+						}
 					}
 				}
 			}
-			for(let x in replaceKeyMap) {
+			for (let x in replaceKeyMap) {
 				let objx = obj[x];
 				delete obj[x];
 				obj[replaceKeyMap[x]] = objx;
@@ -271,14 +276,14 @@ function propertiesDeal(configObject, properties) {
 
 	}
 
-	if(!properties.__dealt__) {
+	if (!properties.__dealt__) {
 		let property = {
 			has: false
 		};
 
-		for(let x in properties) {
+		for (let x in properties) {
 			let fun = properties[x];
-			if(L.isFunction(fun)) {
+			if (L.isFunction(fun)) {
 				properties[x] = fun.call(properties);
 			}
 		}
@@ -293,13 +298,13 @@ function propertiesDeal(configObject, properties) {
 
 function replaceModulePrefix(config, deps) {
 
-	if(!deps||deps.length==0) {
+	if (!deps || deps.length == 0) {
 		return;
 	}
 
-	for(let i = 0; i < deps.length; i++) {
+	for (let i = 0; i < deps.length; i++) {
 		let m = deps[i];
-		if(typeof m == "string") {
+		if (typeof m == "string") {
 			let index = m.indexOf("!");
 			let pluginParam = index > 0 ? m.substring(index) : "";
 			m = index > 0 ? m.substring(0, index) : m;
@@ -309,30 +314,29 @@ function replaceModulePrefix(config, deps) {
 			m = index > 0 ? m.substring(0, index) : m;
 
 			let is = isJsFile(m);
-			if(config.autoExt&&/\/[^\/\.]+$/.test(m)){//自动后缀，需要后台支持
+			if (config.autoExt && /\/[^\/\.]+$/.test(m)) { //自动后缀，需要后台支持
 				deps[i] = m + config.autoExtSuffix + query + pluginParam;
-			}
-			else if(!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
+			} else if (!is && !/\.[^\/\s]*$/.test(m) && (L.startsWith(m, ".") || dealPathMayAbsolute(m).absolute)) {
 				deps[i] = m + ".js" + query + pluginParam;
 			}
 		}
 	}
 
-	if(config.modulePrefixCount) {
+	if (config.modulePrefixCount) {
 		//模块地址的前缀替换
-		for(let prefix in config.modulePrefix) {
+		for (let prefix in config.modulePrefix) {
 			let replaceStr = config.modulePrefix[prefix].replace;
 			let len = prefix.length;
-			for(let i = 0; i < deps.length; i++) {
+			for (let i = 0; i < deps.length; i++) {
 				let m = deps[i];
-				if(typeof m == "string") {
+				if (typeof m == "string") {
 					let pluginIndex = m.indexOf("!");
 					let pluginName = null;
-					if(pluginIndex >= 0) {
+					if (pluginIndex >= 0) {
 						pluginName = m.substring(0, pluginIndex + 1);
 						m = m.substring(pluginIndex + 1);
 					}
-					if(L.startsWith(m, prefix)) {
+					if (L.startsWith(m, prefix)) {
 						let dep = replaceStr + m.substring(len);
 						deps[i] = pluginName ? pluginName + dep : dep;
 					}
@@ -344,12 +348,12 @@ function replaceModulePrefix(config, deps) {
 
 function getScriptBySubname(subname) {
 	let ss = document.getElementsByTagName('script');
-	if(subname) {
-		for(let i = 0; i < ss.length; i++) {
+	if (subname) {
+		for (let i = 0; i < ss.length; i++) {
 			let script = ss[i];
 			let src = script.src;
 			src = src.substring(src.lastIndexOf("/"));
-			if(src.indexOf(subname) >= 0) {
+			if (src.indexOf(subname) >= 0) {
 				return script;
 			}
 		}
