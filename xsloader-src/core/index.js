@@ -296,33 +296,34 @@ loader.loaderFun((option) => {
 		modulePrefixCount++;
 	}
 	option.modulePrefixCount = modulePrefixCount;
-	if (modulePrefixCount > 0) {
-		//替换urlArgs中地址前缀
-		let star = option.urlArgs["*"];
-		delete option.urlArgs["*"];
 
-		let urlArgsArr = [];
-		for (let k in option.urlArgs) {
-			let url = k;
-			if (U.isJsFile(url)) { //处理相对
-				if (L.startsWith(url, ".") || L.startsWith(url, "/") && !L.startsWith(url, "//")) {
-					url = U.getPathWithRelative(script.theLoaderUrl, url);
-				} else {
-					let absolute = U.dealPathMayAbsolute(url);
-					if (absolute.absolute) {
-						url = absolute.path;
-					} else if (!L.startsWith(url, "*]")) { //排除*]；单*[可以有前缀
-						url = option.baseUrl + url;
-					}
-				}
+	let star = option.urlArgs["*"];
+	delete option.urlArgs["*"];
 
+	let urlArgsArr = [];
+	for (let k in option.urlArgs) {
+		let url = k;
+
+		//处理相对
+		if (L.startsWith(url, ".") || L.startsWith(url, "/") && !L.startsWith(url, "//")) {
+			url = U.getPathWithRelative(script.theLoaderUrl, url);
+		} else {
+			let absolute = U.dealPathMayAbsolute(url);
+			if (absolute.absolute) {
+				url = absolute.path;
+			} else if (!L.startsWith(url, "*]") && !L.startsWith(url, "*[")) { //排除*]；但*[可以有前缀
+				url = option.baseUrl + url;
 			}
-			urlArgsArr.push({
-				url: url,
-				args: option.urlArgs[k]
-			});
 		}
 
+		urlArgsArr.push({
+			url: url,
+			args: option.urlArgs[k]
+		});
+	}
+
+	//替换urlArgs中地址前缀
+	if (modulePrefixCount > 0) {
 		for (let prefix in option.modulePrefix) {
 			let replaceStr = option.modulePrefix[prefix].replace;
 			for (let i = 0; i < urlArgsArr.length; i++) {
@@ -332,18 +333,19 @@ loader.loaderFun((option) => {
 					starP = "*[";
 					urlArgObj.url = urlArgObj.url.substring(2);
 				}
+
 				if (L.startsWith(urlArgObj.url, prefix)) {
 					urlArgObj.url = replaceStr + urlArgObj.url.substring(prefix.length);
 				}
 				starP && (urlArgObj.url = starP + urlArgObj.url);
 			}
 		}
-		option.urlArgs = {};
-		option.urlArgs["*"] = star;
-		for (let i = 0; i < urlArgsArr.length; i++) {
-			let urlArgObj = urlArgsArr[i];
-			option.urlArgs[urlArgObj.url] = urlArgObj.args;
-		}
+	}
+	option.urlArgs = {};
+	option.urlArgs["*"] = star;
+	for (let i = 0; i < urlArgsArr.length; i++) {
+		let urlArgObj = urlArgsArr[i];
+		option.urlArgs[urlArgObj.url] = urlArgObj.args;
 	}
 
 	//预处理urlArgs中的*[与*]
