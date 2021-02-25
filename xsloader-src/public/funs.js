@@ -5,9 +5,9 @@ const L = G.xsloader;
 
 function queryParam(name, otherValue, optionUrl) {
 	let search;
-	if(optionUrl) {
+	if (optionUrl) {
 		let index = optionUrl.indexOf('?');
-		if(index < 0) {
+		if (index < 0) {
 			index = 0;
 		} else {
 			index += 1;
@@ -19,12 +19,20 @@ function queryParam(name, otherValue, optionUrl) {
 
 	let reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)");
 	let r = search.match(reg);
-	if(r != null) return decodeURIComponent(r[2]);
-	return otherValue !== undefined ? otherValue : null;
+	let result = null;
+	if (r != null) {
+		result = decodeURIComponent(r[2]);
+	}
+
+	if ((result === null || result === "") && otherValue !== undefined) {
+		result = otherValue;
+	}
+
+	return result;
 }
 
 function getUrl(relativeUrl, appendArgs = true, optionalAbsUrl) {
-	if(optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
+	if (optionalAbsUrl && !U.dealPathMayAbsolute(optionalAbsUrl).absolute) {
 		throw new Error("expected absolute url:" + optionalAbsUrl);
 	}
 	//	if(appendArgs === undefined) {
@@ -33,15 +41,15 @@ function getUrl(relativeUrl, appendArgs = true, optionalAbsUrl) {
 	let theConfig = L.config();
 	let thePageUrl = U.thePageUrl;
 	let url;
-	if(relativeUrl === undefined) {
+	if (relativeUrl === undefined) {
 		url = thePageUrl;
-	} else if(L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
+	} else if (L.startsWith(relativeUrl, ".") || U.dealPathMayAbsolute(relativeUrl).absolute) {
 		url = U.getPathWithRelative(optionalAbsUrl || thePageUrl, relativeUrl);
 	} else {
 		url = theConfig.baseUrl + relativeUrl;
 	}
-	if(appendArgs) {
-		if(url == thePageUrl) {
+	if (appendArgs) {
+		if (url == thePageUrl) {
 			url += location.search + location.hash;
 		}
 		return theConfig.dealUrl({}, url);
@@ -52,7 +60,7 @@ function getUrl(relativeUrl, appendArgs = true, optionalAbsUrl) {
 
 function getUrl2(relativeUrl, appendArgs = true, optionalAbsUrl) {
 	let url = getUrl(relativeUrl, false, optionalAbsUrl);
-	if(appendArgs) {
+	if (appendArgs) {
 		return L.config().dealUrl({}, url);
 	} else {
 		return url;
@@ -64,14 +72,14 @@ function tryCall(fun, defaultReturn, thiz, exCallback) {
 	try {
 		thiz = thiz === undefined ? this : thiz;
 		rs = fun.call(thiz);
-	} catch(e) {
-		if(L.isFunction(exCallback)) {
+	} catch (e) {
+		if (L.isFunction(exCallback)) {
 			exCallback(e);
 		} else {
 			console.warn(e);
 		}
 	}
-	if(rs === undefined || rs === null) {
+	if (rs === undefined || rs === null) {
 		rs = defaultReturn;
 	}
 	return rs;
@@ -82,14 +90,14 @@ function dealProperties(obj, properties) {
 }
 
 function extend(target) {
-	for(let i = 1; i < arguments.length; i++) {
+	for (let i = 1; i < arguments.length; i++) {
 		let obj = arguments[i];
-		if(!obj) {
+		if (!obj) {
 			continue;
 		}
-		for(let x in obj) {
+		for (let x in obj) {
 			let value = obj[x];
-			if(value === undefined) {
+			if (value === undefined) {
 				continue;
 			}
 			target[x] = obj[x];
@@ -99,21 +107,21 @@ function extend(target) {
 }
 
 function extendDeep(target) {
-	if(!target) {
+	if (!target) {
 		return target;
 	}
-	for(let i = 1; i < arguments.length; i++) {
+	for (let i = 1; i < arguments.length; i++) {
 		let obj = arguments[i];
-		if(!obj) {
+		if (!obj) {
 			continue;
 		}
 
-		for(let x in obj) {
+		for (let x in obj) {
 			let value = obj[x];
-			if(value === undefined) {
+			if (value === undefined) {
 				continue;
 			}
-			if(L.isObject(value) && L.isObject(target[x])) {
+			if (L.isObject(value) && L.isObject(target[x])) {
 				target[x] = L.extendDeep(target[x], value);
 			} else {
 				target[x] = obj[x];
@@ -130,25 +138,25 @@ function _AsyncCall(useTimer) {
 
 	function initCtrlCallback(callbackObj) {
 		let mineCount = count + "";
-		if(!ctrlCallbackMap[mineCount]) {
+		if (!ctrlCallbackMap[mineCount]) {
 			let ctrlCallback = function() {
 				count++;
 				let asyncCallQueue = ctrlCallbackMap[mineCount];
 				delete ctrlCallbackMap[mineCount];
-				while(asyncCallQueue.length) {
+				while (asyncCallQueue.length) {
 					let callbackObj = asyncCallQueue.shift();
 					let lastReturn = undefined;
 					try {
-						if(callbackObj.callback) {
+						if (callbackObj.callback) {
 							lastReturn = callbackObj.callback.call(callbackObj.handle, callbackObj.obj, mineCount);
 						}
-					} catch(e) {
+					} catch (e) {
 						console.error(e);
 					}
 					let handle;
-					while(callbackObj.nextCallback.length) {
+					while (callbackObj.nextCallback.length) {
 						let nextObj = callbackObj.nextCallback.shift();
-						if(!handle) {
+						if (!handle) {
 							handle = thiz.pushTask(nextObj.callback, lastReturn);
 						} else {
 							handle.next(nextObj.callback);
@@ -157,7 +165,7 @@ function _AsyncCall(useTimer) {
 				}
 			};
 			ctrlCallbackMap[mineCount] = [];
-			if(!useTimer && G.Promise && G.Promise.resolve) {
+			if (!useTimer && G.Promise && G.Promise.resolve) {
 				G.Promise.resolve().then(ctrlCallback);
 			} else {
 				setTimeout(ctrlCallback, 0);
@@ -195,7 +203,7 @@ const theAsyncCall = new _AsyncCall();
 const theAsyncCallOfTimer = new _AsyncCall(true);
 
 let asyncCall = function(callback, useTimer) {
-	if(useTimer) {
+	if (useTimer) {
 		return theAsyncCallOfTimer.pushTask(callback);
 	} else {
 		return theAsyncCall.pushTask(callback);
@@ -208,17 +216,17 @@ let asyncCall = function(callback, useTimer) {
  * @param {Object} attrNames "rs"、"rs.total"等
  */
 function getObjectAttr(obj, attrNames, defaultValue) {
-	if(!obj || !attrNames) {
+	if (!obj || !attrNames) {
 		return undefined;
 	}
 	let attrs = attrNames.split(".");
 	let rs = defaultValue;
 	let i = 0;
-	for(; i < attrs.length && obj; i++) {
+	for (; i < attrs.length && obj; i++) {
 		let k = attrs[i];
 		obj = obj[k];
 	}
-	if(i == attrs.length) {
+	if (i == attrs.length) {
 		rs = obj;
 	}
 
@@ -234,15 +242,15 @@ function setObjectAttr(obj, attrNames, value) {
 	let _obj = obj;
 	let attrs = attrNames.split(".");
 
-	for(let i = 0; i < attrs.length; i++) {
+	for (let i = 0; i < attrs.length; i++) {
 		let k = attrs[i];
 
-		if(i == attrs.length - 1) {
+		if (i == attrs.length - 1) {
 			obj[k] = value;
 			break;
 		}
 		let o = obj[k];
-		if(!o) {
+		if (!o) {
 			o = {};
 			obj[k] = o;
 		}
@@ -253,22 +261,22 @@ function setObjectAttr(obj, attrNames, value) {
 
 function clone(obj, isDeep = false) {
 	// Handle the 3 simple types, and null or undefined or function
-	if(!obj || L.isFunction(obj) || L.isString(obj)) return obj;
+	if (!obj || L.isFunction(obj) || L.isString(obj)) return obj;
 
-	if(L.isRegExp(obj)) {
+	if (L.isRegExp(obj)) {
 		return new RegExp(obj.source, obj.flags);
 	}
 
 	// Handle Date
-	if(L.isDate(obj)) {
+	if (L.isDate(obj)) {
 		let copy = new Date();
 		copy.setTime(obj.getTime());
 		return copy;
 	}
 	// Handle Array or Object
-	if(L.isArray(obj) || L.isObject(obj)) {
+	if (L.isArray(obj) || L.isObject(obj)) {
 		let copy = L.isArray(obj) ? [] : {};
-		for(let attr in obj) {
+		for (let attr in obj) {
 			let v = obj[attr];
 			copy[attr] = isDeep ? clone(v) : v;
 		}
@@ -278,16 +286,16 @@ function clone(obj, isDeep = false) {
 }
 
 function sortObject(obj) {
-	if(!obj || !L.isObject(obj)) {
+	if (!obj || !L.isObject(obj)) {
 		return obj;
 	} else {
 		let keys = [];
-		for(let k in obj) {
+		for (let k in obj) {
 			keys.push(k);
 		}
 		keys.sort();
 		let newObj = {};
-		for(let i = 0; i < keys.length; i++) {
+		for (let i = 0; i < keys.length; i++) {
 			newObj[keys[i]] = obj[keys[i]];
 		}
 		return newObj;
