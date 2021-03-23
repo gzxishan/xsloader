@@ -237,10 +237,11 @@ const MESSAGE_LISTENER = (event) => {
 					client = obj.clients[fromid];
 				}
 
-				checkSource(client, source);
+				//!!!!!source为空，可能为假冒页面？，关闭时不应直接执行安全相关操作
+				source && checkSource(client, source);
 
 				if (client) {
-					client.close(false);
+					client.close(false, undefined, mdata);
 				}
 			} else if (type == "heart") {
 				let client;
@@ -288,7 +289,7 @@ class Callback {
 	}
 
 	invoke(args) {
-		this.callback.apply(this.thiz, args);
+		return this.callback.apply(this.thiz, args);
 	}
 }
 
@@ -301,19 +302,49 @@ Callback.call = function(self, callback) {
 		}
 
 		if (callback instanceof Callback) {
-			callback.invoke(args);
+			return callback.invoke(args);
 		} else {
-			callback.apply(self, args);
+			return callback.apply(self, args);
 		}
 	}
 };
 
+
+let autoClosablesOnWindowClose = {};
+//页面关闭时，发送关闭消息
+window.addEventListener('unload', (event) => {
+	for (let id in autoClosablesOnWindowClose) {
+		try {
+			let closable = autoClosablesOnWindowClose[id];
+			let data = closable.getUnloadData();
+			closable.close(true, {
+				type: "unload",
+				href: location.href,
+				data,
+			});
+		} catch (e) {
+			console.warn(e);
+		}
+	}
+	autoClosablesOnWindowClose = {};
+});
+
+function autoCloseOnWindowClose(closable) {
+	let id = L.randId();
+	autoClosablesOnWindowClose[id] = closable;
+	return () => {
+		delete autoClosablesOnWindowClose[id];
+	}
+}
+
 class Base {
 	_cmd;
 	_id;
+	///#onclose;
 	constructor(cmd = "default") {
 		this._cmd = cmd;
 		this._id = L.randId();
+		this.#onclose = autoCloseOnWindowClose(this);
 	}
 
 	get cmd() {
@@ -334,6 +365,11 @@ class Base {
 					destroyTimer();
 				}
 			}
+		}
+
+		if (this.#onclose) {
+			this.#onclose();
+			this.#onclose = null;
 		}
 	}
 }
@@ -361,6 +397,7 @@ class Client extends Base {
 	_lastSendHeartTime = 0;
 	_lastReceiveHeartTime = 0;
 	_onHeartTimeout;
+	_onUnload;
 	_onClosed;
 	_onMessage;
 	_onConnected;
@@ -583,40 +620,49 @@ class Client extends Base {
 		Callback.call(this, this._onMessage, mdata);
 	}
 
-	close(sendClosed = true) {
-		try {
-			let obj = CONNS_MAP[this.cmd];
-			if (obj) {
-				if (this.isself) {
-					if (obj.selfclients) {
-						delete obj.selfclients[this.id];
-					}
-				} else {
-					if (obj.clients) {
-						delete obj.clients[this.fromid];
+	getUnloadData() {
+		if (this.connected) {
+			return Callback.call(this, this._onUnload);
+		}
+	}
+
+	close(sendClosed = true, closeMessage, recvMessage) {
+		if (this.connected) {
+			try {
+				let obj = CONNS_MAP[this.cmd];
+				if (obj) {
+					if (this.isself) {
+						if (obj.selfclients) {
+							delete obj.selfclients[this.id];
+						}
+					} else {
+						if (obj.clients) {
+							delete obj.clients[this.fromid];
+						}
 					}
 				}
-			}
 
-			if (this._rtimer) {
-				clearRunAfter(this._rtimer);
-				this._rtimer = null;
-			}
+				if (this._rtimer) {
+					clearRunAfter(this._rtimer);
+					this._rtimer = null;
+				}
 
-			this._connected = false;
-			this._destroyed = true;
-			this.closeBase();
+				this._connected = false;
+				this._destroyed = true;
+				this.closeBase();
 
-			if (sendClosed && this.source.get()) {
-				doSendMessage(!this.isself, this.source.get(), {
-					cmd: this.cmd,
-					type: "closed",
-					fromid: this.id,
-					toid: this.fromid
-				});
+				if (sendClosed && this.source.get()) {
+					doSendMessage(!this.isself, this.source.get(), {
+						cmd: this.cmd,
+						type: "closed",
+						mdata: closeMessage,
+						fromid: this.id,
+						toid: this.fromid
+					});
+				}
+			} finally {
+				Callback.call(this, this._onClosed, recvMessage);
 			}
-		} finally {
-			Callback.call(this, this._onClosed);
 		}
 	}
 
@@ -632,7 +678,18 @@ class Client extends Base {
 	}
 
 	/**
-	 * @param {Function} onHeartTimeout
+	 * @param {Function} onUnload() 返回的结果用于发送给对方
+	 */
+	set onUnload(onUnload) {
+		this._onUnload = onUnload ? new Callback(this, onUnload) : null;
+	}
+
+	get onUnload() {
+		return this._onUnload && this._onUnload.callback;
+	}
+
+	/**
+	 * @param {Function} onClosed(data)
 	 */
 	set onClosed(onClosed) {
 		this._onClosed = onClosed ? new Callback(this, onClosed) : null;
@@ -765,7 +822,7 @@ class Server extends Base {
 		Callback.call(this, onConn, client, conndata, callback);
 	}
 
-	close() {
+	close(sendClosed, closeMessage) {
 		if (this._destroyed) {
 			throw new Error("already destroyed!");
 		} else {
@@ -778,7 +835,9 @@ class Server extends Base {
 				for (let k in obj.clients) {
 					try {
 						let client = obj.clients[k];
-						client.close();
+						if (client.connected) {
+							client.close(sendClosed, closeMessage);
+						}
 					} catch (e) {
 						console.error(e);
 					}
@@ -819,7 +878,7 @@ class IfmsgServer {
 	///#server;
 	constructor(cmd, option) {
 		const gconfig = L.config().plugins.ifmsg;
-		
+
 		if (option === true || option === false) {
 			option = {
 				singleMode: option
@@ -886,8 +945,8 @@ class IfmsgServer {
 		this.#server.listen();
 	}
 
-	close() {
-		this.#server.close();
+	close(data) {
+		this.#server.close(true, data);
 	}
 
 	get isSingle() {
@@ -897,7 +956,7 @@ class IfmsgServer {
 	get client() {
 		return this.#server.client;
 	}
-	
+
 }
 
 class IfmsgClient {
@@ -988,7 +1047,18 @@ class IfmsgClient {
 	}
 
 	/**
-	 * @param {Function} onHeartTimeout
+	 * @param {Function} onUnload() 返回的结果用于发送给对方
+	 */
+	set onUnload(onUnload) {
+		this.#client.onUnload = onUnload;
+	}
+
+	get onUnload() {
+		return this.#client.onUnload;
+	}
+
+	/**
+	 * @param {Function} onClosed(data)
 	 */
 	set onClosed(onClosed) {
 		this.#client.onClosed = onClosed;
@@ -1028,8 +1098,8 @@ class IfmsgClient {
 		return this.#client.destroyed;
 	}
 
-	close() {
-		this.#client.close();
+	close(data) {
+		this.#client.close(true, data);
 	}
 
 }

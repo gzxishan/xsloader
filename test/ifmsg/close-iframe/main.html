@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+	<head>
+		<meta charset="UTF-8">
+		<title>ifmsg iframe关闭测试</title>
+		<script src="../../utils.js" type="text/javascript" charset="utf-8"></script>
+		<script src="../../../dist/xsloader.js" type="text/javascript" charset="utf-8"></script>
+	</head>
+
+	<body>
+		<p>
+		<div id="iframeDiv">
+
+		</div>
+		这是父页面：
+		<div id="logDiv">
+
+		</div>
+		</p>
+		<script type="text/javascript">
+			xsloader({});
+			require(["ifmsg"], function(ifmsg) {
+				ifmsg.debug.logMessage = true;
+
+				var server = new ifmsg.Server();
+				server.onConnect = (client, conndata, callback) => {
+					divLog("onConnect");
+					callback(true);
+				};
+				server.onConnected = (client) => {
+					divLog("onConnected");
+					client.onMessage = function(data) {
+						divLog(data);
+					}
+					client.sendMessage("来自父页面");
+					client.onClosed = function(data) {
+						divLog(data);
+					};
+				}
+				server.listen();
+
+				var index = 0;
+				var maxIframes = 5;
+				var iframeCount = 0;
+
+				function createIframe() {
+					if (iframeCount >= maxIframes) {
+						return;
+					}
+
+					var iframe = document.createElement("iframe");
+					iframe.style = "width:100%;height:300px";
+					document.getElementById("iframeDiv").appendChild(iframe);
+					iframe.src = "sub.html?id=" + (index++);
+					iframeCount++;
+					setTimeout(function() {
+						iframeCount--;
+						document.getElementById("iframeDiv").removeChild(iframe);
+					}, 2500);
+				}
+
+				setInterval(function() {
+					createIframe();
+				}, 2000);
+			});
+		</script>
+	</body>
+
+</html>
