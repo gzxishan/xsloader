@@ -19,9 +19,14 @@
 		</div>
 		</p>
 		<script type="text/javascript">
+			//页面关闭时，发送关闭消息
+			window.addEventListener('beforeunload', (event) => {
+				console.log(event);
+			});
+
 			xsloader({});
 			require(["ifmsg"], function(ifmsg) {
-				ifmsg.debug.logMessage = true;
+				//ifmsg.debug.logMessage = true;
 
 				var server = new ifmsg.Server();
 				server.onConnect = (client, conndata, callback) => {
@@ -37,6 +42,10 @@
 					client.onClosed = function(data) {
 						divLog(data);
 					};
+					
+					client.source.addEventListener('unload', (event) => {
+						console.log(event);
+					});
 				}
 				server.listen();
 

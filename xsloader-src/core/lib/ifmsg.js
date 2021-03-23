@@ -87,8 +87,8 @@ function doSendMessage(isserver, source, msg) {
 }
 
 function checkSource(client, source) {
-	if (client && client.source.get() != source) { //防止其他窗口发过来
-		console.error("source error:", client.source.get(), source);
+	if (client && client.source != source) { //防止其他窗口发过来
+		console.error("source error:", client.source, source);
 		throw new Error("source error:not match");
 	}
 }
@@ -312,21 +312,51 @@ Callback.call = function(self, callback) {
 
 let autoClosablesOnWindowClose = {};
 //页面关闭时，发送关闭消息
-window.addEventListener('unload', (event) => {
-	for (let id in autoClosablesOnWindowClose) {
+window.addEventListener('beforeunload', (event) => {
+	let as = autoClosablesOnWindowClose;
+	autoClosablesOnWindowClose = {};
+	let evt = {
+		type: "beforeunload",
+	};
+
+	for (let id in as) {
 		try {
-			let closable = autoClosablesOnWindowClose[id];
-			let data = closable.getUnloadData();
+			let closable = as[id];
+			let data = closable.getUnloadData({
+				...evt
+			});
 			closable.close(true, {
-				type: "unload",
-				href: location.href,
+				...evt,
 				data,
 			});
 		} catch (e) {
 			console.warn(e);
 		}
 	}
+});
+
+window.addEventListener('unload', (event) => {
+	let as = autoClosablesOnWindowClose;
 	autoClosablesOnWindowClose = {};
+
+	let evt = {
+		type: "unload",
+	};
+
+	for (let id in as) {
+		try {
+			let closable = as[id];
+			let data = closable.getUnloadData({
+				...evt
+			});
+			closable.close(true, {
+				...evt,
+				data,
+			});
+		} catch (e) {
+			console.warn(e);
+		}
+	}
 });
 
 function autoCloseOnWindowClose(closable) {
@@ -376,7 +406,7 @@ class Base {
 
 
 class Client extends Base {
-	_source;
+	///#source;
 	_origin;
 	_fromid;
 	//////////////////////
@@ -385,7 +415,7 @@ class Client extends Base {
 	_destroyed = false;
 	_onConnect;
 	_onConnectFail;
-	_isself;
+	///#isself;//为false，则表示服务端连接得到的客户端
 	_conntimeout;
 	_sleeptimeout;
 	_rtimer;
@@ -404,26 +434,26 @@ class Client extends Base {
 	_createTime = currentTimemillis();
 	constructor(cmd, source, origin, fromid, isself = false) {
 		super(cmd);
-		this._source = new L.InVar(source);
+		this.#source = source;
 		this._origin = origin;
 		this._fromid = fromid;
-		this._isself = isself;
+		this.#isself = isself;
 	}
 
 	get source() {
-		return this._source;
+		return this.#source;
 	}
 
 	set source(source) {
-		if (this._source.get()) {
+		if (this.#source) {
 			throw new Error(`already exists source:id=${this.id}`);
 		}
 
-		this._source.set(source);
+		this.#source = source;
 	}
 
 	get isself() {
-		return this._isself;
+		return this.#isself;
 	}
 
 	get origin() {
@@ -454,7 +484,7 @@ class Client extends Base {
 			//throw new Error("already connected!");
 		} else if (this.destroyed) {
 			throw new Error("destroyed!");
-		} else if (!this.source.get()) {
+		} else if (!this.source) {
 			throw new Error("no source!");
 		} else {
 			if (!this._starttime || this._failed) {
@@ -485,7 +515,7 @@ class Client extends Base {
 				};
 			}
 			CONNS_MAP[this.cmd].selfclients[this.id] = this;
-			doSendMessage(false, this.source.get(), msg);
+			doSendMessage(false, this.source, msg);
 
 			this._rtimer = runAfter(this._sleeptimeout, () => {
 				if (this.connected || this._failed || this._connect || this._destroyed) {
@@ -516,7 +546,7 @@ class Client extends Base {
 				}
 			} else if (time - this._lastSendHeartTime > this._heartTime) {
 				this._lastSendHeartTime = time;
-				doSendMessage(!this.isself, this.source.get(), {
+				doSendMessage(!this.isself, this.source, {
 					cmd: this.cmd,
 					type: "heart",
 					fromid: this.id,
@@ -574,7 +604,7 @@ class Client extends Base {
 			let callback = (isAccept, errOrConndata) => {
 				if (isAccept) {
 					this.gotConnected();
-					doSendMessage(false, this.source.get(), {
+					doSendMessage(false, this.source, {
 						cmd: this.cmd,
 						type: "connected",
 						fromid: this.id,
@@ -583,7 +613,7 @@ class Client extends Base {
 					let onConnected = this._onConnected;
 					// || (() => {
 					// 	this.close(false);
-					// 	doSendMessage(true, this.source.get(), {
+					// 	doSendMessage(true, this.source, {
 					// 		cmd: this.cmd,
 					// 		type: "close",
 					// 		mdata: "not exists connected handle",
@@ -593,7 +623,7 @@ class Client extends Base {
 					// });
 					Callback.call(this, onConnected);
 				} else {
-					doSendMessage(false, this.source.get(), {
+					doSendMessage(false, this.source, {
 						cmd: this.cmd,
 						type: "connected-fail",
 						err: errOrConndata,
@@ -620,9 +650,9 @@ class Client extends Base {
 		Callback.call(this, this._onMessage, mdata);
 	}
 
-	getUnloadData() {
+	getUnloadData(e) {
 		if (this.connected) {
-			return Callback.call(this, this._onUnload);
+			return Callback.call(this, this._onUnload, e);
 		}
 	}
 
@@ -651,8 +681,8 @@ class Client extends Base {
 				this._destroyed = true;
 				this.closeBase();
 
-				if (sendClosed && this.source.get()) {
-					doSendMessage(!this.isself, this.source.get(), {
+				if (sendClosed && this.source) {
+					doSendMessage(!this.isself, this.source, {
 						cmd: this.cmd,
 						type: "closed",
 						mdata: closeMessage,
@@ -678,7 +708,7 @@ class Client extends Base {
 	}
 
 	/**
-	 * @param {Function} onUnload() 返回的结果用于发送给对方
+	 * @param {Function} onUnload(e) 返回的结果用于发送给对方
 	 */
 	set onUnload(onUnload) {
 		this._onUnload = onUnload ? new Callback(this, onUnload) : null;
@@ -714,7 +744,7 @@ class Client extends Base {
 		if (this.destroyed) {
 			throw new Error("destroyed!");
 		} else if (this.connected) {
-			doSendMessage(!this.isself, this.source.get(), {
+			doSendMessage(!this.isself, this.source, {
 				cmd: this.cmd,
 				type: "message",
 				mdata: data,
@@ -775,7 +805,7 @@ class Server extends Base {
 		let callback = (isAccept, errOrConndata) => {
 			if (isAccept) {
 				client.gotConnected();
-				doSendMessage(true, client.source.get(), {
+				doSendMessage(true, client.source, {
 					cmd: this.cmd,
 					type: "connected",
 					mdata: errOrConndata,
@@ -793,7 +823,7 @@ class Server extends Base {
 						this.#singleClient = null;
 					}
 					client.close(false);
-					doSendMessage(true, client.source.get(), {
+					doSendMessage(true, client.source, {
 						cmd: this.cmd,
 						type: "close",
 						mdata: "not exists connected handle",
@@ -810,7 +840,7 @@ class Server extends Base {
 				client.checkClientConnected(this);
 			} else {
 				client.close(false);
-				doSendMessage(true, client.source.get(), {
+				doSendMessage(true, client.source, {
 					cmd: this.cmd,
 					type: "connected-fail",
 					err: errOrConndata,
@@ -983,29 +1013,29 @@ class IfmsgClient {
 			let fun = () => {
 				iframe.removeEventListener("load", fun);
 				let source = iframe.contentWindow;
-				this.#client.source.set(source);
+				this.#client.source = source;
 				this.#client.connect(conndata);
 			};
 			iframe.addEventListener("load", fun);
 		} else {
 			let source = iframe.contentWindow;
-			this.#client.source.set(source);
+			this.#client.source = source;
 			this.#client.connect(conndata);
 		}
 	}
 
 	connParent(conndata) {
-		this.#client.source.set(window.parent);
+		this.#client.source = window.parent;
 		this.#client.connect(conndata);
 	}
 
 	connTop(conndata) {
-		this.#client.source.set(window.top);
+		this.#client.source = window.top;
 		this.#client.connect(conndata);
 	}
 
 	connOpener(conndata) {
-		this.#client.source.set(window.opener);
+		this.#client.source = window.opener;
 		this.#client.connect(conndata);
 	}
 

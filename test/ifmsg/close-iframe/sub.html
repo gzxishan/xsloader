@@ -18,7 +18,8 @@
 			var id = xsloader.queryParam("id");
 
 			require(["ifmsg"], function(ifmsg) {
-				ifmsg.debug.logMessage = true;
+				//ifmsg.debug.logMessage = true;
+				
 				var client1 = new ifmsg.Client();
 				client1.onConnected = () => {
 					divLog("onConnected:" + id);
@@ -30,6 +31,10 @@
 
 				client1.onUnload = function() {
 					return "子页面关闭：" + id;
+				}
+				
+				client1.onClosed = function() {
+					return "onClosed：" + id;
 				}
 
 
