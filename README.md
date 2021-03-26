@@ -17,6 +17,8 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+
+### v1.1.42 2021/03/26
 1. 完善`propertiesDeal`，当属性存在变量时，如果计算得到了新的属性newKey，且同级对象中不存在该newKey的属性才会替换；
 2. 修复配置`urlArgs`处理bug；
 3. 修复`xsloader.queryParam`获取参数为空字符串时没有使用默认值的问题；
