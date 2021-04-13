@@ -337,7 +337,8 @@ class DefineObject {
 	directDepLength = 0;
 	names = [];
 	index;
-	constructor(scriptSrc, src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
+	constructor(scriptSrc, src, thiz, args = [], isRequire = false,
+		ignoreCurrentRequireDep /*, willDealConfigDeps = false*/ ) {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
 
@@ -388,9 +389,9 @@ class DefineObject {
 		}
 
 		//获取函数体里直接require('...')的依赖
-		//if(!isRequire) {
-		U.appendInnerDeps(deps, callback);
-		//}
+		if (!ignoreCurrentRequireDep) {
+			U.appendInnerDeps(deps, callback);
+		}
 
 		this.selfname = selfname;
 		this.deps = deps;
@@ -479,7 +480,8 @@ class DefineObject {
 						for (var i = 0; i < directDepLength; i++) {
 							args[i] = applyArgs[i];
 						}
-						args[directDepLength] = applyArgs[applyArgs.length - 1].slice(0, directDepLength);
+						args[directDepLength] = applyArgs[applyArgs.length - 1].slice(0,
+							directDepLength);
 					}
 					return args;
 				};
@@ -759,6 +761,8 @@ function loadScript(moduleName, url, onload, onerror) {
 }
 
 function doDefine(thiz, args, isRequire) {
+	let ignoreCurrentRequireDep = L.__ignoreCurrentRequireDep;
+	L.__ignoreCurrentRequireDep = false;
 	//	console.log("**********************************[");
 	let rs = getCurrentScript(); //已经不含参数
 
@@ -771,7 +775,7 @@ function doDefine(thiz, args, isRequire) {
 	//	console.log("**********************************]\n");
 	let src = rs.src;
 	let scriptSrc = rs.scriptSrc;
-	let defineObject = new DefineObject(scriptSrc, src, thiz, args, isRequire);
+	let defineObject = new DefineObject(scriptSrc, src, thiz, args, isRequire, ignoreCurrentRequireDep);
 	defineObject.srcBeforeCurrentPath = rs.srcBeforeCurrentPath; //处理__currentPath前的
 
 	if (!isSrcFromScriptLoad) {
