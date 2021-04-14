@@ -17,6 +17,7 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+1. 加入`xsloader.__ignoreCurrentRequireDep`属于，配合`xsloader4j`，优化处理速度；
 
 ### v1.1.42 2021/03/26
 1. 完善`propertiesDeal`，当属性存在变量时，如果计算得到了新的属性newKey，且同级对象中不存在该newKey的属性才会替换；

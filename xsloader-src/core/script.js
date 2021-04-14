@@ -337,10 +337,13 @@ class DefineObject {
 	directDepLength = 0;
 	names = [];
 	index;
-	constructor(scriptSrc, src, thiz, args = [], isRequire = false,
-		ignoreCurrentRequireDep /*, willDealConfigDeps = false*/ ) {
+	ignoreCurrentRequireDep;
+	constructor(scriptSrc, src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
+
+		this.ignoreCurrentRequireDep = !U.isLoaderEnd() || L.__ignoreCurrentRequireDep || this.parentDefine && this
+			.parentDefine.ignoreCurrentRequireDep() || false;
 
 		this.scriptSrc = scriptSrc;
 		this.src = src;
@@ -389,7 +392,7 @@ class DefineObject {
 		}
 
 		//获取函数体里直接require('...')的依赖
-		if (!ignoreCurrentRequireDep) {
+		if (!this.ignoreCurrentRequireDep) {
 			U.appendInnerDeps(deps, callback);
 		}
 
@@ -742,9 +745,11 @@ function loadScript(moduleName, url, onload, onerror) {
 				if (U.IE_VERSION > 0 || U.IE_VERSION == "edge") { //ie下确保此事件在脚本之后执行。
 					L.asyncCall(() => {
 						onload(scriptData);
+						L.__ignoreCurrentRequireDep = false;
 					});
 				} else {
 					onload(scriptData);
+					L.__ignoreCurrentRequireDep = false;
 				}
 			}
 		}
@@ -761,8 +766,6 @@ function loadScript(moduleName, url, onload, onerror) {
 }
 
 function doDefine(thiz, args, isRequire) {
-	let ignoreCurrentRequireDep = L.__ignoreCurrentRequireDep;
-	L.__ignoreCurrentRequireDep = false;
 	//	console.log("**********************************[");
 	let rs = getCurrentScript(); //已经不含参数
 
@@ -775,7 +778,7 @@ function doDefine(thiz, args, isRequire) {
 	//	console.log("**********************************]\n");
 	let src = rs.src;
 	let scriptSrc = rs.scriptSrc;
-	let defineObject = new DefineObject(scriptSrc, src, thiz, args, isRequire, ignoreCurrentRequireDep);
+	let defineObject = new DefineObject(scriptSrc, src, thiz, args, isRequire);
 	defineObject.srcBeforeCurrentPath = rs.srcBeforeCurrentPath; //处理__currentPath前的
 
 	if (!isSrcFromScriptLoad) {

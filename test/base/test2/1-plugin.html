@@ -34,12 +34,14 @@
 				if(pluginArgs == "true") {
 					onload({
 						code: 0,
+						desc:"成功测试",
 						rs: pluginArgs
 					});
 				} else {
 					onerror({
 						code: -1,
-						desc: pluginArgs
+						desc:"错误测试",
+						rs: pluginArgs
 					});
 				}
 			}

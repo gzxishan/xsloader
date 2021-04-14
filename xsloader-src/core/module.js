@@ -137,7 +137,8 @@ function newModuleInstance(module, thatInvoker, relyCallback, index = 0) {
 
 				try {
 					let cacheResult;
-					if (this._object.isSingle && (cacheResult = this.lastSinglePluginResult(pluginArgs)) !== undefined) {
+					if (this._object.isSingle && (cacheResult = this.lastSinglePluginResult(pluginArgs)) !==
+						undefined) {
 						let last = cacheResult;
 						onload(last.result, last.ignoreAspect);
 					} else {
@@ -151,7 +152,8 @@ function newModuleInstance(module, thatInvoker, relyCallback, index = 0) {
 				if (!hasFinished) {
 					setTimeout(function() {
 						if (!hasFinished) {
-							console.warn("invoke plugin may failed:page=" + location.href + ",plugin=" + module.selfname + "!" +
+							console.warn("invoke plugin may failed:page=" + location.href + ",plugin=" +
+								module.selfname + "!" +
 								pluginArgs);
 						}
 					}, L.config().waitSeconds * 1000);
@@ -182,9 +184,10 @@ function newModuleInstance(module, thatInvoker, relyCallback, index = 0) {
 	return instanceModule;
 }
 
-function _newModule(name, scriptSrc, thatInvoker, index) {
+function _preNewModule(name, scriptSrc, thatInvoker, index) {
 	let src = U.removeQueryHash(scriptSrc);
 	let defineObject = new script.DefineObject(scriptSrc, src, null, [name, null, null]);
+	defineObject.ignoreCurrentRequireDep=false;
 	defineObject.index = index;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.appendConfigDepsAndEmbedDeps(); //添加配置依赖，该模块对象是加载者、而不是define者
@@ -230,9 +233,10 @@ function newModule(defineObject) {
 		loopObject: undefined, //循环依赖对象
 		invoker: defineObject.thatInvoker,
 		instanceType: "single",
-		reinitByDefineObject(defineObject) {
-			this.deps = defineObject.deps || [];
-			this.getCallback = () => defineObject.callback;
+		reinitByDefineObject(newDefineObject) {
+			this.deps = newDefineObject.deps || [];
+			this.getCallback = () => newDefineObject.callback;
+			defineObject.ignoreCurrentRequireDep=newDefineObject.ignoreCurrentRequireDep;
 		},
 		setInstanceType(instanceType) {
 			this.instanceType = instanceType;
@@ -255,6 +259,9 @@ function newModule(defineObject) {
 				}
 			}
 		},
+		ignoreCurrentRequireDep() {
+			return defineObject.ignoreCurrentRequireDep;
+		},
 		finish(args) {
 			args = this._dealApplyArgs(args);
 			this.args = args;
@@ -263,6 +270,7 @@ function newModule(defineObject) {
 				try {
 					script.currentDefineModuleQueue.push(this);
 					obj = this.getCallback().apply(this.thiz, args);
+					defineObject.ignoreCurrentRequireDep = false;
 					script.currentDefineModuleQueue.pop();
 				} catch (e) {
 					script.currentDefineModuleQueue.pop();
@@ -477,8 +485,10 @@ function newModule(defineObject) {
 				genErrs(node.parent, infos, nodePaths);
 			}
 		}
-		console.error("{-----------------------------------------------------------------------------------------------");
-		console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," : "") +
+		console.error(
+			"{-----------------------------------------------------------------------------------------------");
+		console.error("load module error:id=" + this.id + "," + (this.selfname ? "selfname=" + this.selfname + "," :
+				"") +
 			"my page=" + location.href);
 
 		let logedPathMap = {};
@@ -560,7 +570,8 @@ function newModule(defineObject) {
 					}
 					let depMod = moduleDef.getModule(dep);
 					if (depMod) {
-						console.warn("[dep]" + getName(dep) + ":" + "state=" + getState(depMod.state) + "\n\tsrc=" + depMod.src +
+						console.warn("[dep]" + getName(dep) + ":" + "state=" + getState(depMod.state) +
+							"\n\tsrc=" + depMod.src +
 							"\n\tabsUrl=" +
 							(depMod
 								.thiz && depMod.thiz.absUrl()));
@@ -570,7 +581,8 @@ function newModule(defineObject) {
 				}
 			}
 		});
-		console.error("}-----------------------------------------------------------------------------------------------");
+		console.error(
+			"}-----------------------------------------------------------------------------------------------");
 	};
 	moduleMap._printOnNotDefined = function(parentNode) {
 		let node = {
@@ -812,7 +824,7 @@ function everyRequired(defineObject, module, everyOkCallback, errCallback) {
 						}
 					}
 					let m2Name = isJsFile ? null : dep;
-					let module2 = _newModule(m2Name, urls[0], invoker_of_module, index);
+					let module2 = _preNewModule(m2Name, urls[0], invoker_of_module, index);
 					moduleDef.setModule(null, module2); //直接通过地址加载的设置默认模块
 					module2.setState("loading"); //只有此处才设置loading状态
 
