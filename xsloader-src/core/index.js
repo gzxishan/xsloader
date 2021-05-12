@@ -145,8 +145,20 @@ loader.loaderFun((option) => {
 			return deps;
 		},
 		dealUrl(module, url, addVersion = false) {
-			let urlArgs = this.getUrlArgs(module, url, addVersion);
-			return L.appendArgs2Url(url, urlArgs);
+			let urlArgs;
+			let index = url.indexOf("?");
+			if (index > 0) {
+				let index2 = url.indexOf("#", index);
+				urlArgs = url.substring(index + 1, index2 > 0 ? index2 : url.length);
+			}
+
+			let newUrlArgs = this.getUrlArgs(module, url, addVersion);
+			let newUrl = L.appendArgs2Url(url, newUrlArgs);
+			if (urlArgs) {
+				newUrl = L.appendArgs2Url(url, urlArgs);
+			}
+
+			return newUrl;
 		},
 		/**
 		 * 获取待添加的参数
