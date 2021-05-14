@@ -132,7 +132,7 @@ const MESSAGE_LISTENER = (event) => {
 						cmd,
 						type: "connecting-fail",
 						toid: fromid,
-						err: "not a server,cmd=${cmd}"
+						err: `not a server,cmd=${cmd}`
 					});
 				} else {
 					if (obj.clients[fromid]) {
