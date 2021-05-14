@@ -17,6 +17,8 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+
+### v1.1.45 2021/05/14
 1. 加入`xsloader.__ignoreCurrentRequireDep`属性，配合`xsloader4j`，优化处理速度；
 2. 完善`getUrl`，提供的相对地址的参数优先权更高；
 
