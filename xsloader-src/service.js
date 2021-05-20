@@ -62,7 +62,9 @@ let initFun = () => {
 				hasGlobal: false,
 				resUrls: []
 			},
-			chooseLoader(localConfig) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
+			chooseLoader(
+				localConfig
+				) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
 				return "default";
 			},
 			loader: {
@@ -107,8 +109,10 @@ let initFun = () => {
 					loadServiceConfig("global servie", conf.service.confUrl,
 						function(globalConfig) {
 							let localConfig = conf;
-							G[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main.localConfigVar] = localConfig;
-							G[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main.globalConfigVar] = globalConfig;
+							G[globalConfig.main && globalConfig.main.localConfigVar || localConfig.main
+								.localConfigVar] = localConfig;
+							G[globalConfig.main && globalConfig.main.globalConfigVar || localConfig.main
+								.globalConfigVar] = globalConfig;
 
 							let mainName, mainPath, loaderName;
 
@@ -117,7 +121,8 @@ let initFun = () => {
 							let loader;
 							if (loaderName != null) {
 								mainName = globalConfig.main.name;
-								mainPath = U.getPathWithRelative(location.href, getMainPath(globalConfig));
+								mainPath = U.getPathWithRelative(location.href, getMainPath(
+									globalConfig));
 								loader = globalConfig.loader[loaderName];
 								conf = globalConfig;
 								if (loader) {
@@ -128,7 +133,8 @@ let initFun = () => {
 							if (!loader) {
 								loaderName = localConfig.chooseLoader.call(localConfig, null);
 								mainName = localConfig.main.name;
-								mainPath = U.getPathWithRelative(location.href, getMainPath(localConfig));
+								mainPath = U.getPathWithRelative(location.href, getMainPath(
+									localConfig));
 								loader = localConfig.loader[loaderName];
 								conf = localConfig;
 								if (loader) {
@@ -200,7 +206,7 @@ let initFun = () => {
 		loader.defineFunction = loader.defineFunction || {};
 		loader.depsPaths = loader.depsPaths || {};
 
-		if (L.endsWith(location.pathname, ".htmv")) { //用于支持htmv
+		if (L.endsWith(location.pathname, ".htmv") || L.script().getAttribute("data-htmv") == "true") { //用于支持htmv
 			if (G.__htmv_init_bridge_) {
 				G.__htmv_init_bridge_();
 			}

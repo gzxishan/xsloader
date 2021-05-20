@@ -1,6 +1,6 @@
 {
   "name": "xsloader.js",
-  "version": "1.1.45",
+  "version": "1.1.46",
   "description": "xsloader is a JavaScript file and module loader like requirejs but not requirejs",
   "main": "dist/xsloader.js",
   "scripts": {

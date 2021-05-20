@@ -17,6 +17,7 @@ npm run build:all
 
 ## 发布记录
 ### v进行中
+1. 完善对`htmv`的支持；
 
 ### v1.1.45 2021/05/14
 1. 加入`xsloader.__ignoreCurrentRequireDep`属性，配合`xsloader4j`，优化处理速度；
