@@ -1,6 +1,6 @@
 const ABSOLUTE_PROTOCOL_REG = /^(([a-zA-Z0-9_]*:\/\/)|(\/)|(\/\/))/;
 const ABSOLUTE_PROTOCOL_REG2 = /^([a-zA-Z0-9_]+:)\/\/([^/\s]+)/;
-const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue", ".*", ".htmv_vue"];
+const defaultJsExts = [".js", ".js+", ".js++", ".es", "es6", ".jsx", ".vue", ".*", ".htmv_vue", ".ts"];
 
 import global from './global.js';
 const L = global.xsloader;

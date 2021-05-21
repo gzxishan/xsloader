@@ -339,6 +339,8 @@ class DefineObject {
 	index;
 	ignoreCurrentRequireDep;
 	constructor(scriptSrc, src, thiz, args = [], isRequire = false /*, willDealConfigDeps = false*/ ) {
+		let config = L.config();
+
 		this.parentDefine = currentDefineModuleQueue.peek();
 		this.thatInvoker = getInvoker(thiz);
 
@@ -395,6 +397,9 @@ class DefineObject {
 		if (!this.ignoreCurrentRequireDep) {
 			U.appendInnerDeps(deps, callback);
 		}
+
+		//对于css,scss,sass,less等自动添加css!
+		config && config.plugins.css.autoCssDeal(deps);
 
 		this.selfname = selfname;
 		this.deps = deps;
@@ -850,6 +855,11 @@ function prerequire(deps, callback) {
 		}
 
 		oneDep = config.replaceDepAlias(oneDep);
+
+		let arr = [oneDep];
+		//对于css,scss,sass,less等自动添加css!
+		config && config.plugins.css.autoCssDeal(arr);
+		oneDep = arr[0];
 
 		let module = moduleScript.getModule(oneDep);
 		if (!module) {

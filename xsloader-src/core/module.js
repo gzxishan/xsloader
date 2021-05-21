@@ -187,7 +187,7 @@ function newModuleInstance(module, thatInvoker, relyCallback, index = 0) {
 function _preNewModule(name, scriptSrc, thatInvoker, index) {
 	let src = U.removeQueryHash(scriptSrc);
 	let defineObject = new script.DefineObject(scriptSrc, src, null, [name, null, null]);
-	defineObject.ignoreCurrentRequireDep=false;
+	defineObject.ignoreCurrentRequireDep = false;
 	defineObject.index = index;
 	defineObject.thatInvoker = thatInvoker;
 	defineObject.appendConfigDepsAndEmbedDeps(); //添加配置依赖，该模块对象是加载者、而不是define者
@@ -236,7 +236,7 @@ function newModule(defineObject) {
 		reinitByDefineObject(newDefineObject) {
 			this.deps = newDefineObject.deps || [];
 			this.getCallback = () => newDefineObject.callback;
-			defineObject.ignoreCurrentRequireDep=newDefineObject.ignoreCurrentRequireDep;
+			defineObject.ignoreCurrentRequireDep = newDefineObject.ignoreCurrentRequireDep;
 		},
 		setInstanceType(instanceType) {
 			this.instanceType = instanceType;
@@ -464,7 +464,7 @@ function newModule(defineObject) {
 		let root = {
 			nodes: []
 		};
-		this._printOnNotDefined(root);
+		this._printOnNotDefined(root, 0);
 		let leafs = [];
 
 		function findLeaf(node) {
@@ -584,18 +584,20 @@ function newModule(defineObject) {
 		console.error(
 			"}-----------------------------------------------------------------------------------------------");
 	};
-	moduleMap._printOnNotDefined = function(parentNode) {
+	moduleMap._printOnNotDefined = function(parentNode, deepCount) {
+		if (deepCount >= 32 || this.state == "defined") {
+			return;
+		}
+
 		let node = {
 			err: "[" + this.description() + "].state=" + this.state,
 			id: this.id,
 			module: this,
 			parent: parentNode,
-			nodes: []
+			nodes: [],
 		};
+
 		parentNode.nodes.push(node);
-		if (this.state == "defined") {
-			return;
-		}
 
 		U.each(this.deps, (dep) => {
 			if (dep == "exports") {
@@ -614,12 +616,12 @@ function newModule(defineObject) {
 			}
 
 			if (mod && mod.state == "defined") {
-				mod._printOnNotDefined(node);
+				mod._printOnNotDefined(node, deepCount + 1);
 				return;
 			}
 			//只打印一个错误栈
 			if (mod) {
-				mod._printOnNotDefined && mod._printOnNotDefined(node);
+				mod._printOnNotDefined && mod._printOnNotDefined(node, deepCount + 1);
 			} else {
 				node.nodes.push({
 					parent: parentNode,

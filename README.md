@@ -18,6 +18,7 @@ npm run build:all
 ## 发布记录
 ### v进行中
 1. 完善对`htmv`的支持；
+2. 当导入`css`、`scss`、`sass`、`less`后缀名的样式时，自动添加`css!`前缀
 
 ### v1.1.45 2021/05/14
 1. 加入`xsloader.__ignoreCurrentRequireDep`属性，配合`xsloader4j`，优化处理速度；

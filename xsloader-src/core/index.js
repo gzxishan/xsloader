@@ -262,6 +262,37 @@ loader.loaderFun((option) => {
 		delay: 500,
 	}, option.plugins.loading);
 
+	option.plugins.css = L.extend({
+		inverse: true, //是否逆向添加css：不同模块间添加style的顺序是与依赖顺序相反的，如A（内部加载A.css）依赖B（内部加载B.css），则在head中A.css在B.css的后面
+		autoCss: true,
+		autoExts: [".css", ".scss", ".sass", ".less"]
+	}, option.plugins.css);
+
+	option.plugins.css.autoCssDeal = function(deps) {
+		if (this.autoCss) {
+			for (let i = 0; i < deps.length; i++) {
+				let dep = deps[i];
+				if (!L.startsWith(dep, "css!")) {
+					let index = dep.lastIndexOf("?");
+					let query = "";
+					if (index != -1) {
+						query = dep.substring(index);
+						dep = dep.substring(0, index);
+					}
+
+					let autoExts = this.autoExts;
+					for (let k = 0; k < autoExts.length; k++) {
+						if (L.endsWith(dep, autoExts[k])) {
+							deps[i] = "css!" + dep + query;
+							break;
+						}
+					}
+
+				}
+			}
+		}
+	};
+
 	if (L.domAttr(script.theLoaderScript, "disable-loading") !== undefined) {
 		option.plugins.loading.enable = false;
 	}
