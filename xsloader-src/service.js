@@ -64,7 +64,7 @@ let initFun = () => {
 			},
 			chooseLoader(
 				localConfig
-				) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
+			) { //返回一个configName；当此函数为service全局配置的函数时，localConfig为应用的配置对象;本地配置调用时，localConfig为null。
 				return "default";
 			},
 			loader: {
@@ -211,6 +211,14 @@ let initFun = () => {
 				G.__htmv_init_bridge_();
 			}
 			mainName = "htmv-main";
+			loader.depsPaths[mainName] = location.href; //让其依赖*中的所有依赖
+			L(loader);
+		} else if (L.endsWith(location.pathname, ".htmr") || L.script().getAttribute("data-htmr") ==
+			"true") { //用于支持htmr
+			if (G.__htmr_init_bridge_) {
+				G.__htmr_init_bridge_();
+			}
+			mainName = "htmr-main";
 			loader.depsPaths[mainName] = location.href; //让其依赖*中的所有依赖
 			L(loader);
 		} else if (mainPath.indexOf("!") != -1) { //插件调用
