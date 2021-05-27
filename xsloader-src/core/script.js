@@ -847,6 +847,13 @@ function prerequire(deps, callback) {
 
 		let originDep = deps;
 		let oneDep = deps;
+		
+		{//对于css,scss,sass,less等自动添加css!
+			let arr = [oneDep];
+			config.plugins.css.autoCssDeal(arr);
+			oneDep = arr[0];
+		}
+		
 		let pluginArgs = undefined;
 		let pluginIndex = oneDep.indexOf("!");
 		if (pluginIndex > 0) {
@@ -855,11 +862,6 @@ function prerequire(deps, callback) {
 		}
 
 		oneDep = config.replaceDepAlias(oneDep);
-
-		let arr = [oneDep];
-		//对于css,scss,sass,less等自动添加css!
-		config && config.plugins.css.autoCssDeal(arr);
-		oneDep = arr[0];
 
 		let module = moduleScript.getModule(oneDep);
 		if (!module) {
