@@ -252,27 +252,11 @@ loader.loaderFun((option) => {
 		innerDepType: "auto", //auto,require.get,require,disable
 	}, option.props);
 
-	option.plugins.loading = L.extend({
-		enable: true,
-		color: '#2196f3',
-		bgColor: 'rgba(0,0,0,0.1)',
-		errColor: '#f5222d',
-		duration: 0.2,
-		height: 1,
-		delay: 500,
-	}, option.plugins.loading);
-
-	option.plugins.css = L.extend({
-		inverse: true, //是否逆向添加css：不同模块间添加style的顺序是与依赖顺序相反的，如A（内部加载A.css）依赖B（内部加载B.css），则在head中A.css在B.css的后面
-		autoCss: true,
-		autoExts: [".css", ".scss", ".sass", ".less"]
-	}, option.plugins.css);
-
-	option.plugins.css.autoCssDeal = function(deps) {
-		if (this.autoCss) {
+	function pluginAutoExtDeal(pluginName, deps) {
+		if (this.auto) {
 			for (let i = 0; i < deps.length; i++) {
 				let dep = deps[i];
-				if (!L.startsWith(dep, "css!")) {
+				if (!L.startsWith(dep, pluginName) && dep.indexOf("!") == -1) {
 					let index = dep.lastIndexOf("?");
 					let query = "";
 					if (index != -1) {
@@ -283,7 +267,7 @@ loader.loaderFun((option) => {
 					let autoExts = this.autoExts;
 					for (let k = 0; k < autoExts.length; k++) {
 						if (L.endsWith(dep, autoExts[k])) {
-							deps[i] = "css!" + dep + query;
+							deps[i] = pluginName + dep + query;
 							break;
 						}
 					}
@@ -291,15 +275,60 @@ loader.loaderFun((option) => {
 				}
 			}
 		}
-	};
+	}
+
+	option.plugins.loading = L.extend({
+		enable: true,
+		color: '#2196f3',
+		bgColor: 'rgba(0,0,0,0.1)',
+		errColor: '#f5222d',
+		duration: 0.2,
+		height: 1,
+		delay: 500,
+	}, option.plugins.loading);
 
 	if (L.domAttr(script.theLoaderScript, "disable-loading") !== undefined) {
 		option.plugins.loading.enable = false;
 	}
 
+	option.plugins.css = L.extend({
+		inverse: true, //是否逆向添加css：不同模块间添加style的顺序是与依赖顺序相反的，如A（内部加载A.css）依赖B（内部加载B.css），则在head中A.css在B.css的后面
+		auto: true,
+		autoExts: [".css", ".scss", ".sass", ".less"]
+	}, option.plugins.css);
+
+	option.plugins.css.autoDeal = function(deps) {
+		return pluginAutoExtDeal.call(this, "css!", deps);
+	};
+
+	option.plugins.text = L.extend({
+		auto: true,
+		autoExts: [".txt", ".html", ".htm", ".svg"]
+	}, option.plugins.text);
+
+	option.plugins.text.autoDeal = function(deps) {
+		return pluginAutoExtDeal.call(this, "text!", deps);
+	};
+
+	option.plugins.json = L.extend({
+		auto: true,
+		autoExts: [".json"]
+	}, option.plugins.json);
+
+	option.plugins.json.autoDeal = function(deps) {
+		return pluginAutoExtDeal.call(this, "json!", deps);
+	};
+
 	option.plugins.image = L.extend({
 		timeout: 10000, //超时时间，毫秒
+		auto: true,
+		autoExts: [".jpg", ".jpeg", ".png", ".bmp", ".gif", "webp"]
 	}, option.plugins.image);
+
+	option.plugins.image.autoDeal = function(deps) {
+		return pluginAutoExtDeal.call(this, "image!", deps);
+	};
+
 
 	option.plugins.xsmsg = L.extend({
 		timeout: 30000, //连接超时时间，毫秒
@@ -310,6 +339,14 @@ loader.loaderFun((option) => {
 		connTimeout: 30000, //连接超时时间，毫秒
 		sleepTimeout: 20, //连接检测的休眠时间，毫秒
 	}, option.plugins.ifmsg);
+
+	//自动后缀处理
+	option.plugins.autoPluginsDeal = function(deps) {
+		this.css.autoDeal(deps);
+		this.text.autoDeal(deps);
+		this.json.autoDeal(deps);
+		this.image.autoDeal(deps);
+	};
 
 	if (!L.endsWith(option.baseUrl, "/")) {
 		option.baseUrl += "/";

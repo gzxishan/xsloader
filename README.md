@@ -18,8 +18,12 @@ npm run build:all
 ## 发布记录
 ### v进行中
 1. 完善对`htmv`的支持；
-2. 当导入`css`、`scss`、`sass`、`less`后缀名的样式时，自动添加`css!`前缀；
-3. 配合`xsloader4j`支持`.jsr`,`.htmr_jsr`；
+2. 配合`xsloader4j`支持`.jsr`,`.htmr_jsr`；
+3. 当导入`[".css",".scss",".sass",".less"]`后缀名的样式时，自动添加`css!`前缀；
+4. 当导入`[".txt",".html",".htm",".svg"]`时自动添加`text!前缀`；
+5. 当导入`[".json"]`时自动添加`json!前缀`；
+6. 当导入`[".jpg",".jpeg",".png",".bmp",".gif","webp"]`时自动添加`image!前缀`；
+
 
 ### v1.1.45 2021/05/14
 1. 加入`xsloader.__ignoreCurrentRequireDep`属性，配合`xsloader4j`，优化处理速度；

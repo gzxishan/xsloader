@@ -42,11 +42,23 @@
 		},
 		css:{
 			inverse:true,//是否逆向添加css：不同模块间添加style的顺序是与依赖顺序相反的，如A（内部加载A.css）依赖B（内部加载B.css），则在head中A.css在B.css的后面
-			autoCss:true,
+			auto:true,
 			autoExts:[".css",".scss",".sass",".less"]
+		},
+		text:{
+			auto:true,
+			autoDefault:true,
+			autoExts:[".txt",".html",".htm",".svg"]
+		},
+		json:{
+			auto:true,
+			autoDefault:true,
+			autoExts:[".json"]
 		},
 		image:{
 			timeout:10000,//超时时间，毫秒
+			auto:true,
+			autoExts:[".jpg",".jpeg",".png",".bmp",".gif","webp"]
 		},
 		xsmsg:{
 			timeout:30000,//全局默认连接超时时间，毫秒

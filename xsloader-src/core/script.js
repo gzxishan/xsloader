@@ -398,8 +398,8 @@ class DefineObject {
 			U.appendInnerDeps(deps, callback);
 		}
 
-		//对于css,scss,sass,less等自动添加css!
-		config && config.plugins.css.autoCssDeal(deps);
+		//自动插件处理
+		config && config.plugins.autoPluginsDeal(deps);
 
 		this.selfname = selfname;
 		this.deps = deps;
@@ -848,9 +848,9 @@ function prerequire(deps, callback) {
 		let originDep = deps;
 		let oneDep = deps;
 		
-		{//对于css,scss,sass,less等自动添加css!
+		{//自动插件处理
 			let arr = [oneDep];
-			config.plugins.css.autoCssDeal(arr);
+			config.plugins.autoPluginsDeal(arr);
 			oneDep = arr[0];
 		}
 		
