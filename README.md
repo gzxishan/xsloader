@@ -1,3 +1,6 @@
+# 【重要】项目已转移的码云进行维护
+最新进展（latest）[前往](https://gitee.com/xishankeji/xsloader)
+
 # xsloader
 xsloader is a JavaScript file and module loader like requirejs but not requirejs[]()
 ## Documentation:[Wiki](//github.com/gzxishan/xsloader/wiki)
